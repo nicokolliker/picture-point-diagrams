@@ -450,11 +450,10 @@ function EditorPage() {
   );
 }
 
-/* -------------------- Pinned popup → shape connector overlay -------------------- */
+/* -------------------- Popup → shape connector overlay -------------------- */
 function PinnedConnectorsOverlay({ pinnedIds }: { pinnedIds: string[] }) {
   const [, force] = useState(0);
   useEffect(() => {
-    if (pinnedIds.length === 0) return;
     let raf = 0;
     const loop = () => {
       force((n) => (n + 1) % 1000000);
@@ -462,36 +461,33 @@ function PinnedConnectorsOverlay({ pinnedIds }: { pinnedIds: string[] }) {
     };
     raf = requestAnimationFrame(loop);
     return () => cancelAnimationFrame(raf);
-  }, [pinnedIds.length]);
-  if (pinnedIds.length === 0) return null;
+  }, []);
+  if (typeof document === "undefined") return null;
+  const popups = Array.from(document.querySelectorAll<HTMLElement>("[data-popup-for]"));
+  if (popups.length === 0) return null;
+  void pinnedIds;
   return (
     <svg className="pointer-events-none fixed inset-0 z-40 h-full w-full">
-      {pinnedIds.map((id) => {
+      {popups.map((popup) => {
+        const id = popup.getAttribute("data-popup-for");
+        if (!id) return null;
         const shape = document.querySelector(`[data-shape-id="${id}"]`) as HTMLElement | null;
-        const popup = document.querySelector(`[data-pinned-popup-for="${id}"]`) as HTMLElement | null;
-        if (!shape || !popup) return null;
+        if (!shape) return null;
         const s = shape.getBoundingClientRect();
         const p = popup.getBoundingClientRect();
         const sc = { x: s.left + s.width / 2, y: s.top + s.height / 2 };
         const pc = { x: p.left + p.width / 2, y: p.top + p.height / 2 };
 
-        // Determine nearest edge midpoints based on relative position.
         const dx = pc.x - sc.x;
         const dy = pc.y - sc.y;
         let sx: number, sy: number, ex: number, ey: number;
-        let horizontal = Math.abs(dx) >= Math.abs(dy);
+        const horizontal = Math.abs(dx) >= Math.abs(dy);
         if (horizontal) {
-          if (dx >= 0) {
-            sx = s.right; sy = sc.y; ex = p.left; ey = pc.y;
-          } else {
-            sx = s.left; sy = sc.y; ex = p.right; ey = pc.y;
-          }
+          if (dx >= 0) { sx = s.right; sy = sc.y; ex = p.left; ey = pc.y; }
+          else { sx = s.left; sy = sc.y; ex = p.right; ey = pc.y; }
         } else {
-          if (dy >= 0) {
-            sx = sc.x; sy = s.bottom; ex = pc.x; ey = p.top;
-          } else {
-            sx = sc.x; sy = s.top; ex = pc.x; ey = p.bottom;
-          }
+          if (dy >= 0) { sx = sc.x; sy = s.bottom; ex = pc.x; ey = p.top; }
+          else { sx = sc.x; sy = s.top; ex = pc.x; ey = p.bottom; }
         }
 
         const offset = 80;
