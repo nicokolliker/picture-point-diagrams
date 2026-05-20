@@ -2245,7 +2245,7 @@ function SummaryPanel({
     tone === "red" ? "#DC2626" : tone === "amber" ? "#F59E0B" : "#3B82F6";
 
   const sectionHeader =
-    "mb-2 mt-5 text-[12px] font-semibold uppercase tracking-wider text-[#9CA3AF] first:mt-0";
+    "mb-3 mt-4 text-[12px] font-semibold uppercase tracking-wider text-[#9CA3AF] first:mt-0";
 
   const [fullscreen, setFullscreen] = useState(false);
 
@@ -2306,7 +2306,7 @@ function SummaryPanel({
           )}
         </div>
 
-        <div className="mt-5 h-px bg-[#EBEBEB]" />
+        <div className="my-6 h-px bg-[#EBEBEB]" />
 
         <div>
           <div className={sectionHeader}>Oportunidades de mejora</div>
@@ -2361,7 +2361,7 @@ function SummaryPanel({
           )}
         </div>
 
-        <div className="mt-5 h-px bg-[#EBEBEB]" />
+        <div className="my-6 h-px bg-[#EBEBEB]" />
 
         {/* Documentación faltante */}
         <div>
