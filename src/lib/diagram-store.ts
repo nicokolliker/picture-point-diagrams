@@ -92,10 +92,42 @@ function mutPage(
 
 export const useDiagramStore = create<State>()(
   persist(
-    (set, get) => ({
+    (set, get) => {
+      const MAX_HIST = 50;
+      const commit = (newDocs: DiagramDocument[]) => {
+        const cur = get().documents;
+        const past = [...get().past, cur];
+        if (past.length > MAX_HIST) past.shift();
+        set({ documents: newDocs, past, future: [] });
+      };
+      return ({
       documents: [],
       uploads: [],
       people: [],
+      past: [],
+      future: [],
+      undo: () => {
+        const past = get().past;
+        if (past.length === 0) return;
+        const prev = past[past.length - 1];
+        set({
+          documents: prev,
+          past: past.slice(0, -1),
+          future: [get().documents, ...get().future].slice(0, MAX_HIST),
+        });
+      },
+      redo: () => {
+        const future = get().future;
+        if (future.length === 0) return;
+        const next = future[0];
+        set({
+          documents: next,
+          future: future.slice(1),
+          past: [...get().past, get().documents].slice(-MAX_HIST),
+        });
+      },
+      canUndo: () => get().past.length > 0,
+      canRedo: () => get().future.length > 0,
       addPerson: (name, role) => {
         const trimmed = name.trim();
         const existing = get().people.find(
