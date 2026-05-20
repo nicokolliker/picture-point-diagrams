@@ -1617,6 +1617,41 @@ function ShapeNode({
   const hideTimer = useRef<number | null>(null);
   const nodeRef = useRef<HTMLDivElement>(null);
   const [popupPos, setPopupPos] = useState<{ left: number; top: number } | null>(null);
+  const [dragPos, setDragPos] = useState<{ left: number; top: number } | null>(null);
+  const [dragging, setDragging] = useState(false);
+
+  // Reset drag position when unpinned
+  useEffect(() => {
+    if (!pinned) setDragPos(null);
+  }, [pinned]);
+
+  const onDragHandleDown = useCallback(
+    (e: React.PointerEvent<HTMLDivElement>) => {
+      e.stopPropagation();
+      e.preventDefault();
+      const startX = e.clientX;
+      const startY = e.clientY;
+      const origin = dragPos ?? popupPos;
+      if (!origin) return;
+      const startLeft = origin.left;
+      const startTop = origin.top;
+      setDragging(true);
+      const onMove = (ev: PointerEvent) => {
+        setDragPos({
+          left: startLeft + (ev.clientX - startX),
+          top: startTop + (ev.clientY - startY),
+        });
+      };
+      const onUp = () => {
+        setDragging(false);
+        window.removeEventListener("pointermove", onMove);
+        window.removeEventListener("pointerup", onUp);
+      };
+      window.addEventListener("pointermove", onMove);
+      window.addEventListener("pointerup", onUp);
+    },
+    [dragPos, popupPos],
+  );
 
   const computePos = useCallback(() => {
     const rect = nodeRef.current?.getBoundingClientRect();
