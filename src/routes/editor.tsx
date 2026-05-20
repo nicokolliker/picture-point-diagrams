@@ -1301,14 +1301,28 @@ function ImprovementList({
           {entries
             .slice()
             .sort((a, b) => b.date - a.date)
-            .map((e) => (
-              <li
-                key={e.id}
-                className="flowit-entry group space-y-1 rounded-md border border-[#EBEBEB] bg-white px-2 py-1.5"
-              >
-                <div className="flex items-start gap-2">
-                  <div className="min-w-0 flex-1 break-words text-[12px] leading-snug text-[#111827]">
-                    {e.text}
+            .map((e) => {
+              const dominant = e.categories[0];
+              const dotMeta = dominant ? CATEGORY_META[dominant] : null;
+              const tooltip =
+                e.categories.length > 0
+                  ? e.categories.map((c) => CATEGORY_META[c].label).join(", ")
+                  : "Sin categoría";
+              return (
+                <li
+                  key={e.id}
+                  className="flowit-entry group flex items-start gap-2 rounded-md border border-[#EBEBEB] bg-white px-2 py-1.5"
+                  title={tooltip}
+                >
+                  <span
+                    className="mt-1 h-2 w-2 shrink-0 rounded-full"
+                    style={{ background: dotMeta?.fg ?? "#D1D5DB" }}
+                  />
+                  <div className="min-w-0 flex-1">
+                    <div className="break-words text-[12px] leading-snug text-[#111827]">
+                      {e.text}
+                    </div>
+                    <div className="text-[10px] text-[#9CA3AF]">{formatDate(e.date)}</div>
                   </div>
                   <button
                     onClick={() => deleteImprovement(docId, pageId, shape.id, e.id)}
@@ -1317,27 +1331,10 @@ function ImprovementList({
                   >
                     <Trash2 className="h-3.5 w-3.5 text-[#DC2626]" />
                   </button>
-                </div>
-                <div className="flex flex-wrap gap-1">
-                  {ALL_CATEGORIES.map((c) => (
-                    <CategoryToggle
-                      key={c}
-                      cat={c}
-                      active={e.categories.includes(c)}
-                      onClick={() => {
-                        const next = e.categories.includes(c)
-                          ? e.categories.filter((x) => x !== c)
-                          : [...e.categories, c];
-                        updateImprovement(docId, pageId, shape.id, e.id, {
-                          categories: next,
-                        });
-                      }}
-                    />
-                  ))}
-                </div>
-                <div className="text-[10px] text-[#9CA3AF]">{formatDate(e.date)}</div>
-              </li>
-            ))}
+                </li>
+              );
+            })}
+
         </ul>
       )}
     </div>
