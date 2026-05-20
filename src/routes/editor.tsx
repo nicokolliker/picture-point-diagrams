@@ -3747,7 +3747,8 @@ interface ShapeNodeProps {
   onContextAction: (
     a: "editText" | "delete" | "front" | "back" | "duplicate" | "assignImage",
   ) => void;
-  onOpenSubProcess?: (pageId: string) => void;
+  onSubProcessIconClick: () => void;
+  subPanelState?: "open" | "minimized";
 }
 
 
@@ -3771,7 +3772,8 @@ function ShapeNode({
   onQuickAdd,
   onQuickAddHover,
   onContextAction,
-  onOpenSubProcess,
+  onSubProcessIconClick,
+  subPanelState,
 }: ShapeNodeProps) {
 
   const [hovered, setHovered] = useState(false);
