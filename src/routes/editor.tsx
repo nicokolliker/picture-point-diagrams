@@ -62,14 +62,12 @@ import type {
   Prioridad,
   Shape,
   ShapeType,
-  Status,
 } from "@/lib/shape-types";
 import {
   CATEGORY_META,
   DIAGNOSTICO_META,
   DOC_TYPES,
   PRIORIDAD_META,
-  STATUS_COLORS,
 } from "@/lib/shape-types";
 import { cn } from "@/lib/utils";
 
