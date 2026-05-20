@@ -2557,11 +2557,90 @@ function CanvasArea({
       const w = screenToWorld(e.clientX, e.clientY);
       const dx = w.x - dragging.startX;
       const dy = w.y - dragging.startY;
+      // Smart alignment: compute against the FIRST dragged shape's bounds, snap whole group.
+      const SNAP = 6;
+      const firstId = dragging.ids[0];
+      const firstOrig = dragging.orig[firstId];
+      const first = page.shapes.find((s) => s.id === firstId);
+      let snapDX = 0;
+      let snapDY = 0;
+      const guides: { orient: "h" | "v"; pos: number }[] = [];
+      if (first) {
+        const movedLeft = firstOrig.x + dx;
+        const movedTop = firstOrig.y + dy;
+        const movedRight = movedLeft + first.width;
+        const movedBottom = movedTop + first.height;
+        const movedCX = movedLeft + first.width / 2;
+        const movedCY = movedTop + first.height / 2;
+        const others = page.shapes.filter((s) => !dragging.ids.includes(s.id));
+        let bestVx: { delta: number; pos: number } | null = null;
+        let bestHy: { delta: number; pos: number } | null = null;
+        for (const o of others) {
+          const oXs = [o.x, o.x + o.width / 2, o.x + o.width];
+          const oYs = [o.y, o.y + o.height / 2, o.y + o.height];
+          for (const tx of oXs) {
+            for (const m of [movedLeft, movedCX, movedRight]) {
+              const d = tx - m;
+              if (Math.abs(d) <= SNAP && (!bestVx || Math.abs(d) < Math.abs(bestVx.delta))) {
+                bestVx = { delta: d, pos: tx };
+              }
+            }
+          }
+          for (const ty of oYs) {
+            for (const m of [movedTop, movedCY, movedBottom]) {
+              const d = ty - m;
+              if (Math.abs(d) <= SNAP && (!bestHy || Math.abs(d) < Math.abs(bestHy.delta))) {
+                bestHy = { delta: d, pos: ty };
+              }
+            }
+          }
+        }
+        if (bestVx) {
+          snapDX = bestVx.delta;
+          // collect all guides matching after snap
+          const finalLeft = movedLeft + snapDX;
+          const finalRight = finalLeft + first.width;
+          const finalCX = finalLeft + first.width / 2;
+          for (const o of others) {
+            for (const tx of [o.x, o.x + o.width / 2, o.x + o.width]) {
+              if (
+                Math.abs(tx - finalLeft) < 0.5 ||
+                Math.abs(tx - finalRight) < 0.5 ||
+                Math.abs(tx - finalCX) < 0.5
+              ) {
+                if (!guides.find((g) => g.orient === "v" && g.pos === tx))
+                  guides.push({ orient: "v", pos: tx });
+              }
+            }
+          }
+        }
+        if (bestHy) {
+          snapDY = bestHy.delta;
+          const finalTop = movedTop + snapDY;
+          const finalBottom = finalTop + first.height;
+          const finalCY = finalTop + first.height / 2;
+          for (const o of others) {
+            for (const ty of [o.y, o.y + o.height / 2, o.y + o.height]) {
+              if (
+                Math.abs(ty - finalTop) < 0.5 ||
+                Math.abs(ty - finalBottom) < 0.5 ||
+                Math.abs(ty - finalCY) < 0.5
+              ) {
+                if (!guides.find((g) => g.orient === "h" && g.pos === ty))
+                  guides.push({ orient: "h", pos: ty });
+              }
+            }
+          }
+        }
+      }
+      setAlignGuides(guides);
+      const adx = dx + snapDX;
+      const ady = dy + snapDY;
       dragging.ids.forEach((id) => {
         const o = dragging.orig[id];
         useDiagramStore.getState().updateShape(docId, page.id, id, {
-          x: snap(o.x + dx),
-          y: snap(o.y + dy),
+          x: snapDX !== 0 ? Math.round(o.x + adx) : snap(o.x + dx),
+          y: snapDY !== 0 ? Math.round(o.y + ady) : snap(o.y + dy),
         });
       });
       return;
