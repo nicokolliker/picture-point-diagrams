@@ -110,8 +110,8 @@ export const useDiagramStore = create<State>()(
         const past = get().past;
         if (past.length === 0) return;
         const prev = past[past.length - 1];
-        commit(
-          prev,
+        set({
+          documents: prev,
           past: past.slice(0, -1),
           future: [get().documents, ...get().future].slice(0, MAX_HIST),
         });
