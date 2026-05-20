@@ -1797,32 +1797,12 @@ function DocPreviewModal({ doc, onClose }: { doc: DocEntry; onClose: () => void 
         </div>
         <div className="flex-1 min-h-0 overflow-auto bg-[#F9FAFB]">
           {isPdf && (
-            <div className="flex h-full flex-col">
-              {pdfSrc && !pdfFailed && (
-                <iframe
-                  src={pdfSrc}
-                  title={doc.name}
-                  className="w-full flex-1 border-0"
-                />
-              )}
-              {(pdfFailed || !pdfSrc) && (
-                <div className="flex flex-1 flex-col items-center justify-center gap-3 p-8 text-center">
-                  <FileText className="h-10 w-10 text-[#6B7280]" />
-                  <div className="text-sm text-[#374151]">No se puede previsualizar</div>
-                  {downloadHref && (
-                    <a
-                      href={downloadHref}
-                      download={downloadName}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="inline-flex items-center gap-1.5 rounded-md bg-[#5B6CF8] px-3 py-1.5 text-xs font-medium text-white hover:bg-[#4854d1]"
-                    >
-                      <Download className="h-3.5 w-3.5" /> Descargar PDF
-                    </a>
-                  )}
-                </div>
-              )}
-            </div>
+            <PdfCanvasViewer
+              src={pdfBlobUrl ?? doc.url ?? null}
+              failed={pdfFailed}
+              downloadHref={downloadHref}
+              downloadName={downloadName}
+            />
           )}
           {isImage && doc.fileDataUrl && (
             <img
