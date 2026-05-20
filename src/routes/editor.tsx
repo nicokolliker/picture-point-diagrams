@@ -4033,29 +4033,33 @@ function ShapeNode({
         </ContextMenuContent>
       </ContextMenu>
 
-      {/* Quick-add (+) button below shape */}
-      {showQuickAdd && shape.type !== "text" && (
-        <button
-          onPointerDown={(e) => e.stopPropagation()}
-          onClick={(e) => {
-            e.stopPropagation();
-            onQuickAdd();
-          }}
-          onMouseEnter={() => setQaHover(true)}
-          onMouseLeave={() => setQaHover(false)}
-          className="flowit-fade-in absolute flex items-center justify-center rounded-full border-2 border-[#5B6CF8] bg-white text-[#5B6CF8] hover:bg-[#EEF0FF]"
-          style={{
-            left: shape.x + shape.width / 2 - 12,
-            top: shape.y + shape.height + 16,
-            width: 24,
-            height: 24,
-            zIndex: 9998,
-          }}
-          title="Add connected shape"
-        >
-          <Plus className="h-4 w-4" />
-        </button>
-      )}
+      {/* Quick-add (+) button on edge nearest mouse */}
+      {showQuickAdd && shape.type !== "text" && (() => {
+        const SIZE = 24;
+        const OFFSET = 8;
+        let left = shape.x + shape.width / 2 - SIZE / 2;
+        let top = shape.y + shape.height / 2 - SIZE / 2;
+        if (qaEdge === "bottom") top = shape.y + shape.height + OFFSET;
+        else if (qaEdge === "top") top = shape.y - OFFSET - SIZE;
+        else if (qaEdge === "right") left = shape.x + shape.width + OFFSET;
+        else if (qaEdge === "left") left = shape.x - OFFSET - SIZE;
+        return (
+          <button
+            onPointerDown={(e) => e.stopPropagation()}
+            onClick={(e) => {
+              e.stopPropagation();
+              onQuickAdd(qaEdge);
+            }}
+            onMouseEnter={() => setQaHover(true)}
+            onMouseLeave={() => setQaHover(false)}
+            className="flowit-fade-in absolute flex items-center justify-center rounded-full border-2 border-[#5B6CF8] bg-white text-[#5B6CF8] hover:bg-[#EEF0FF]"
+            style={{ left, top, width: SIZE, height: SIZE, zIndex: 9998 }}
+            title="Add connected shape"
+          >
+            <Plus className="h-4 w-4" />
+          </button>
+        );
+      })()}
 
       {/* HOVER POPUP */}
       {showPopup && popupPos && (
