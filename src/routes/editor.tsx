@@ -3204,16 +3204,30 @@ function ShapeNode({
           )}
           <div className="relative shrink-0">
             {shape.imageDataUrl ? (
-              <img
-                src={shape.imageDataUrl}
-                alt={shape.title}
-                className="block w-full object-cover"
-                style={{ height: pinned ? Math.min(240, ((popupSize?.w ?? 320) * 9) / 16) : 160 }}
-                draggable={false}
-                onError={(e) => {
-                  (e.currentTarget as HTMLImageElement).style.display = "none";
+              <div
+                className="group/img relative cursor-zoom-in"
+                onClick={(e) => {
+                  if (!pinned) return;
+                  e.stopPropagation();
+                  setLightbox(true);
                 }}
-              />
+              >
+                <img
+                  src={shape.imageDataUrl}
+                  alt={shape.title}
+                  className="block w-full object-cover"
+                  style={{ height: pinned ? Math.min(240, ((popupSize?.w ?? 320) * 9) / 16) : 160 }}
+                  draggable={false}
+                  onError={(e) => {
+                    (e.currentTarget as HTMLImageElement).style.display = "none";
+                  }}
+                />
+                {pinned && (
+                  <div className="pointer-events-none absolute bottom-2 right-2 flex h-7 w-7 items-center justify-center rounded-full bg-black/60 text-white opacity-0 transition-opacity group-hover/img:opacity-100">
+                    <ZoomIn className="h-3.5 w-3.5" />
+                  </div>
+                )}
+              </div>
             ) : (
               <div className="flex h-[110px] w-full flex-col items-center justify-center gap-2 border-b border-dashed border-[#D0D0D0] bg-[#FAFAFA] text-[#9CA3AF]">
                 <Camera className="h-6 w-6" />
