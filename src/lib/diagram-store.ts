@@ -398,7 +398,8 @@ export const useDiagramStore = create<State>()(
             );
           }),
         }),
-    }),
+    });
+    },
     { name: "flowit-store" },
   ),
 );
