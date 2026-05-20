@@ -3871,17 +3871,25 @@ function ShapeNode({
       })()}
       {selected && (
         <div
-          className="pointer-events-none absolute"
+          className="absolute"
           style={{
             left: shape.x - 2,
             top: shape.y - 2,
             width: shape.width + 4,
             height: shape.height + 4,
-            border: "2px solid #5B6CF8",
-            borderRadius: shape.cornerStyle === "rounded" ? 10 : 0,
             zIndex: 9999,
+            pointerEvents: "none",
           }}
         >
+          {/* Border (non-interactive) */}
+          <div
+            className="absolute inset-0"
+            style={{
+              border: "2px solid #5B6CF8",
+              borderRadius: shape.cornerStyle === "rounded" ? 10 : 0,
+              pointerEvents: "none",
+            }}
+          />
           {(
             [
               ["nw", 0, 0],
@@ -3894,11 +3902,41 @@ function ShapeNode({
               ["w", 0, 0.5],
             ] as const
           ).map(([k, fx, fy]) => {
-            const isConn = k === "e" || k === "s";
+            const CURSORS: Record<string, string> = {
+              nw: "nw-resize", n: "n-resize", ne: "ne-resize", e: "e-resize",
+              se: "se-resize", s: "s-resize", sw: "sw-resize", w: "w-resize",
+            };
             return (
               <div
                 key={k}
-                onPointerDown={isConn ? (ev) => onStartConnector(ev) : undefined}
+                onPointerDown={(e) => {
+                  e.stopPropagation();
+                  e.preventDefault();
+                  const startX = e.clientX;
+                  const startY = e.clientY;
+                  const orig = { x: shape.x, y: shape.y, w: shape.width, h: shape.height };
+                  const MIN = 60;
+                  const onMove = (ev: PointerEvent) => {
+                    const dx = (ev.clientX - startX) / zoom;
+                    const dy = (ev.clientY - startY) / zoom;
+                    let { x, y, w, h } = orig;
+                    if (k === "e" || k === "ne" || k === "se") w = Math.max(MIN, orig.w + dx);
+                    if (k === "w" || k === "nw" || k === "sw") { x = orig.x + dx; w = Math.max(MIN, orig.w - dx); }
+                    if (k === "s" || k === "se" || k === "sw") h = Math.max(MIN, orig.h + dy);
+                    if (k === "n" || k === "ne" || k === "nw") { y = orig.y + dy; h = Math.max(MIN, orig.h - dy); }
+                    useDiagramStore.getState().updateShape(docId, pageId, shape.id, {
+                      x: Math.round(x), y: Math.round(y),
+                      width: Math.round(w), height: Math.round(h),
+                    });
+                  };
+                  const onUp = () => {
+                    window.removeEventListener("pointermove", onMove);
+                    window.removeEventListener("pointerup", onUp);
+                  };
+                  window.addEventListener("pointermove", onMove);
+                  window.addEventListener("pointerup", onUp);
+                  try { (e.currentTarget as Element).setPointerCapture?.(e.pointerId); } catch {}
+                }}
                 style={{
                   position: "absolute",
                   left: `${fx * 100}%`,
@@ -3908,16 +3946,17 @@ function ShapeNode({
                   background: "white",
                   border: "1px solid #5B6CF8",
                   transform: "translate(-50%, -50%)",
-                  pointerEvents: isConn ? "auto" : "none",
-                  cursor: isConn ? "crosshair" : "default",
-                  borderRadius: isConn ? 9999 : 0,
+                  pointerEvents: "auto",
+                  cursor: CURSORS[k],
+                  borderRadius: 2,
+                  zIndex: 10001,
                 }}
-                title={isConn ? "Drag to connect" : undefined}
               />
             );
           })}
         </div>
       )}
+
       <ContextMenu>
         <ContextMenuTrigger asChild>
           <div
