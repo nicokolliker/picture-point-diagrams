@@ -1611,6 +1611,7 @@ function CanvasArea({
               useDiagramStore.getState().updateShape(docId, page.id, s.id, { text });
               setEditingTextId(null);
             }}
+            onSelectShape={() => setSelectedIds([s.id])}
             onStartConnector={(e) => {
               e.stopPropagation();
               const w = screenToWorld(e.clientX, e.clientY);
