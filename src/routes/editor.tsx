@@ -79,6 +79,7 @@ import {
   PRIORIDAD_META,
 } from "@/lib/shape-types";
 import { cn } from "@/lib/utils";
+import { PdfCanvasViewer } from "@/components/pdf-canvas-viewer";
 
 interface EditorSearch {
   doc?: string;
