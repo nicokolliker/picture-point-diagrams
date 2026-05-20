@@ -20,7 +20,6 @@ import {
   Maximize2,
   GripVertical,
   Pin,
-  PinOff,
   Plus,
   Search,
   Share2,
