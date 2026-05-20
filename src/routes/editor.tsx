@@ -3756,6 +3756,7 @@ interface ShapeNodeProps {
   onContextAction: (
     a: "editText" | "delete" | "front" | "back" | "duplicate" | "assignImage",
   ) => void;
+  onOpenSubProcess?: (pageId: string) => void;
 }
 
 
@@ -3779,6 +3780,7 @@ function ShapeNode({
   onQuickAdd,
   onQuickAddHover,
   onContextAction,
+  onOpenSubProcess,
 }: ShapeNodeProps) {
 
   const [hovered, setHovered] = useState(false);
