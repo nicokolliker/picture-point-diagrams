@@ -1020,10 +1020,9 @@ function RightPanel({
         </div>
         <div className="space-y-1.5">
           <Label className="text-xs text-[#6B7280]">Responsable</Label>
-          <Input
-            value={shape.responsable}
-            onChange={(e) => onChange({ responsable: e.target.value })}
-            className="h-8 text-sm"
+          <PeoplePicker
+            selectedIds={shape.responsableIds ?? []}
+            onChange={(ids) => onChange({ responsableIds: ids })}
           />
         </div>
 
