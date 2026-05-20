@@ -1388,7 +1388,7 @@ function CanvasArea({
 
       {/* Hint */}
       <div className="pointer-events-none absolute bottom-3 left-3 rounded-md bg-white/90 px-2 py-1 text-[11px] text-[#6B7280] shadow-sm">
-        Hold <kbd className="rounded bg-[#F3F4F6] px-1">Space</kbd> + drag to pan · Scroll to zoom · Hover shapes for preview
+        Hold <kbd className="rounded bg-[#F3F4F6] px-1">Space</kbd> + drag to pan · Two-finger scroll to pan · <kbd className="rounded bg-[#F3F4F6] px-1">⌘</kbd> + scroll to zoom · Hover shapes for preview
       </div>
     </div>
   );
