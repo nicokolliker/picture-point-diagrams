@@ -3557,6 +3557,9 @@ function ShapeNode({
   const hideTimer = useRef<number | null>(null);
   const nodeRef = useRef<HTMLDivElement>(null);
   const [popupPos, setPopupPos] = useState<{ left: number; top: number } | null>(null);
+  const [popupSide, setPopupSide] = useState<"top" | "bottom" | "left" | "right" | null>(null);
+  const mouseRef = useRef<{ x: number; y: number }>({ x: 0, y: 0 });
+  const [qaEdge, setQaEdge] = useState<"top" | "bottom" | "left" | "right">("bottom");
   const [dragPos, setDragPos] = useState<{ left: number; top: number } | null>(null);
   const [dragging, setDragging] = useState(false);
   const [lightbox, setLightbox] = useState(false);
