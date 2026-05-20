@@ -33,6 +33,7 @@ import {
   Underline,
   Upload,
   X,
+  ZoomIn,
   AlignLeft,
   AlignCenter,
   AlignRight,
