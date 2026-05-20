@@ -1430,9 +1430,9 @@ function SummaryPanel({
 }) {
   const entries = page.shapes
     .flatMap((s) =>
-      (s.changes ?? []).map((c) => ({ shape: s, change: c })),
+      (s.improvementEntries ?? []).map((e) => ({ shape: s, entry: e })),
     )
-    .sort((a, b) => b.change.date - a.change.date);
+    .sort((a, b) => b.entry.date - a.entry.date);
   return (
     <div className="flex h-full flex-col">
       <div className="border-b border-[#EBEBEB] p-3">
@@ -1444,17 +1444,17 @@ function SummaryPanel({
       <div className="flex-1 space-y-4 overflow-y-auto p-3">
         <div>
           <div className="mb-1.5 text-[11px] font-semibold uppercase tracking-wide text-[#6B7280]">
-            Cambios sugeridos
+            Oportunidades de mejora
           </div>
           {entries.length === 0 ? (
             <div className="rounded-md border border-dashed border-[#E5E7EB] p-4 text-center text-xs text-[#9CA3AF]">
-              Aún no hay cambios sugeridos.
+              Aún no hay oportunidades de mejora.
             </div>
           ) : (
             <ul className="space-y-2">
-              {entries.map(({ shape, change }) => (
+              {entries.map(({ shape, entry }) => (
                 <li
-                  key={change.id}
+                  key={entry.id}
                   className="rounded-md border border-[#EBEBEB] bg-white p-2.5 hover:border-[#5B6CF8]"
                 >
                   <button
@@ -1471,9 +1471,26 @@ function SummaryPanel({
                     <span className="truncate">{shape.title || shape.text}</span>
                   </button>
                   <div className="break-words text-[12px] leading-snug text-[#111827]">
-                    {change.text}
+                    {entry.text}
                   </div>
-                  <div className="mt-1 text-[10px] text-[#9CA3AF]">{formatDate(change.date)}</div>
+                  {entry.categories.length > 0 && (
+                    <div className="mt-1 flex flex-wrap gap-1">
+                      {entry.categories.map((c) => {
+                        const m = CATEGORY_META[c];
+                        return (
+                          <span
+                            key={c}
+                            className="inline-flex items-center gap-0.5 rounded-full px-1.5 py-0.5 text-[9px] font-medium"
+                            style={{ background: m.bg, color: m.fg }}
+                          >
+                            <span>{m.icon}</span>
+                            {m.label}
+                          </span>
+                        );
+                      })}
+                    </div>
+                  )}
+                  <div className="mt-1 text-[10px] text-[#9CA3AF]">{formatDate(entry.date)}</div>
                 </li>
               ))}
             </ul>
