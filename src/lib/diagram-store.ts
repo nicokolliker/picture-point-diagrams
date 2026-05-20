@@ -9,6 +9,7 @@ import type {
   ImprovementCategory,
   ImprovementEntry,
   Page,
+  Person,
   Shape,
   ShapeType,
   Status,
