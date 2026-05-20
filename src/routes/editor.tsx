@@ -1759,10 +1759,11 @@ function DocPreviewModal({ doc, onClose }: { doc: DocEntry; onClose: () => void 
 
   const [pdfBlobUrl, setPdfBlobUrl] = useState<string | null>(null);
   const [pdfFailed, setPdfFailed] = useState(false);
-  const [pdfLoaded, setPdfLoaded] = useState(false);
 
   // Convert base64 PDF → Blob URL (iframes don't reliably accept huge data: URIs).
   useEffect(() => {
+    setPdfBlobUrl(null);
+    setPdfFailed(false);
     if (!isPdf || !doc.fileDataUrl) return;
     try {
       const comma = doc.fileDataUrl.indexOf(",");
@@ -1779,17 +1780,10 @@ function DocPreviewModal({ doc, onClose }: { doc: DocEntry; onClose: () => void 
     }
   }, [isPdf, doc.fileDataUrl]);
 
-  // Fallback timeout: if iframe doesn't load within 2s, show fallback.
-  useEffect(() => {
-    if (!isPdf || !pdfBlobUrl) return;
-    const t = window.setTimeout(() => {
-      if (!pdfLoaded) setPdfFailed(true);
-    }, 2000);
-    return () => clearTimeout(t);
-  }, [isPdf, pdfBlobUrl, pdfLoaded]);
-
   const downloadHref = doc.fileDataUrl ?? doc.url;
   const downloadName = doc.fileName || doc.name || "documento";
+  // Source the iframe can render: prefer the uploaded file blob, fall back to the external URL.
+  const pdfSrc = pdfBlobUrl ?? (doc.url || null);
 
   return (
     <div
@@ -1797,7 +1791,7 @@ function DocPreviewModal({ doc, onClose }: { doc: DocEntry; onClose: () => void 
       onClick={onClose}
     >
       <div
-        className="flex max-h-[90vh] w-full max-w-[900px] flex-col overflow-hidden rounded-lg bg-white shadow-2xl"
+        className="flex max-h-[90vh] h-[90vh] w-full max-w-[900px] flex-col overflow-hidden rounded-lg bg-white shadow-2xl"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-center justify-between border-b border-[#EBEBEB] px-4 py-2.5">
@@ -1816,42 +1810,31 @@ function DocPreviewModal({ doc, onClose }: { doc: DocEntry; onClose: () => void 
             <X className="h-4 w-4" />
           </button>
         </div>
-        <div className="flex-1 overflow-auto bg-[#F9FAFB]">
+        <div className="flex-1 min-h-0 overflow-auto bg-[#F9FAFB]">
           {isPdf && (
-            <div className="flex flex-col">
-              {pdfBlobUrl && !pdfFailed && (
+            <div className="flex h-full flex-col">
+              {pdfSrc && !pdfFailed && (
                 <iframe
-                  src={pdfBlobUrl}
+                  src={pdfSrc}
                   title={doc.name}
-                  onLoad={() => setPdfLoaded(true)}
-                  style={{ width: "100%", height: 500 }}
-                  className="border-0"
+                  className="w-full flex-1 border-0"
                 />
               )}
-              {pdfFailed && (
-                <div className="flex flex-col items-center justify-center gap-3 p-8 text-center">
+              {(pdfFailed || !pdfSrc) && (
+                <div className="flex flex-1 flex-col items-center justify-center gap-3 p-8 text-center">
                   <FileText className="h-10 w-10 text-[#6B7280]" />
                   <div className="text-sm text-[#374151]">No se puede previsualizar</div>
                   {downloadHref && (
                     <a
                       href={downloadHref}
                       download={downloadName}
+                      target="_blank"
+                      rel="noreferrer"
                       className="inline-flex items-center gap-1.5 rounded-md bg-[#5B6CF8] px-3 py-1.5 text-xs font-medium text-white hover:bg-[#4854d1]"
                     >
                       <Download className="h-3.5 w-3.5" /> Descargar PDF
                     </a>
                   )}
-                </div>
-              )}
-              {downloadHref && !pdfFailed && (
-                <div className="flex justify-end border-t border-[#EBEBEB] bg-white px-4 py-2">
-                  <a
-                    href={downloadHref}
-                    download={downloadName}
-                    className="inline-flex items-center gap-1.5 rounded-md border border-[#EBEBEB] px-2.5 py-1 text-[11px] font-medium text-[#374151] hover:bg-[#F3F4F6]"
-                  >
-                    <Download className="h-3 w-3" /> Descargar PDF
-                  </a>
                 </div>
               )}
             </div>
