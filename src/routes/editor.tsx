@@ -3517,6 +3517,7 @@ interface ShapeNodeProps {
   shape: Shape;
   docId: string;
   pageId: string;
+  zoom: number;
   pinned: boolean;
   onPin: () => void;
   onUnpin: () => void;
@@ -3528,10 +3529,12 @@ interface ShapeNodeProps {
   onStartConnector: (e: ReactPointerEvent<HTMLDivElement>) => void;
   onSelectShape: () => void;
   onQuickAdd: (edge: "top" | "bottom" | "left" | "right") => void;
+  onQuickAddHover: (edge: "top" | "bottom" | "left" | "right" | null) => void;
   onContextAction: (
     a: "editText" | "delete" | "front" | "back" | "duplicate" | "assignImage",
   ) => void;
 }
+
 
 function ShapeNode({
   shape,
