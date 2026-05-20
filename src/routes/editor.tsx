@@ -1306,53 +1306,6 @@ function RightPanel({
           <DocumentsSection docId={docId} pageId={pageId} shape={shape} onChange={onChange} />
         </div>
 
-        <div className="space-y-2">
-          <Label className="text-xs text-[#6B7280]">Sub-proceso</Label>
-          {shape.subProcessPageId ? (
-            <div className="flex flex-col gap-1.5">
-              <Button
-                variant="outline"
-                size="sm"
-                className="w-full justify-between text-[#5B6CF8]"
-                onClick={() => onOpenSubProcess(shape.subProcessPageId!)}
-              >
-                <span>Ver sub-proceso</span>
-                <span>→</span>
-              </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                className="w-full text-[#DC2626]"
-                onClick={() => {
-                  if (
-                    typeof window !== "undefined" &&
-                    !window.confirm(
-                      "¿Eliminar el sub-proceso? Se borrará la página y todo su contenido.",
-                    )
-                  )
-                    return;
-                  useDiagramStore.getState().deleteSubProcess(docId, pageId, shape.id);
-                }}
-              >
-                <Trash2 className="h-3.5 w-3.5" /> Eliminar sub-proceso
-              </Button>
-            </div>
-          ) : (
-            <Button
-              variant="outline"
-              size="sm"
-              className="w-full"
-              onClick={() => {
-                const newPageId = useDiagramStore
-                  .getState()
-                  .createSubProcess(docId, pageId, shape.id);
-                onOpenSubProcess(newPageId);
-              }}
-            >
-              <Plus className="h-3.5 w-3.5" /> Crear sub-proceso
-            </Button>
-          )}
-        </div>
 
 
 
