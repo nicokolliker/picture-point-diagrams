@@ -223,6 +223,103 @@ export const useDiagramStore = create<State>()(
             );
           }),
         }),
+      addImprovement: (docId, pageId, shapeId, text, categories = []) =>
+        set({
+          documents: mutPage(get().documents, docId, pageId, (p) => {
+            p.shapes = p.shapes.map((s) =>
+              s.id === shapeId
+                ? {
+                    ...s,
+                    improvementEntries: [
+                      ...(s.improvementEntries ?? []),
+                      {
+                        id: `im${Date.now()}${Math.floor(Math.random() * 1000)}`,
+                        text,
+                        categories,
+                        date: Date.now(),
+                      } as ImprovementEntry,
+                    ],
+                  }
+                : s,
+            );
+          }),
+        }),
+      updateImprovement: (docId, pageId, shapeId, entryId, patch) =>
+        set({
+          documents: mutPage(get().documents, docId, pageId, (p) => {
+            p.shapes = p.shapes.map((s) =>
+              s.id === shapeId
+                ? {
+                    ...s,
+                    improvementEntries: (s.improvementEntries ?? []).map((e) =>
+                      e.id === entryId ? { ...e, ...patch } : e,
+                    ),
+                  }
+                : s,
+            );
+          }),
+        }),
+      deleteImprovement: (docId, pageId, shapeId, entryId) =>
+        set({
+          documents: mutPage(get().documents, docId, pageId, (p) => {
+            p.shapes = p.shapes.map((s) =>
+              s.id === shapeId
+                ? {
+                    ...s,
+                    improvementEntries: (s.improvementEntries ?? []).filter(
+                      (e) => e.id !== entryId,
+                    ),
+                  }
+                : s,
+            );
+          }),
+        }),
+      addShapeDoc: (docId, pageId, shapeId) =>
+        set({
+          documents: mutPage(get().documents, docId, pageId, (p) => {
+            p.shapes = p.shapes.map((s) =>
+              s.id === shapeId
+                ? {
+                    ...s,
+                    documents: [
+                      ...(s.documents ?? []),
+                      {
+                        id: `doc${Date.now()}${Math.floor(Math.random() * 1000)}`,
+                        name: "",
+                        docType: "Playbook" as DocType,
+                        url: "",
+                      } as DocEntry,
+                    ],
+                  }
+                : s,
+            );
+          }),
+        }),
+      updateShapeDoc: (docId, pageId, shapeId, entryId, patch) =>
+        set({
+          documents: mutPage(get().documents, docId, pageId, (p) => {
+            p.shapes = p.shapes.map((s) =>
+              s.id === shapeId
+                ? {
+                    ...s,
+                    documents: (s.documents ?? []).map((d) =>
+                      d.id === entryId ? { ...d, ...patch } : d,
+                    ),
+                  }
+                : s,
+            );
+          }),
+        }),
+      deleteShapeDoc: (docId, pageId, shapeId, entryId) =>
+        set({
+          documents: mutPage(get().documents, docId, pageId, (p) => {
+            p.shapes = p.shapes.map((s) =>
+              s.id === shapeId
+                ? { ...s, documents: (s.documents ?? []).filter((d) => d.id !== entryId) }
+                : s,
+            );
+          }),
+        }),
     }),
     { name: "flowit-store" },
   ),
