@@ -1907,7 +1907,7 @@ function PdfCanvasViewer({
   );
 }
 
-
+function DocPreviewModal({ doc, onClose }: { doc: DocEntry; onClose: () => void }) {
   const mime = doc.fileMime ?? "";
   const isPdf = mime.includes("pdf") || (doc.fileName ?? "").toLowerCase().endsWith(".pdf");
   const isImage = mime.startsWith("image/");
