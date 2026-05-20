@@ -274,6 +274,7 @@ function EditorPage() {
 
         {/* Format controls when shape selected */}
         <div className="ml-2 flex flex-1 items-center justify-center gap-1">
+          <UndoRedoButtons />
           {selectedShape && (
             <FormatBar
               shape={selectedShape}
