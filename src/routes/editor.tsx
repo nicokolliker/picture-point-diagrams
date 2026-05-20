@@ -13,6 +13,7 @@ import {
   ArrowLeft,
   Bold,
   Camera,
+  ChevronRight,
   Download,
   Eye,
   FileText,
@@ -20,11 +21,9 @@ import {
   Image as ImageIcon,
   Italic,
   Layers,
-  
   ListChecks,
   Maximize2,
   GripVertical,
-  
   Pin,
   Plus,
   Search,
@@ -38,6 +37,11 @@ import {
   AlignCenter,
   AlignRight,
 } from "lucide-react";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
