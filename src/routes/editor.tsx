@@ -450,11 +450,10 @@ function EditorPage() {
   );
 }
 
-/* -------------------- Pinned popup → shape connector overlay -------------------- */
+/* -------------------- Popup → shape connector overlay -------------------- */
 function PinnedConnectorsOverlay({ pinnedIds }: { pinnedIds: string[] }) {
   const [, force] = useState(0);
   useEffect(() => {
-    if (pinnedIds.length === 0) return;
     let raf = 0;
     const loop = () => {
       force((n) => (n + 1) % 1000000);
@@ -462,36 +461,33 @@ function PinnedConnectorsOverlay({ pinnedIds }: { pinnedIds: string[] }) {
     };
     raf = requestAnimationFrame(loop);
     return () => cancelAnimationFrame(raf);
-  }, [pinnedIds.length]);
-  if (pinnedIds.length === 0) return null;
+  }, []);
+  if (typeof document === "undefined") return null;
+  const popups = Array.from(document.querySelectorAll<HTMLElement>("[data-popup-for]"));
+  if (popups.length === 0) return null;
+  void pinnedIds;
   return (
     <svg className="pointer-events-none fixed inset-0 z-40 h-full w-full">
-      {pinnedIds.map((id) => {
+      {popups.map((popup) => {
+        const id = popup.getAttribute("data-popup-for");
+        if (!id) return null;
         const shape = document.querySelector(`[data-shape-id="${id}"]`) as HTMLElement | null;
-        const popup = document.querySelector(`[data-pinned-popup-for="${id}"]`) as HTMLElement | null;
-        if (!shape || !popup) return null;
+        if (!shape) return null;
         const s = shape.getBoundingClientRect();
         const p = popup.getBoundingClientRect();
         const sc = { x: s.left + s.width / 2, y: s.top + s.height / 2 };
         const pc = { x: p.left + p.width / 2, y: p.top + p.height / 2 };
 
-        // Determine nearest edge midpoints based on relative position.
         const dx = pc.x - sc.x;
         const dy = pc.y - sc.y;
         let sx: number, sy: number, ex: number, ey: number;
-        let horizontal = Math.abs(dx) >= Math.abs(dy);
+        const horizontal = Math.abs(dx) >= Math.abs(dy);
         if (horizontal) {
-          if (dx >= 0) {
-            sx = s.right; sy = sc.y; ex = p.left; ey = pc.y;
-          } else {
-            sx = s.left; sy = sc.y; ex = p.right; ey = pc.y;
-          }
+          if (dx >= 0) { sx = s.right; sy = sc.y; ex = p.left; ey = pc.y; }
+          else { sx = s.left; sy = sc.y; ex = p.right; ey = pc.y; }
         } else {
-          if (dy >= 0) {
-            sx = sc.x; sy = s.bottom; ex = pc.x; ey = p.top;
-          } else {
-            sx = sc.x; sy = s.top; ex = pc.x; ey = p.bottom;
-          }
+          if (dy >= 0) { sx = sc.x; sy = s.bottom; ex = pc.x; ey = p.top; }
+          else { sx = sc.x; sy = s.top; ex = pc.x; ey = p.bottom; }
         }
 
         const offset = 80;
@@ -3671,7 +3667,7 @@ function ShapeNode({
 }: ShapeNodeProps) {
 
   const [hovered, setHovered] = useState(false);
-  const [popupHovered, setPopupHovered] = useState(false);
+  
   const [showPopup, setShowPopup] = useState(false);
   const hoverTimer = useRef<number | null>(null);
   const hideTimer = useRef<number | null>(null);
@@ -3830,9 +3826,10 @@ function ShapeNode({
     }
   }, [pinned, computePos, dragPos]);
 
-  // Hover-show with 600ms delay; popup hover zone also includes the + button.
+  // Hover-show with 400ms delay; popup itself does not extend its lifetime.
+  // When the mouse leaves the shape, hide after a 150ms grace period.
   useEffect(() => {
-    const active = hovered || popupHovered || qaHover;
+    const active = hovered;
     if (active) {
       if (hideTimer.current) {
         clearTimeout(hideTimer.current);
@@ -3842,7 +3839,7 @@ function ShapeNode({
         hoverTimer.current = window.setTimeout(() => {
           computePos();
           setShowPopup(true);
-        }, 600);
+        }, 400);
       }
     } else {
       if (hoverTimer.current) {
@@ -3850,13 +3847,13 @@ function ShapeNode({
         hoverTimer.current = null;
       }
       if (!pinned) {
-        hideTimer.current = window.setTimeout(() => setShowPopup(false), 120);
+        hideTimer.current = window.setTimeout(() => setShowPopup(false), 150);
       }
     }
     return () => {
       if (hoverTimer.current) clearTimeout(hoverTimer.current);
     };
-  }, [hovered, popupHovered, qaHover, pinned, showPopup, computePos]);
+  }, [hovered, pinned, showPopup, computePos]);
 
 
 
@@ -4192,6 +4189,36 @@ function ShapeNode({
         </ContextMenuContent>
       </ContextMenu>
 
+      {/* Pin button on shape (top-right corner) */}
+      {(showPopup || pinned) && shape.type !== "text" && (
+        <button
+          onPointerDown={(e) => e.stopPropagation()}
+          onClick={(e) => {
+            e.stopPropagation();
+            if (pinned) onUnpin();
+            else onPin();
+          }}
+          onMouseEnter={() => setHovered(true)}
+          onMouseLeave={() => setHovered(false)}
+          className={cn(
+            "flowit-fade-in absolute flex items-center justify-center rounded-full border shadow-sm transition-all hover:scale-110",
+            pinned
+              ? "border-[#5B6CF8] bg-[#5B6CF8] text-white"
+              : "border-[#EBEBEB] bg-white text-[#6B7280] hover:text-[#111827]",
+          )}
+          style={{
+            left: shape.x + shape.width - 12,
+            top: shape.y - 10,
+            width: 22,
+            height: 22,
+            zIndex: 9999,
+          }}
+          title={pinned ? "Desanclar" : "Anclar"}
+        >
+          <Pin className="h-3 w-3" style={pinned ? { fill: "currentColor" } : undefined} />
+        </button>
+      )}
+
       {/* Quick-add (+) button on edge nearest mouse */}
       {showQuickAdd && shape.type !== "text" && (() => {
         const SIZE = 24;
@@ -4224,7 +4251,7 @@ function ShapeNode({
       {/* HOVER POPUP */}
       {showPopup && popupPos && (
         <div
-          data-pinned-popup-for={pinned ? shape.id : undefined}
+          data-popup-for={shape.id}
           className={cn(
             "fixed z-50 flex flex-col overflow-hidden rounded-[10px] border border-[#EBEBEB] bg-white",
             pinned ? "flowit-pin-in" : "flowit-popup",
@@ -4238,9 +4265,8 @@ function ShapeNode({
             width: pinned ? popupSize?.w ?? 320 : 280,
             height: pinned ? popupSize?.h ?? 380 : undefined,
             transition: dragging ? "none" : "box-shadow 150ms ease-out",
+            pointerEvents: pinned ? "auto" : "none",
           }}
-          onMouseEnter={() => setPopupHovered(true)}
-          onMouseLeave={() => setPopupHovered(false)}
           onPointerDown={(e) => {
             e.stopPropagation();
             if (pinned) onSelectShape();
@@ -4297,15 +4323,6 @@ function ShapeNode({
                 <Camera className="h-6 w-6" />
                 <span className="text-xs">Right-click → Assign image</span>
               </div>
-            )}
-            {!pinned && (
-              <button
-                onClick={onPin}
-                title="Anclar"
-                className="absolute right-2 top-2 flex h-7 w-7 items-center justify-center rounded-full border border-[#EBEBEB] bg-white/95 shadow-sm transition-all hover:bg-white hover:scale-105"
-              >
-                <Pin className="h-3.5 w-3.5" />
-              </button>
             )}
           </div>
           <div className="min-h-0 flex-1 space-y-2 overflow-y-auto p-3">
