@@ -71,30 +71,32 @@ export function PeoplePicker({
   return (
     <div ref={wrapRef} className="relative">
       <div
-        className="flex flex-wrap items-center gap-1 rounded-md border border-[#E5E7EB] bg-white px-1.5 py-1 focus-within:border-[#5B6CF8]"
+        className="flex flex-wrap items-center gap-2 rounded-md border border-[#E5E7EB] bg-white px-1.5 py-1.5 focus-within:border-[#5B6CF8]"
         onClick={() => {
           setOpen(true);
           inputRef.current?.focus();
         }}
       >
-        {selected.map((p) => (
-          <span
-            key={p.id}
-            className="inline-flex items-center gap-1 rounded-full bg-[#EEF0FF] px-2 py-0.5 text-[11px] font-medium text-[#3730A3]"
-          >
-            <span>{p.name}</span>
-            {p.role && <span className="text-[#6B7280]">· {p.role}</span>}
-            <button
-              onClick={(e) => {
-                e.stopPropagation();
-                remove(p.id);
-              }}
-              className="text-[#6B7280] hover:text-[#DC2626]"
-            >
-              <X className="h-3 w-3" />
-            </button>
-          </span>
-        ))}
+        {selected.length > 0 && (
+          <div className="flex items-center gap-1">
+            <PersonStack people={selected} size={28} max={3} />
+            <div className="flex flex-wrap gap-1">
+              {selected.map((p) => (
+                <button
+                  key={p.id}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    remove(p.id);
+                  }}
+                  title={`Quitar ${p.name}`}
+                  className="inline-flex h-4 w-4 items-center justify-center rounded-full text-[#9CA3AF] hover:bg-[#FEE2E2] hover:text-[#DC2626]"
+                >
+                  <X className="h-2.5 w-2.5" />
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
         <input
           ref={inputRef}
           value={query}
@@ -123,12 +125,15 @@ export function PeoplePicker({
             <button
               key={p.id}
               onClick={() => select(p.id)}
-              className="flex w-full items-center justify-between gap-2 px-2 py-1.5 text-left text-[12px] hover:bg-[#F3F4F6]"
+              className="flex w-full items-center gap-2 px-2 py-1.5 text-left text-[12px] hover:bg-[#F3F4F6]"
             >
-              <span className="font-medium text-[#111827]">{p.name}</span>
-              {p.role && (
-                <span className="truncate text-[10px] text-[#6B7280]">{p.role}</span>
-              )}
+              <PersonAvatar person={p} size={24} ring={false} withTooltip={false} />
+              <div className="min-w-0 flex-1">
+                <div className="truncate font-medium text-[#111827]">{p.name}</div>
+                {p.role && (
+                  <div className="truncate text-[10px] text-[#6B7280]">{p.role}</div>
+                )}
+              </div>
             </button>
           ))}
           {showCreate && (
