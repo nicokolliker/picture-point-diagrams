@@ -41,9 +41,9 @@ interface State {
   addImprovement: (docId: string, pageId: string, shapeId: string, text: string, categories?: ImprovementCategory[]) => void;
   updateImprovement: (docId: string, pageId: string, shapeId: string, entryId: string, patch: Partial<ImprovementEntry>) => void;
   deleteImprovement: (docId: string, pageId: string, shapeId: string, entryId: string) => void;
-  addDocument: (docId: string, pageId: string, shapeId: string) => void;
-  updateDocument: (docId: string, pageId: string, shapeId: string, entryId: string, patch: Partial<DocEntry>) => void;
-  deleteDocument: (docId: string, pageId: string, shapeId: string, entryId: string) => void;
+  addShapeDoc: (docId: string, pageId: string, shapeId: string) => void;
+  updateShapeDoc: (docId: string, pageId: string, shapeId: string, entryId: string, patch: Partial<DocEntry>) => void;
+  deleteShapeDoc: (docId: string, pageId: string, shapeId: string, entryId: string) => void;
 }
 
 function mutDoc(
