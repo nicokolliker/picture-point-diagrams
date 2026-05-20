@@ -2767,7 +2767,7 @@ function CanvasArea({
             onPointerDown={(e) => {
               e.stopPropagation();
               if (spaceDown) return;
-              const additive = e.shiftKey;
+              const additive = e.shiftKey || e.metaKey || e.ctrlKey;
               const newSel = additive
                 ? selectedIds.includes(s.id)
                   ? selectedIds.filter((i) => i !== s.id)
