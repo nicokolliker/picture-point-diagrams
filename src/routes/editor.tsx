@@ -2964,6 +2964,7 @@ interface ShapeNodeProps {
   onTextCommit: (text: string) => void;
   onStartConnector: (e: ReactPointerEvent<HTMLDivElement>) => void;
   onSelectShape: () => void;
+  onQuickAdd: () => void;
   onContextAction: (
     a: "editText" | "delete" | "front" | "back" | "duplicate" | "assignImage",
   ) => void;
