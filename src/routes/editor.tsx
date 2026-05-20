@@ -3148,7 +3148,7 @@ function ShapeNode({
     height: shape.height,
     minHeight: minH,
     background: shape.fill,
-    border: `${selected ? 2 : shape.borderWeight}px ${shape.borderStyle} ${selected ? "#5B6CF8" : shape.borderColor ?? "#D0D0D0"}`,
+    border: `${shape.borderWeight}px ${shape.borderStyle} ${shape.borderColor ?? "#D0D0D0"}`,
     borderRadius: shape.cornerStyle === "rounded" ? 8 : 0,
     padding: `${basePad}px ${basePad}px ${padBottom}px ${basePad}px`,
     display: "flex",
