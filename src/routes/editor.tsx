@@ -182,7 +182,8 @@ function EditorPage() {
               setRenameVal(doc.name);
               setRenaming(true);
             }}
-            className="rounded px-2 py-0.5 text-sm font-medium hover:bg-[#F3F4F6]"
+            className="shrink-0 overflow-hidden text-ellipsis whitespace-nowrap rounded px-2 py-0.5 text-left text-sm font-medium hover:bg-[#F3F4F6]"
+            style={{ minWidth: 160, maxWidth: 280 }}
           >
             {doc.name}
           </button>
