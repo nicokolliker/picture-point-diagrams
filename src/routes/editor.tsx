@@ -3572,7 +3572,7 @@ function ShapeNode({
     return () => window.removeEventListener("keydown", onKey);
   }, [lightbox]);
 
-  // Quick-add (+) button: appears 600ms after hover, 200ms grace on leave.
+  // Quick-add (+) button: appears 400ms after hover, 200ms grace on leave.
   const [showQuickAdd, setShowQuickAdd] = useState(false);
   const [qaHover, setQaHover] = useState(false);
   const [pointerActive, setPointerActive] = useState(false);
@@ -3584,9 +3584,24 @@ function ShapeNode({
       if (qaHideTimer.current) { clearTimeout(qaHideTimer.current); qaHideTimer.current = null; }
       if (!showQuickAdd && !qaShowTimer.current) {
         qaShowTimer.current = window.setTimeout(() => {
+          // Compute closest edge to mouse
+          const rect = nodeRef.current?.getBoundingClientRect();
+          let edge: "top" | "bottom" | "left" | "right" = "bottom";
+          if (rect) {
+            const relX = mouseRef.current.x - (rect.left + rect.width / 2);
+            const relY = mouseRef.current.y - (rect.top + rect.height / 2);
+            if (Math.abs(relX) > Math.abs(relY)) edge = relX > 0 ? "right" : "left";
+            else edge = relY > 0 ? "bottom" : "top";
+          }
+          // Avoid collision with popup
+          if (showPopup && popupSide === edge) {
+            const opp: Record<typeof edge, typeof edge> = { top: "bottom", bottom: "top", left: "right", right: "left" };
+            edge = opp[edge];
+          }
+          setQaEdge(edge);
           setShowQuickAdd(true);
           qaShowTimer.current = null;
-        }, 600);
+        }, 400);
       }
     } else {
       if (qaShowTimer.current) { clearTimeout(qaShowTimer.current); qaShowTimer.current = null; }
@@ -3597,7 +3612,7 @@ function ShapeNode({
         }, 200);
       }
     }
-  }, [hovered, qaHover, pointerActive, showQuickAdd]);
+  }, [hovered, qaHover, pointerActive, showQuickAdd, showPopup, popupSide]);
 
   // Reset drag position when unpinned
   useEffect(() => {
