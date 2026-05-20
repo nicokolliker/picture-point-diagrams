@@ -12,6 +12,22 @@ export type ImprovementCategory =
 
 export type DocType = "Playbook" | "Template" | "SOP" | "Guía" | "Otro";
 
+export const MISSING_DOC_TYPES = [
+  "Playbook",
+  "Template",
+  "SOP",
+  "Guía",
+  "Capacitación",
+  "Otro",
+] as const;
+export type MissingDocType = (typeof MISSING_DOC_TYPES)[number];
+
+export interface Person {
+  id: string;
+  name: string;
+  role?: string;
+}
+
 export type ShapeType =
   | "rectangle"
   | "diamond"
