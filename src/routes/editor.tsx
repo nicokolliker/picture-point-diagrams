@@ -2232,22 +2232,55 @@ function ShapeNode({
               </span>
             )}
 
-            {/* Status pill bottom-left */}
-            {shape.status !== "ninguno" && shape.type !== "text" && (
-              <div
-                className="pointer-events-none absolute bottom-1.5 left-1.5 rounded-full px-2 py-0.5 text-[10px] font-medium text-white"
-                style={{ background: status.bg }}
-              >
-                {status.label}
+            {/* Status pills bottom-left (diagnostico + prioridad) */}
+            {shape.type !== "text" && (diag || prio) && (
+              <div className="pointer-events-none absolute bottom-1.5 left-1.5 flex flex-col gap-0.5">
+                {diag && (
+                  <div
+                    className="rounded-full px-2 py-0.5 text-[10px] font-medium text-white"
+                    style={{ background: diag.bg }}
+                  >
+                    {diag.label}
+                  </div>
+                )}
+                {prio && (
+                  <div
+                    className="rounded-full px-2 py-0.5 text-[10px] font-medium text-white"
+                    style={{ background: prio.bg }}
+                  >
+                    {prio.label}
+                  </div>
+                )}
               </div>
             )}
 
-            {/* Image badge bottom-right */}
-            {shape.imageDataUrl && (
-              <div className="pointer-events-none absolute bottom-1.5 right-1.5 flex h-5 w-5 items-center justify-center rounded-full bg-[#5B6CF8] text-white">
-                <Camera className="h-3 w-3" />
+            {/* Bottom-right badges: docs, image */}
+            {shape.type !== "text" && (hasDocs || missingDocs || shape.imageDataUrl) && (
+              <div className="pointer-events-none absolute bottom-1.5 right-1.5 flex items-center gap-1">
+                {missingDocs && (
+                  <div
+                    className="flex h-5 w-5 items-center justify-center rounded-full bg-[#9CA3AF] text-white"
+                    title="Sin documentación estandarizada"
+                  >
+                    <FileWarning className="h-3 w-3" />
+                  </div>
+                )}
+                {hasDocs && !missingDocs && (
+                  <div
+                    className="flex h-5 w-5 items-center justify-center rounded-full bg-[#5B6CF8] text-white"
+                    title="Documentos vinculados"
+                  >
+                    <FileText className="h-3 w-3" />
+                  </div>
+                )}
+                {shape.imageDataUrl && (
+                  <div className="flex h-5 w-5 items-center justify-center rounded-full bg-[#5B6CF8] text-white">
+                    <Camera className="h-3 w-3" />
+                  </div>
+                )}
               </div>
             )}
+
 
             {/* Selection handles + connector handles */}
             {selected && (
