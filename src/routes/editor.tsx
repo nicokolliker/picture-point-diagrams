@@ -3675,6 +3675,7 @@ function ShapeNode({
     const fitting = sides.filter((s) => s.fits);
     const pick = (fitting.length ? fitting : sides).sort((a, b) => b.space - a.space)[0];
     setPopupPos({ left: pick.left, top: pick.top });
+    setPopupSide(pick.name as "top" | "bottom" | "left" | "right");
   }, [popupSize, pinned]);
 
   const onResizePopupDown = useCallback(
