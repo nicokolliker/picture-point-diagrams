@@ -3269,29 +3269,39 @@ function ShapeNode({
         const common = { fill, stroke, strokeWidth: sw, strokeDasharray: dash } as const;
         let inner: React.ReactNode = null;
         if (shape.type === "diamond")
-          inner = <polygon points={`${w / 2},0 ${w},${h / 2} ${w / 2},${h} 0,${h / 2}`} {...common} />;
-        else if (shape.type === "parallelogram")
-          inner = <polygon points={`${w * 0.15},0 ${w},0 ${w * 0.85},${h} 0,${h}`} {...common} />;
-        else if (shape.type === "manual")
-          inner = <polygon points={`0,0 ${w},${h * 0.15} ${w},${h} 0,${h}`} {...common} />;
-        else if (shape.type === "cylinder") {
-          const ry = Math.min(h * 0.12, 18);
-          inner = (
-            <>
-              <path
-                d={`M0,${ry} L0,${h - ry} A${w / 2},${ry} 0 0 0 ${w},${h - ry} L${w},${ry}`}
-                {...common}
-              />
-              <ellipse cx={w / 2} cy={ry} rx={w / 2} ry={ry} {...common} />
-            </>
-          );
-        } else if (shape.type === "document") {
           inner = (
             <polygon
-              points={`0,0 ${w},0 ${w},${h * 0.88} ${w * 0.92},${h} ${w * 0.83},${h * 0.88} ${w * 0.75},${h} ${w * 0.67},${h * 0.88} ${w * 0.58},${h} ${w * 0.5},${h * 0.88} ${w * 0.42},${h} ${w * 0.33},${h * 0.88} ${w * 0.25},${h} ${w * 0.17},${h * 0.88} ${w * 0.08},${h} 0,${h * 0.88}`}
+              points={`${w / 2},2 ${w - 2},${h / 2} ${w / 2},${h - 2} 2,${h / 2}`}
               {...common}
             />
           );
+        else if (shape.type === "parallelogram")
+          inner = (
+            <polygon
+              points={`${w * 0.15},2 ${w - 2},2 ${w * 0.85},${h - 2} 2,${h - 2}`}
+              {...common}
+            />
+          );
+        else if (shape.type === "manual")
+          inner = (
+            <polygon
+              points={`2,${h * 0.15} ${w - 2},2 ${w - 2},${h - 2} 2,${h - 2}`}
+              {...common}
+            />
+          );
+        else if (shape.type === "cylinder") {
+          const rx = (w - 4) / 2;
+          const ry = h * 0.12;
+          inner = (
+            <>
+              <rect x={2} y={h * 0.15} width={w - 4} height={h * 0.75} {...common} />
+              <ellipse cx={w / 2} cy={h * 0.9} rx={rx} ry={ry} {...common} />
+              <ellipse cx={w / 2} cy={h * 0.15} rx={rx} ry={ry} {...common} />
+            </>
+          );
+        } else if (shape.type === "document") {
+          const d = `M 2,2 L ${w - 2},2 L ${w - 2},${h * 0.78} C ${w * 0.85},${h * 0.78} ${w * 0.85},${h * 0.95} ${w * 0.75},${h * 0.95} C ${w * 0.65},${h * 0.95} ${w * 0.65},${h * 0.78} ${w * 0.5},${h * 0.78} C ${w * 0.35},${h * 0.78} ${w * 0.35},${h * 0.95} ${w * 0.25},${h * 0.95} C ${w * 0.15},${h * 0.95} ${w * 0.15},${h * 0.78} 2,${h * 0.78} Z`;
+          inner = <path d={d} {...common} />;
         }
         return (
           <svg
