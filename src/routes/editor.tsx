@@ -602,7 +602,78 @@ function FormatBar({
           <SelectItem value="rounded">Rounded</SelectItem>
         </SelectContent>
       </Select>
+      <div className="mx-1 h-5 w-px bg-[#EBEBEB]" />
+      <ColorSwatchPicker
+        label="Fill"
+        value={shape.fill}
+        onChange={(c) => onChange({ fill: c })}
+      />
+      <ColorSwatchPicker
+        label="Border"
+        value={shape.borderColor ?? "#D0D0D0"}
+        onChange={(c) => onChange({ borderColor: c })}
+      />
     </div>
+  );
+}
+
+const SWATCHES = [
+  "#FFFFFF", "#000000", "#6B7280", "#D0D0D0",
+  "#FCA5A5", "#F59E0B", "#FCD34D", "#86EFAC",
+  "#5EEAD4", "#93C5FD", "#A78BFA", "#F0ABFC",
+];
+
+function ColorSwatchPicker({
+  label,
+  value,
+  onChange,
+}: {
+  label: string;
+  value: string;
+  onChange: (c: string) => void;
+}) {
+  return (
+    <Popover>
+      <PopoverTrigger asChild>
+        <button
+          className="flex h-7 items-center gap-1 rounded border border-[#EBEBEB] px-1.5 text-[11px] text-[#374151] hover:bg-[#F3F4F6]"
+          title={`${label} color`}
+        >
+          <span
+            className="h-4 w-4 rounded border border-[#D0D0D0]"
+            style={{ background: value }}
+          />
+          <span>{label}</span>
+        </button>
+      </PopoverTrigger>
+      <PopoverContent className="w-auto p-2" align="start">
+        <div className="grid grid-cols-6 gap-1">
+          {SWATCHES.map((c) => (
+            <button
+              key={c}
+              onClick={() => onChange(c)}
+              className={cn(
+                "h-6 w-6 rounded border",
+                value.toLowerCase() === c.toLowerCase()
+                  ? "border-[#5B6CF8] ring-1 ring-[#5B6CF8]"
+                  : "border-[#D0D0D0]",
+              )}
+              style={{ background: c }}
+              title={c}
+            />
+          ))}
+        </div>
+        <div className="mt-2 flex items-center gap-1.5">
+          <input
+            type="color"
+            value={value}
+            onChange={(e) => onChange(e.target.value)}
+            className="h-7 w-7 cursor-pointer rounded border border-[#EBEBEB]"
+          />
+          <span className="text-[11px] text-[#6B7280]">Custom</span>
+        </div>
+      </PopoverContent>
+    </Popover>
   );
 }
 
