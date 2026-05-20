@@ -1966,7 +1966,10 @@ function ShapeNode({
           }}
           onMouseEnter={() => setPopupHovered(true)}
           onMouseLeave={() => setPopupHovered(false)}
-          onPointerDown={(e) => e.stopPropagation()}
+          onPointerDown={(e) => {
+            e.stopPropagation();
+            if (pinned) onSelectShape();
+          }}
         >
           {pinned && (
             <div
