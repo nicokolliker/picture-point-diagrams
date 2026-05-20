@@ -177,10 +177,10 @@ export const useDiagramStore = create<State>()(
           status: "draft",
           pages: [{ id: `p${Date.now()}`, name: "Page 1", shapes: [], connectors: [] }],
         };
-        set({ documents: [doc, ...get().documents] });
+        commit([doc, ...get().documents]);
         return id;
       },
-      deleteDocument: (id) => set({ documents: get().documents.filter((d) => d.id !== id) }),
+      deleteDocument: (id) => commit(get().documents.filter((d) => d.id !== id)),
       duplicateDocument: (id) => {
         const src = get().documents.find((d) => d.id === id);
         if (!src) return;
@@ -188,13 +188,13 @@ export const useDiagramStore = create<State>()(
         copy.id = `d${Date.now()}`;
         copy.name = `${src.name} (copy)`;
         copy.updatedAt = Date.now();
-        set({ documents: [copy, ...get().documents] });
+        commit([copy, ...get().documents]);
       },
       renameDocument: (id, name) =>
-        set({
-          documents: get().documents.map((d) =>
+        commit(
+          get().documents.map((d) =>
             d.id === id ? { ...d, name, updatedAt: Date.now() } : d,
-          )
+          ),
         ),
       setDocStatus: (id, status) =>
         commit(
