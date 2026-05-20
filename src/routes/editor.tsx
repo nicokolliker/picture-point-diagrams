@@ -3710,9 +3710,9 @@ function ShapeNode({
     }
   }, [pinned, computePos, dragPos]);
 
-  // Hover-show with 500ms delay, hover-hide with grace timer.
+  // Hover-show with 600ms delay; popup hover zone also includes the + button.
   useEffect(() => {
-    const active = hovered || popupHovered;
+    const active = hovered || popupHovered || qaHover;
     if (active) {
       if (hideTimer.current) {
         clearTimeout(hideTimer.current);
@@ -3722,7 +3722,7 @@ function ShapeNode({
         hoverTimer.current = window.setTimeout(() => {
           computePos();
           setShowPopup(true);
-        }, 500);
+        }, 600);
       }
     } else {
       if (hoverTimer.current) {
@@ -3736,7 +3736,7 @@ function ShapeNode({
     return () => {
       if (hoverTimer.current) clearTimeout(hoverTimer.current);
     };
-  }, [hovered, popupHovered, pinned, showPopup, computePos]);
+  }, [hovered, popupHovered, qaHover, pinned, showPopup, computePos]);
 
 
 
