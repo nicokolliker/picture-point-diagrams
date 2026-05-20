@@ -995,6 +995,8 @@ interface CanvasProps {
   setZoom: (z: number) => void;
   selectedIds: string[];
   setSelectedIds: (ids: string[] | ((p: string[]) => string[])) => void;
+  pinnedShapeId: string | null;
+  setPinnedShapeId: (id: string | null) => void;
 }
 
 function CanvasArea({
@@ -1006,6 +1008,8 @@ function CanvasArea({
   setZoom,
   selectedIds,
   setSelectedIds,
+  pinnedShapeId,
+  setPinnedShapeId,
 }: CanvasProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const [spaceDown, setSpaceDown] = useState(false);
