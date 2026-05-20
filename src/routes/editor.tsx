@@ -3630,6 +3630,8 @@ interface ShapeNodeProps {
   docId: string;
   pageId: string;
   zoom: number;
+  pan: { x: number; y: number };
+  allShapes: Shape[];
   pinned: boolean;
   onPin: () => void;
   onUnpin: () => void;
