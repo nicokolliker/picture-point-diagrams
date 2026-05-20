@@ -1579,6 +1579,11 @@ function CanvasArea({
 /* -------------------- Shape node + hover popup -------------------- */
 interface ShapeNodeProps {
   shape: Shape;
+  docId: string;
+  pageId: string;
+  pinned: boolean;
+  onPin: () => void;
+  onUnpin: () => void;
   selected: boolean;
   editingText: boolean;
   onPointerDown: (e: ReactPointerEvent<HTMLDivElement>) => void;
@@ -1592,6 +1597,11 @@ interface ShapeNodeProps {
 
 function ShapeNode({
   shape,
+  docId,
+  pageId,
+  pinned,
+  onPin,
+  onUnpin,
   selected,
   editingText,
   onPointerDown,
@@ -1601,44 +1611,73 @@ function ShapeNode({
   onContextAction,
 }: ShapeNodeProps) {
   const [hovered, setHovered] = useState(false);
+  const [popupHovered, setPopupHovered] = useState(false);
   const [showPopup, setShowPopup] = useState(false);
   const hoverTimer = useRef<number | null>(null);
+  const hideTimer = useRef<number | null>(null);
   const nodeRef = useRef<HTMLDivElement>(null);
   const [popupPos, setPopupPos] = useState<{ left: number; top: number } | null>(null);
 
-  // Hover timer — popup after 500ms
+  const computePos = useCallback(() => {
+    const rect = nodeRef.current?.getBoundingClientRect();
+    if (!rect) return;
+    const POP_W = 320;
+    const POP_H = 420;
+    const margin = 12;
+    let left = rect.right + margin;
+    let top = rect.top;
+    if (left + POP_W > window.innerWidth - 8) {
+      left = rect.left - POP_W - margin;
+    }
+    if (left < 8) left = 8;
+    if (top + POP_H > window.innerHeight - 8) {
+      top = Math.max(8, window.innerHeight - POP_H - 8);
+    }
+    setPopupPos({ left, top });
+  }, []);
+
+  // Pinned popup is always shown.
   useEffect(() => {
-    if (hovered) {
-      hoverTimer.current = window.setTimeout(() => {
-        // compute position based on shape rect in viewport
-        const rect = nodeRef.current?.getBoundingClientRect();
-        if (!rect) return;
-        const POP_W = 300;
-        const POP_H = 280;
-        const margin = 12;
-        let left = rect.right + margin;
-        let top = rect.top;
-        if (left + POP_W > window.innerWidth - 8) {
-          left = rect.left - POP_W - margin;
-        }
-        if (left < 8) left = 8;
-        if (top + POP_H > window.innerHeight - 8) {
-          top = Math.max(8, window.innerHeight - POP_H - 8);
-        }
-        setPopupPos({ left, top });
-        setShowPopup(true);
-      }, 500);
+    if (pinned) {
+      computePos();
+      setShowPopup(true);
+    }
+  }, [pinned, computePos]);
+
+  // Hover-show with 500ms delay, hover-hide with grace timer.
+  useEffect(() => {
+    const active = hovered || popupHovered;
+    if (active) {
+      if (hideTimer.current) {
+        clearTimeout(hideTimer.current);
+        hideTimer.current = null;
+      }
+      if (!showPopup && !pinned) {
+        hoverTimer.current = window.setTimeout(() => {
+          computePos();
+          setShowPopup(true);
+        }, 500);
+      }
     } else {
       if (hoverTimer.current) {
         clearTimeout(hoverTimer.current);
         hoverTimer.current = null;
       }
-      setShowPopup(false);
+      if (!pinned) {
+        hideTimer.current = window.setTimeout(() => setShowPopup(false), 120);
+      }
     }
     return () => {
       if (hoverTimer.current) clearTimeout(hoverTimer.current);
     };
-  }, [hovered]);
+  }, [hovered, popupHovered, pinned, showPopup, computePos]);
+
+  const updateThis = useCallback(
+    (patch: Partial<Shape>) =>
+      useDiagramStore.getState().updateShape(docId, pageId, shape.id, patch),
+    [docId, pageId, shape.id],
+  );
+
 
   const style: CSSProperties = {
     position: "absolute",
