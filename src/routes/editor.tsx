@@ -3470,6 +3470,93 @@ function CanvasArea({
           />
         ))}
 
+        {/* Quick-add ghost preview */}
+        {quickGhost && (() => {
+          const src = page.shapes.find((sh) => sh.id === quickGhost.shapeId);
+          if (!src) return null;
+          let nx = src.x, ny = src.y;
+          if (quickGhost.edge === "bottom") ny = src.y + src.height + 40;
+          else if (quickGhost.edge === "top") ny = src.y - src.height - 40;
+          else if (quickGhost.edge === "right") nx = src.x + src.width + 60;
+          else if (quickGhost.edge === "left") nx = src.x - src.width - 60;
+          const w = src.width, h = src.height;
+          const stroke = "#5B6CF8";
+          const fillRgba = src.fill;
+          const isSvg = ["diamond", "parallelogram", "cylinder", "document", "manual"].includes(src.type);
+          // Connector line endpoints (centers)
+          const sc = { x: src.x + src.width / 2, y: src.y + src.height / 2 };
+          const gc = { x: nx + w / 2, y: ny + h / 2 };
+          return (
+            <>
+              <svg
+                className="pointer-events-none absolute left-0 top-0 overflow-visible"
+                style={{
+                  opacity: 0.45,
+                  transition: "opacity 120ms ease-out",
+                  zIndex: 9997,
+                }}
+              >
+                <line
+                  x1={sc.x} y1={sc.y} x2={gc.x} y2={gc.y}
+                  stroke={stroke} strokeWidth={2} strokeDasharray="6,4"
+                />
+              </svg>
+              {isSvg ? (
+                <svg
+                  className="pointer-events-none absolute"
+                  style={{
+                    left: nx, top: ny, width: w, height: h,
+                    overflow: "visible", opacity: 0.45,
+                    transition: "opacity 120ms ease-out", zIndex: 9997,
+                  }}
+                >
+                  {src.type === "diamond" && (
+                    <polygon points={`${w/2},2 ${w-2},${h/2} ${w/2},${h-2} 2,${h/2}`}
+                      fill={fillRgba} fillOpacity={0.6} stroke={stroke} strokeWidth={2} strokeDasharray="6,4" />
+                  )}
+                  {src.type === "parallelogram" && (
+                    <polygon points={`${w*0.15},2 ${w-2},2 ${w*0.85},${h-2} 2,${h-2}`}
+                      fill={fillRgba} fillOpacity={0.6} stroke={stroke} strokeWidth={2} strokeDasharray="6,4" />
+                  )}
+                  {src.type === "manual" && (
+                    <polygon points={`2,${h*0.15} ${w-2},2 ${w-2},${h-2} 2,${h-2}`}
+                      fill={fillRgba} fillOpacity={0.6} stroke={stroke} strokeWidth={2} strokeDasharray="6,4" />
+                  )}
+                  {src.type === "cylinder" && (
+                    <>
+                      <rect x={2} y={h*0.15} width={w-4} height={h*0.75}
+                        fill={fillRgba} fillOpacity={0.6} stroke={stroke} strokeWidth={2} strokeDasharray="6,4" />
+                      <ellipse cx={w/2} cy={h*0.9} rx={(w-4)/2} ry={h*0.12}
+                        fill={fillRgba} fillOpacity={0.6} stroke={stroke} strokeWidth={2} strokeDasharray="6,4" />
+                      <ellipse cx={w/2} cy={h*0.15} rx={(w-4)/2} ry={h*0.12}
+                        fill={fillRgba} fillOpacity={0.6} stroke={stroke} strokeWidth={2} strokeDasharray="6,4" />
+                    </>
+                  )}
+                  {src.type === "document" && (
+                    <path
+                      d={`M 2,2 L ${w-2},2 L ${w-2},${h*0.78} C ${w*0.85},${h*0.78} ${w*0.85},${h*0.95} ${w*0.75},${h*0.95} C ${w*0.65},${h*0.95} ${w*0.65},${h*0.78} ${w*0.5},${h*0.78} C ${w*0.35},${h*0.78} ${w*0.35},${h*0.95} ${w*0.25},${h*0.95} C ${w*0.15},${h*0.95} ${w*0.15},${h*0.78} 2,${h*0.78} Z`}
+                      fill={fillRgba} fillOpacity={0.6} stroke={stroke} strokeWidth={2} strokeDasharray="6,4"
+                    />
+                  )}
+                </svg>
+              ) : (
+                <div
+                  className="pointer-events-none absolute"
+                  style={{
+                    left: nx, top: ny, width: w, height: h,
+                    background: fillRgba, opacity: 0.45,
+                    border: `2px dashed ${stroke}`,
+                    borderRadius: src.type === "oval" ? 9999 : src.cornerStyle === "rounded" ? 8 : 0,
+                    transition: "opacity 120ms ease-out",
+                    zIndex: 9997,
+                  }}
+                />
+              )}
+            </>
+          );
+        })()}
+
+
         {/* Selection box */}
         {selBox && (
           <div
