@@ -82,6 +82,7 @@ import {
 } from "@/lib/shape-types";
 import { cn } from "@/lib/utils";
 import { PdfCanvasViewer } from "@/components/pdf-canvas-viewer";
+import { PeoplePicker } from "@/components/people-picker";
 
 interface EditorSearch {
   doc?: string;
