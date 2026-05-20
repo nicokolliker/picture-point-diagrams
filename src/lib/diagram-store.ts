@@ -19,6 +19,10 @@ import { createDemoDocument } from "./preloaded-demo";
 interface State {
   documents: DiagramDocument[];
   uploads: string[];
+  people: Person[];
+  addPerson: (name: string, role?: string) => Person;
+  updatePerson: (id: string, patch: Partial<Person>) => void;
+  deletePerson: (id: string) => void;
   ensureSeed: () => void;
   createDocument: (name?: string) => string;
   deleteDocument: (id: string) => void;
