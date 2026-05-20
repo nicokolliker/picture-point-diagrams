@@ -4199,6 +4199,7 @@ function ShapeNode({
             else onPin();
           }}
           onMouseEnter={() => setHovered(true)}
+          onMouseLeave={() => setHovered(false)}
           className={cn(
             "flowit-fade-in absolute flex items-center justify-center rounded-full border shadow-sm transition-all hover:scale-110",
             pinned
