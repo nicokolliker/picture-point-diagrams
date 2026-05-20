@@ -3399,12 +3399,18 @@ function CanvasArea({
               setEditingTextId(null);
             }}
             onSelectShape={() => setSelectedIds([s.id])}
-            onQuickAdd={() => {
+            onQuickAdd={(edge) => {
+              let nx = s.x;
+              let ny = s.y;
+              if (edge === "bottom") { nx = s.x; ny = s.y + s.height + 40; }
+              else if (edge === "top") { nx = s.x; ny = s.y - s.height - 40; }
+              else if (edge === "right") { nx = s.x + s.width + 60; ny = s.y; }
+              else if (edge === "left") { nx = s.x - s.width - 60; ny = s.y; }
               const ns: Shape = {
                 ...s,
                 id: `s${Date.now()}${Math.floor(Math.random() * 10000)}`,
-                x: s.x,
-                y: s.y + s.height + 40,
+                x: nx,
+                y: ny,
                 text: "Label",
                 title: "Untitled",
                 description: "",
@@ -3419,10 +3425,13 @@ function CanvasArea({
                 imageDataUrl: undefined,
               };
               useDiagramStore.getState().addShape(docId, page.id, ns);
+              // For "top", arrow goes from new -> original; otherwise original -> new
+              const fromId = edge === "top" ? ns.id : s.id;
+              const toId = edge === "top" ? s.id : ns.id;
               useDiagramStore.getState().addConnector(docId, page.id, {
                 id: `c${Date.now()}${Math.floor(Math.random() * 10000)}`,
-                fromId: s.id,
-                toId: ns.id,
+                fromId,
+                toId,
                 label: "",
                 lineStyle: "solid",
                 weight: 2,
