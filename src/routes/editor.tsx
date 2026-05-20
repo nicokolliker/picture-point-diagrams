@@ -1128,7 +1128,7 @@ function ChangesList({
             .map((c) => (
               <li
                 key={c.id}
-                className="group flex items-start gap-2 rounded-md border border-[#EBEBEB] bg-white px-2 py-1.5"
+                className="flowit-entry group flex items-start gap-2 rounded-md border border-[#EBEBEB] bg-white px-2 py-1.5"
               >
                 <div className="min-w-0 flex-1">
                   <div className="break-words text-[12px] leading-snug text-[#111827]">{c.text}</div>
