@@ -248,21 +248,6 @@ function EditorPage() {
         </div>
 
         <div className="flex items-center gap-2">
-          <div className="flex -space-x-2">
-            {["LV", "JM", "AR"].map((i, idx) => (
-              <div
-                key={i}
-                className={cn(
-                  "flex h-7 w-7 items-center justify-center rounded-full border-2 border-white text-xs font-medium text-white",
-                  idx === 0 && "bg-[#5B6CF8]",
-                  idx === 1 && "bg-[#16A34A]",
-                  idx === 2 && "bg-[#F59E0B]",
-                )}
-              >
-                {i}
-              </div>
-            ))}
-          </div>
           <span className="text-xs text-[#6B7280] tabular-nums">{Math.round(zoom * 100)}%</span>
           <button
             onClick={() => document.documentElement.requestFullscreen?.().catch(() => {})}
