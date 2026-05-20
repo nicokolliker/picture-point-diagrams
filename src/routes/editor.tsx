@@ -3042,8 +3042,8 @@ interface CanvasProps {
   pinnedIds: string[];
   pinShape: (id: string) => void;
   unpinShape: (id: string) => void;
-  onOpenSubProcess: (pageId: string) => void;
-  breadcrumb?: React.ReactNode;
+  onSubProcessIconClick: (shape: Shape) => void;
+  subPanelStates: Record<string, "open" | "minimized">;
 }
 
 function CanvasArea({
