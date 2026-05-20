@@ -1239,8 +1239,9 @@ function CanvasArea({
   setZoom,
   selectedIds,
   setSelectedIds,
-  pinnedShapeId,
-  setPinnedShapeId,
+  pinnedIds,
+  pinShape,
+  unpinShape,
 }: CanvasProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const [spaceDown, setSpaceDown] = useState(false);
