@@ -2176,11 +2176,6 @@ function ShapeNode({
     };
   }, [hovered, popupHovered, pinned, showPopup, computePos]);
 
-  const updateThis = useCallback(
-    (patch: Partial<Shape>) =>
-      useDiagramStore.getState().updateShape(docId, pageId, shape.id, patch),
-    [docId, pageId, shape.id],
-  );
 
 
   const style: CSSProperties = {
