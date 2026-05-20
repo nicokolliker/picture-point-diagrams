@@ -1326,6 +1326,22 @@ function DocumentsSection({
   const deleteShapeDoc = useDiagramStore((s) => s.deleteShapeDoc);
   const docs = shape.documents ?? [];
   const disabled = !!shape.noStandardDoc;
+  const [previewDoc, setPreviewDoc] = useState<DocEntry | null>(null);
+
+  const handleFile = (entryId: string, file: File) => {
+    const reader = new FileReader();
+    reader.onload = () => {
+      const dataUrl = reader.result as string;
+      updateShapeDoc(docId, pageId, shape.id, entryId, {
+        fileDataUrl: dataUrl,
+        fileMime: file.type,
+        fileSize: file.size,
+        fileName: file.name,
+        url: "",
+      });
+    };
+    reader.readAsDataURL(file);
+  };
 
   return (
     <div className="space-y-2">
@@ -1346,57 +1362,124 @@ function DocumentsSection({
           </div>
         ) : (
           <ul className="space-y-1.5">
-            {docs.map((d) => (
-              <li
-                key={d.id}
-                className="group space-y-1 rounded-md border border-[#EBEBEB] bg-white p-1.5"
-              >
-                <div className="flex items-center gap-1">
-                  <Input
-                    value={d.name}
-                    onChange={(e) =>
-                      updateShapeDoc(docId, pageId, shape.id, d.id, { name: e.target.value })
-                    }
-                    placeholder="Nombre del documento"
-                    className="h-7 text-xs"
-                  />
-                  <button
-                    onClick={() => deleteShapeDoc(docId, pageId, shape.id, d.id)}
-                    className="opacity-0 transition-opacity group-hover:opacity-100"
-                    title="Eliminar"
-                  >
-                    <Trash2 className="h-3.5 w-3.5 text-[#DC2626]" />
-                  </button>
-                </div>
-                <div className="flex gap-1">
-                  <Select
-                    value={d.docType}
-                    onValueChange={(v) =>
-                      updateShapeDoc(docId, pageId, shape.id, d.id, { docType: v as DocType })
-                    }
-                  >
-                    <SelectTrigger className="h-7 w-[100px] text-xs">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {DOC_TYPES.map((t) => (
-                        <SelectItem key={t} value={t}>
-                          {t}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  <Input
-                    value={d.url}
-                    onChange={(e) =>
-                      updateShapeDoc(docId, pageId, shape.id, d.id, { url: e.target.value })
-                    }
-                    placeholder="https://…"
-                    className="h-7 flex-1 text-xs"
-                  />
-                </div>
-              </li>
-            ))}
+            {docs.map((d) => {
+              const hasFile = !!d.fileDataUrl;
+              const isLarge = (d.fileSize ?? 0) > 2 * 1024 * 1024;
+              return (
+                <li
+                  key={d.id}
+                  className="group space-y-1 rounded-md border border-[#EBEBEB] bg-white p-1.5"
+                >
+                  <div className="flex items-center gap-1">
+                    <Input
+                      value={d.name}
+                      onChange={(e) =>
+                        updateShapeDoc(docId, pageId, shape.id, d.id, {
+                          name: e.target.value,
+                        })
+                      }
+                      placeholder="Nombre del documento"
+                      className="h-7 text-xs"
+                    />
+                    <button
+                      onClick={() => deleteShapeDoc(docId, pageId, shape.id, d.id)}
+                      className="opacity-0 transition-opacity group-hover:opacity-100"
+                      title="Eliminar"
+                    >
+                      <Trash2 className="h-3.5 w-3.5 text-[#DC2626]" />
+                    </button>
+                  </div>
+                  <div className="flex gap-1">
+                    <Select
+                      value={d.docType}
+                      onValueChange={(v) =>
+                        updateShapeDoc(docId, pageId, shape.id, d.id, {
+                          docType: v as DocType,
+                        })
+                      }
+                    >
+                      <SelectTrigger className="h-7 w-[100px] text-xs">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {DOC_TYPES.map((t) => (
+                          <SelectItem key={t} value={t}>
+                            {t}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    {hasFile ? (
+                      <div className="flex h-7 flex-1 items-center gap-1 rounded-md border border-[#EBEBEB] bg-[#F9FAFB] px-2 text-[11px] text-[#374151]">
+                        <Paperclip className="h-3 w-3 shrink-0 text-[#5B6CF8]" />
+                        <span className="truncate">{d.fileName}</span>
+                      </div>
+                    ) : (
+                      <Input
+                        value={d.url}
+                        onChange={(e) =>
+                          updateShapeDoc(docId, pageId, shape.id, d.id, {
+                            url: e.target.value,
+                          })
+                        }
+                        placeholder="https://…"
+                        className="h-7 flex-1 text-xs"
+                      />
+                    )}
+                  </div>
+                  <div className="flex items-center gap-1">
+                    {hasFile ? (
+                      <>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="h-6 flex-1 text-[11px]"
+                          onClick={() => setPreviewDoc(d)}
+                        >
+                          <Eye className="h-3 w-3" /> Vista previa
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="h-6 text-[11px]"
+                          onClick={() =>
+                            updateShapeDoc(docId, pageId, shape.id, d.id, {
+                              fileDataUrl: undefined,
+                              fileMime: undefined,
+                              fileSize: undefined,
+                              fileName: undefined,
+                            })
+                          }
+                          title="Quitar archivo"
+                        >
+                          <X className="h-3 w-3" />
+                        </Button>
+                      </>
+                    ) : (
+                      <label className="flex h-6 flex-1 cursor-pointer items-center justify-center gap-1 rounded-md border border-dashed border-[#D0D0D0] text-[11px] text-[#6B7280] hover:border-[#5B6CF8] hover:text-[#5B6CF8]">
+                        <Upload className="h-3 w-3" />
+                        Subir archivo
+                        <input
+                          type="file"
+                          accept=".pdf,.png,.jpg,.jpeg,.docx,application/pdf,image/png,image/jpeg,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+                          className="hidden"
+                          onChange={(e) => {
+                            const f = e.target.files?.[0];
+                            if (f) handleFile(d.id, f);
+                            e.target.value = "";
+                          }}
+                        />
+                      </label>
+                    )}
+                  </div>
+                  {hasFile && isLarge && (
+                    <div className="text-[10px] text-[#F59E0B]">
+                      Archivo grande — puede afectar el rendimiento
+                    </div>
+                  )}
+                </li>
+              );
+            })}
           </ul>
         )}
         <Button
@@ -1409,9 +1492,87 @@ function DocumentsSection({
           <Plus className="h-3.5 w-3.5" /> Agregar documento
         </Button>
       </div>
+      {previewDoc && (
+        <DocPreviewModal doc={previewDoc} onClose={() => setPreviewDoc(null)} />
+      )}
     </div>
   );
 }
+
+function DocPreviewModal({ doc, onClose }: { doc: DocEntry; onClose: () => void }) {
+  const mime = doc.fileMime ?? "";
+  const isPdf = mime.includes("pdf");
+  const isImage = mime.startsWith("image/");
+  const isDocx = mime.includes("word") || (doc.fileName ?? "").toLowerCase().endsWith(".docx");
+  return (
+    <div
+      className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 p-4"
+      onClick={onClose}
+    >
+      <div
+        className="flex max-h-[90vh] w-full max-w-[900px] flex-col overflow-hidden rounded-lg bg-white shadow-2xl"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="flex items-center justify-between border-b border-[#EBEBEB] px-4 py-2.5">
+          <div className="min-w-0 flex-1">
+            <div className="truncate text-sm font-semibold text-[#111827]">
+              {doc.name || doc.fileName || "Documento"}
+            </div>
+            {doc.fileName && (
+              <div className="truncate text-[11px] text-[#6B7280]">{doc.fileName}</div>
+            )}
+          </div>
+          <button
+            onClick={onClose}
+            className="flex h-8 w-8 items-center justify-center rounded-md text-[#6B7280] hover:bg-[#F3F4F6] hover:text-[#111827]"
+          >
+            <X className="h-4 w-4" />
+          </button>
+        </div>
+        <div className="flex-1 overflow-auto bg-[#F9FAFB]">
+          {isPdf && doc.fileDataUrl && (
+            <iframe
+              src={doc.fileDataUrl}
+              title={doc.name}
+              className="h-[75vh] w-full border-0"
+            />
+          )}
+          {isImage && doc.fileDataUrl && (
+            <img
+              src={doc.fileDataUrl}
+              alt={doc.name}
+              className="mx-auto block max-h-[75vh] w-full object-contain"
+            />
+          )}
+          {isDocx && (
+            <div className="flex flex-col items-center justify-center gap-3 p-12 text-center">
+              <FileText className="h-12 w-12 text-[#6B7280]" />
+              <div className="text-sm text-[#374151]">
+                Descargá el archivo para visualizarlo
+              </div>
+              {doc.fileDataUrl && (
+                <a
+                  href={doc.fileDataUrl}
+                  download={doc.fileName || doc.name || "documento"}
+                  className="inline-flex items-center gap-1.5 rounded-md bg-[#5B6CF8] px-3 py-1.5 text-xs font-medium text-white hover:bg-[#4854d1]"
+                >
+                  <Download className="h-3.5 w-3.5" /> Descargar
+                </a>
+              )}
+            </div>
+          )}
+          {!isPdf && !isImage && !isDocx && (
+            <div className="p-12 text-center text-sm text-[#6B7280]">
+              Vista previa no disponible
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+
 
 
 function formatDate(ts: number) {
