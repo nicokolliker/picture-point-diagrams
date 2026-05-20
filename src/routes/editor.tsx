@@ -2215,13 +2215,13 @@ function ShapeNode({
     setPopupPos({ left, top });
   }, []);
 
-  // Pinned popup is always shown.
+  // Pinned popup is always shown. Don't auto-reposition if user has dragged.
   useEffect(() => {
     if (pinned) {
-      computePos();
+      if (!dragPos) computePos();
       setShowPopup(true);
     }
-  }, [pinned, computePos]);
+  }, [pinned, computePos, dragPos]);
 
   // Hover-show with 500ms delay, hover-hide with grace timer.
   useEffect(() => {
