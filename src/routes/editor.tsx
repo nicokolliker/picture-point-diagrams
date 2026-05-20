@@ -3184,14 +3184,14 @@ function ShapeNode({
     style.borderRadius = 0;
   } else if (shape.type === "container") {
     style.background = shape.fill;
-    style.border = `${selected ? 2 : 1}px dashed ${selected ? "#5B6CF8" : "#5B6CF8"}`;
+    style.border = `1px dashed #5B6CF8`;
     style.alignItems = "flex-start";
     style.justifyContent = "flex-start";
   } else if (shape.type === "sticky") {
     style.border = "1px solid #F59E0B";
     style.boxShadow = "0 1px 3px rgba(0,0,0,0.06)";
   } else if (shape.type === "text") {
-    style.border = selected ? "2px dashed #5B6CF8" : "1px dashed transparent";
+    style.border = "1px dashed transparent";
     style.background = "transparent";
   }
 
