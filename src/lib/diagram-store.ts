@@ -110,8 +110,8 @@ export const useDiagramStore = create<State>()(
         const past = get().past;
         if (past.length === 0) return;
         const prev = past[past.length - 1];
-        set({
-          documents: prev,
+        commit(
+          prev,
           past: past.slice(0, -1),
           future: [get().documents, ...get().future].slice(0, MAX_HIST),
         });
@@ -144,13 +144,13 @@ export const useDiagramStore = create<State>()(
       },
       updatePerson: (id, patch) =>
         set({
-          people: get().people.map((p) => (p.id === id ? { ...p, ...patch } : p)),
-        }),
+          people: get().people.map((p) => (p.id === id ? { ...p, ...patch } : p))
+        ),
       deletePerson: (id) => {
         set({ people: get().people.filter((p) => p.id !== id) });
         // Remove from all shapes
-        set({
-          documents: get().documents.map((d) => ({
+        commit(
+          get().documents.map((d) => ({
             ...d,
             pages: d.pages.map((p) => ({
               ...p,
@@ -194,90 +194,90 @@ export const useDiagramStore = create<State>()(
         set({
           documents: get().documents.map((d) =>
             d.id === id ? { ...d, name, updatedAt: Date.now() } : d,
-          ),
-        }),
+          )
+        ),
       setDocStatus: (id, status) =>
-        set({
-          documents: get().documents.map((d) =>
+        commit(
+          get().documents.map((d) =>
             d.id === id ? { ...d, status, updatedAt: Date.now() } : d,
-          ),
-        }),
+          )
+        ),
       addShape: (docId, pageId, shape) =>
-        set({
-          documents: mutPage(get().documents, docId, pageId, (p) => {
+        commit(
+          mutPage(get().documents, docId, pageId, (p) => {
             p.shapes.push(shape);
-          }),
-        }),
+          })
+        ),
       updateShape: (docId, pageId, id, patch) =>
-        set({
-          documents: mutPage(get().documents, docId, pageId, (p) => {
+        commit(
+          mutPage(get().documents, docId, pageId, (p) => {
             p.shapes = p.shapes.map((s) => (s.id === id ? { ...s, ...patch } : s));
-          }),
-        }),
+          })
+        ),
       updateShapes: (docId, pageId, ids, patch) =>
-        set({
-          documents: mutPage(get().documents, docId, pageId, (p) => {
+        commit(
+          mutPage(get().documents, docId, pageId, (p) => {
             p.shapes = p.shapes.map((s) => (ids.includes(s.id) ? { ...s, ...patch } : s));
-          }),
-        }),
+          })
+        ),
       deleteShapes: (docId, pageId, ids) =>
-        set({
-          documents: mutPage(get().documents, docId, pageId, (p) => {
+        commit(
+          mutPage(get().documents, docId, pageId, (p) => {
             p.shapes = p.shapes.filter((s) => !ids.includes(s.id));
             p.connectors = p.connectors.filter(
               (c) => !ids.includes(c.fromId) && !ids.includes(c.toId),
             );
-          }),
-        }),
+          })
+        ),
       bringToFront: (docId, pageId, id) =>
-        set({
-          documents: mutPage(get().documents, docId, pageId, (p) => {
+        commit(
+          mutPage(get().documents, docId, pageId, (p) => {
             const max = Math.max(0, ...p.shapes.map((s) => s.z));
             p.shapes = p.shapes.map((s) => (s.id === id ? { ...s, z: max + 1 } : s));
-          }),
-        }),
+          })
+        ),
       sendToBack: (docId, pageId, id) =>
-        set({
-          documents: mutPage(get().documents, docId, pageId, (p) => {
+        commit(
+          mutPage(get().documents, docId, pageId, (p) => {
             const min = Math.min(0, ...p.shapes.map((s) => s.z));
             p.shapes = p.shapes.map((s) => (s.id === id ? { ...s, z: min - 1 } : s));
-          }),
-        }),
+          })
+        ),
       addConnector: (docId, pageId, c) =>
-        set({
-          documents: mutPage(get().documents, docId, pageId, (p) => {
+        commit(
+          mutPage(get().documents, docId, pageId, (p) => {
             p.connectors.push(c);
-          }),
-        }),
+          })
+        ),
       updateConnector: (docId, pageId, id, patch) =>
-        set({
-          documents: mutPage(get().documents, docId, pageId, (p) => {
+        commit(
+          mutPage(get().documents, docId, pageId, (p) => {
             p.connectors = p.connectors.map((c) => (c.id === id ? { ...c, ...patch } : c));
-          }),
-        }),
+          })
+        ),
       deleteConnectors: (docId, pageId, ids) =>
-        set({
-          documents: mutPage(get().documents, docId, pageId, (p) => {
+        commit(
+          mutPage(get().documents, docId, pageId, (p) => {
             p.connectors = p.connectors.filter((c) => !ids.includes(c.id));
-          }),
-        }),
+          })
+        ),
       addPage: (docId) =>
-        set({
-          documents: mutDoc(get().documents, docId, (d) => {
+        commit(
+          mutDoc(get().documents, docId, (d) => {
             d.pages.push({
               id: `p${Date.now()}`,
               name: `Page ${d.pages.length + 1}`,
               shapes: [],
               connectors: [],
             });
-          }),
-        }),
+          })
+        ),
       addUpload: (dataUrl) => set({ uploads: [dataUrl, ...get().uploads] }),
       removeUpload: (dataUrl) =>
         set({ uploads: get().uploads.filter((u) => u !== dataUrl) }),
       addChange: (docId, pageId, shapeId, text) =>
-        set({
-          documents: mutPage(get().documents, docId, pageId, (p) => {
+        commit(
+          mutPage(get().documents, docId, pageId, (p) => {
             p.shapes = p.shapes.map((s) =>
               s.id === shapeId
                 ? {
@@ -289,21 +289,21 @@ export const useDiagramStore = create<State>()(
                   }
                 : s,
             );
-          }),
-        }),
+          })
+        ),
       deleteChange: (docId, pageId, shapeId, changeId) =>
-        set({
-          documents: mutPage(get().documents, docId, pageId, (p) => {
+        commit(
+          mutPage(get().documents, docId, pageId, (p) => {
             p.shapes = p.shapes.map((s) =>
               s.id === shapeId
                 ? { ...s, changes: (s.changes ?? []).filter((c) => c.id !== changeId) }
                 : s,
             );
-          }),
-        }),
+          })
+        ),
       addImprovement: (docId, pageId, shapeId, text, categories = []) =>
-        set({
-          documents: mutPage(get().documents, docId, pageId, (p) => {
+        commit(
+          mutPage(get().documents, docId, pageId, (p) => {
             p.shapes = p.shapes.map((s) =>
               s.id === shapeId
                 ? {
@@ -320,11 +320,11 @@ export const useDiagramStore = create<State>()(
                   }
                 : s,
             );
-          }),
-        }),
+          })
+        ),
       updateImprovement: (docId, pageId, shapeId, entryId, patch) =>
-        set({
-          documents: mutPage(get().documents, docId, pageId, (p) => {
+        commit(
+          mutPage(get().documents, docId, pageId, (p) => {
             p.shapes = p.shapes.map((s) =>
               s.id === shapeId
                 ? {
@@ -335,11 +335,11 @@ export const useDiagramStore = create<State>()(
                   }
                 : s,
             );
-          }),
-        }),
+          })
+        ),
       deleteImprovement: (docId, pageId, shapeId, entryId) =>
-        set({
-          documents: mutPage(get().documents, docId, pageId, (p) => {
+        commit(
+          mutPage(get().documents, docId, pageId, (p) => {
             p.shapes = p.shapes.map((s) =>
               s.id === shapeId
                 ? {
@@ -350,11 +350,11 @@ export const useDiagramStore = create<State>()(
                   }
                 : s,
             );
-          }),
-        }),
+          })
+        ),
       addShapeDoc: (docId, pageId, shapeId) =>
-        set({
-          documents: mutPage(get().documents, docId, pageId, (p) => {
+        commit(
+          mutPage(get().documents, docId, pageId, (p) => {
             p.shapes = p.shapes.map((s) =>
               s.id === shapeId
                 ? {
@@ -371,11 +371,11 @@ export const useDiagramStore = create<State>()(
                   }
                 : s,
             );
-          }),
-        }),
+          })
+        ),
       updateShapeDoc: (docId, pageId, shapeId, entryId, patch) =>
-        set({
-          documents: mutPage(get().documents, docId, pageId, (p) => {
+        commit(
+          mutPage(get().documents, docId, pageId, (p) => {
             p.shapes = p.shapes.map((s) =>
               s.id === shapeId
                 ? {
@@ -386,18 +386,18 @@ export const useDiagramStore = create<State>()(
                   }
                 : s,
             );
-          }),
-        }),
+          })
+        ),
       deleteShapeDoc: (docId, pageId, shapeId, entryId) =>
-        set({
-          documents: mutPage(get().documents, docId, pageId, (p) => {
+        commit(
+          mutPage(get().documents, docId, pageId, (p) => {
             p.shapes = p.shapes.map((s) =>
               s.id === shapeId
                 ? { ...s, documents: (s.documents ?? []).filter((d) => d.id !== entryId) }
                 : s,
             );
-          }),
-        }),
+          })
+        ),
     });
     },
     { name: "flowit-store" },
