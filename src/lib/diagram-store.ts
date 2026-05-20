@@ -1,6 +1,6 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
-import type { Connector, DiagramDocument, Page, Shape, ShapeType, Status } from "./shape-types";
+import type { ChangeEntry, Connector, DiagramDocument, Page, Shape, ShapeType, Status } from "./shape-types";
 import { createDemoDocument } from "./preloaded-demo";
 
 interface State {
@@ -24,6 +24,8 @@ interface State {
   addPage: (docId: string) => void;
   addUpload: (dataUrl: string) => void;
   removeUpload: (dataUrl: string) => void;
+  addChange: (docId: string, pageId: string, shapeId: string, text: string) => void;
+  deleteChange: (docId: string, pageId: string, shapeId: string, changeId: string) => void;
 }
 
 function mutDoc(
@@ -177,6 +179,32 @@ export const useDiagramStore = create<State>()(
       addUpload: (dataUrl) => set({ uploads: [dataUrl, ...get().uploads] }),
       removeUpload: (dataUrl) =>
         set({ uploads: get().uploads.filter((u) => u !== dataUrl) }),
+      addChange: (docId, pageId, shapeId, text) =>
+        set({
+          documents: mutPage(get().documents, docId, pageId, (p) => {
+            p.shapes = p.shapes.map((s) =>
+              s.id === shapeId
+                ? {
+                    ...s,
+                    changes: [
+                      ...(s.changes ?? []),
+                      { id: `ch${Date.now()}${Math.floor(Math.random() * 1000)}`, text, date: Date.now() } as ChangeEntry,
+                    ],
+                  }
+                : s,
+            );
+          }),
+        }),
+      deleteChange: (docId, pageId, shapeId, changeId) =>
+        set({
+          documents: mutPage(get().documents, docId, pageId, (p) => {
+            p.shapes = p.shapes.map((s) =>
+              s.id === shapeId
+                ? { ...s, changes: (s.changes ?? []).filter((c) => c.id !== changeId) }
+                : s,
+            );
+          }),
+        }),
     }),
     { name: "flowit-store" },
   ),

@@ -13,13 +13,13 @@ import {
   ArrowLeft,
   Bold,
   Camera,
-  ChevronLeft,
-  ChevronRight,
   Image as ImageIcon,
   Italic,
   Layers,
+  ListChecks,
   Maximize2,
-  MoreHorizontal,
+  Pin,
+  PinOff,
   Plus,
   Search,
   Share2,
@@ -35,7 +35,6 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Label } from "@/components/ui/label";
 import {
   ContextMenu,
@@ -120,12 +119,13 @@ function EditorPage() {
   const page = doc?.pages.find((p) => p.id === currentPageId) ?? doc?.pages[0];
 
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
-  const [activeTab, setActiveTab] = useState<"shapes" | "images" | "pages">("shapes");
+  const [activeTab, setActiveTab] = useState<"shapes" | "images" | "pages" | "summary">("shapes");
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [zoom, setZoom] = useState(1);
   const [pan, setPan] = useState({ x: 80, y: 40 });
   const [renaming, setRenaming] = useState(false);
   const [renameVal, setRenameVal] = useState("");
+  const [pinnedShapeId, setPinnedShapeId] = useState<string | null>(null);
 
   const selectedShape =
     selectedIds.length === 1 ? page?.shapes.find((s) => s.id === selectedIds[0]) : undefined;
@@ -181,7 +181,8 @@ function EditorPage() {
               setRenameVal(doc.name);
               setRenaming(true);
             }}
-            className="rounded px-2 py-0.5 text-sm font-medium hover:bg-[#F3F4F6]"
+            className="shrink-0 overflow-hidden text-ellipsis whitespace-nowrap rounded px-2 py-0.5 text-left text-sm font-medium hover:bg-[#F3F4F6]"
+            style={{ minWidth: 160, maxWidth: 280 }}
           >
             {doc.name}
           </button>
@@ -252,6 +253,7 @@ function EditorPage() {
             { id: "shapes" as const, icon: ShapesIcon, label: "Shapes" },
             { id: "images" as const, icon: ImageIcon, label: "Images" },
             { id: "pages" as const, icon: Layers, label: "Pages" },
+            { id: "summary" as const, icon: ListChecks, label: "Resumen de cambios" },
           ].map((t) => (
             <button
               key={t.id}
@@ -311,6 +313,13 @@ function EditorPage() {
                 onSelect={setCurrentPageId}
               />
             )}
+            {activeTab === "summary" && (
+              <SummaryPanel
+                docId={doc.id}
+                page={page}
+                onJumpToShape={(id) => setSelectedIds([id])}
+              />
+            )}
           </div>
         )}
 
@@ -324,11 +333,15 @@ function EditorPage() {
           setZoom={setZoom}
           selectedIds={selectedIds}
           setSelectedIds={setSelectedIds}
+          pinnedShapeId={pinnedShapeId}
+          setPinnedShapeId={setPinnedShapeId}
         />
 
         {/* Right panel */}
         {selectedShape && (
           <RightPanel
+            docId={doc.id}
+            pageId={page.id}
             shape={selectedShape}
             onChange={(patch) =>
               useDiagramStore
@@ -828,10 +841,14 @@ function PagesPanel({
 
 /* -------------------- Right panel -------------------- */
 function RightPanel({
+  docId,
+  pageId,
   shape,
   onChange,
   onClose,
 }: {
+  docId: string;
+  pageId: string;
   shape: Shape;
   onChange: (patch: Partial<Shape>) => void;
   onClose: () => void;
@@ -840,7 +857,7 @@ function RightPanel({
   const [url, setUrl] = useState("");
 
   return (
-    <div className="flex w-[280px] shrink-0 flex-col border-l border-[#EBEBEB] bg-white">
+    <div className="flex w-[300px] shrink-0 flex-col border-l border-[#EBEBEB] bg-white">
       <div className="flex items-center justify-between border-b border-[#EBEBEB] px-4 py-3">
         <h3 className="text-sm font-semibold">Properties</h3>
         <button
@@ -860,10 +877,25 @@ function RightPanel({
           />
         </div>
         <div className="space-y-1.5">
-          <Label className="text-xs text-[#6B7280]">Description</Label>
+          <Label className="text-xs text-[#6B7280]">Como está hoy</Label>
           <Textarea
-            value={shape.description}
-            onChange={(e) => onChange({ description: e.target.value })}
+            value={shape.currentReality ?? ""}
+            onChange={(e) => onChange({ currentReality: e.target.value })}
+            placeholder="Describe la realidad actual de esta etapa"
+            rows={3}
+            className="resize-none text-sm"
+          />
+        </div>
+        <div className="space-y-2">
+          <Label className="text-xs text-[#6B7280]">Estado</Label>
+          <StatusSelector value={shape.status} onChange={(v) => onChange({ status: v })} />
+        </div>
+        <div className="space-y-1.5">
+          <Label className="text-xs text-[#6B7280]">Oportunidades de mejora</Label>
+          <Textarea
+            value={shape.improvements ?? ""}
+            onChange={(e) => onChange({ improvements: e.target.value })}
+            placeholder="Ideas para mejorar esta etapa"
             rows={3}
             className="resize-none text-sm"
           />
@@ -878,26 +910,8 @@ function RightPanel({
         </div>
 
         <div className="space-y-2">
-          <Label className="text-xs text-[#6B7280]">Status</Label>
-          <RadioGroup
-            value={shape.status}
-            onValueChange={(v) => onChange({ status: v as Status })}
-            className="gap-2"
-          >
-            {(Object.keys(STATUS_COLORS) as Status[]).map((s) => (
-              <label
-                key={s}
-                className="flex cursor-pointer items-center gap-2 rounded-md border border-[#EBEBEB] px-3 py-2 text-sm hover:border-[#D0D0D0]"
-              >
-                <RadioGroupItem value={s} />
-                <span
-                  className="h-2.5 w-2.5 rounded-full"
-                  style={{ background: STATUS_COLORS[s].bg }}
-                />
-                {STATUS_COLORS[s].label}
-              </label>
-            ))}
-          </RadioGroup>
+          <Label className="text-xs text-[#6B7280]">Cambios sugeridos</Label>
+          <ChangesList docId={docId} pageId={pageId} shape={shape} />
         </div>
 
         <div className="space-y-2">
@@ -973,6 +987,180 @@ function RightPanel({
   );
 }
 
+/* -------------------- Status selector pill -------------------- */
+function StatusSelector({
+  value,
+  onChange,
+}: {
+  value: Status;
+  onChange: (v: Status) => void;
+}) {
+  const order: Status[] = ["funciona", "riesgo", "roto", "ninguno"];
+  return (
+    <div className="flex flex-wrap gap-1.5">
+      {order.map((s) => {
+        const active = value === s;
+        return (
+          <button
+            key={s}
+            onClick={() => onChange(s)}
+            className={cn(
+              "flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-medium transition-all",
+              active
+                ? "text-white shadow-sm"
+                : "bg-[#F3F4F6] text-[#4B5563] hover:bg-[#E5E7EB]",
+            )}
+            style={active ? { background: STATUS_COLORS[s].bg } : undefined}
+          >
+            <span
+              className="h-1.5 w-1.5 rounded-full"
+              style={{ background: active ? "#ffffff" : STATUS_COLORS[s].bg }}
+            />
+            {STATUS_COLORS[s].label}
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
+/* -------------------- Changes list -------------------- */
+function ChangesList({
+  docId,
+  pageId,
+  shape,
+}: {
+  docId: string;
+  pageId: string;
+  shape: Shape;
+}) {
+  const [text, setText] = useState("");
+  const addChange = useDiagramStore((s) => s.addChange);
+  const deleteChange = useDiagramStore((s) => s.deleteChange);
+  const changes = shape.changes ?? [];
+  const submit = () => {
+    const v = text.trim();
+    if (!v) return;
+    addChange(docId, pageId, shape.id, v);
+    setText("");
+  };
+  return (
+    <div className="space-y-2">
+      <div className="flex gap-1">
+        <Input
+          value={text}
+          onChange={(e) => setText(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") {
+              e.preventDefault();
+              submit();
+            }
+          }}
+          placeholder="Sugerir cambio…"
+          className="h-8 text-xs"
+        />
+        <Button size="sm" onClick={submit} disabled={!text.trim()}>
+          <Plus className="h-3.5 w-3.5" />
+        </Button>
+      </div>
+      {changes.length === 0 ? (
+        <div className="rounded-md border border-dashed border-[#E5E7EB] p-2 text-center text-[11px] text-[#9CA3AF]">
+          Sin cambios sugeridos
+        </div>
+      ) : (
+        <ul className="space-y-1">
+          {changes
+            .slice()
+            .sort((a, b) => b.date - a.date)
+            .map((c) => (
+              <li
+                key={c.id}
+                className="group flex items-start gap-2 rounded-md border border-[#EBEBEB] bg-white px-2 py-1.5"
+              >
+                <div className="min-w-0 flex-1">
+                  <div className="break-words text-[12px] leading-snug text-[#111827]">{c.text}</div>
+                  <div className="mt-0.5 text-[10px] text-[#9CA3AF]">{formatDate(c.date)}</div>
+                </div>
+                <button
+                  onClick={() => deleteChange(docId, pageId, shape.id, c.id)}
+                  className="opacity-0 transition-opacity group-hover:opacity-100"
+                  title="Eliminar"
+                >
+                  <Trash2 className="h-3.5 w-3.5 text-[#DC2626]" />
+                </button>
+              </li>
+            ))}
+        </ul>
+      )}
+    </div>
+  );
+}
+
+function formatDate(ts: number) {
+  const d = new Date(ts);
+  return d.toLocaleDateString("es-ES", { day: "numeric", month: "short", year: "numeric" });
+}
+
+/* -------------------- Summary panel -------------------- */
+function SummaryPanel({
+  docId: _docId,
+  page,
+  onJumpToShape,
+}: {
+  docId: string;
+  page: { id: string; shapes: Shape[] };
+  onJumpToShape: (id: string) => void;
+}) {
+  const entries = page.shapes
+    .flatMap((s) =>
+      (s.changes ?? []).map((c) => ({ shape: s, change: c })),
+    )
+    .sort((a, b) => b.change.date - a.change.date);
+  return (
+    <div className="flex h-full flex-col">
+      <div className="border-b border-[#EBEBEB] p-3">
+        <h3 className="text-sm font-semibold text-[#111827]">Resumen de cambios</h3>
+        <p className="mt-0.5 text-[11px] text-[#6B7280]">
+          Todas las mejoras propuestas en el proceso
+        </p>
+      </div>
+      <div className="flex-1 overflow-y-auto p-3">
+        {entries.length === 0 ? (
+          <div className="rounded-md border border-dashed border-[#E5E7EB] p-6 text-center text-xs text-[#9CA3AF]">
+            Aún no hay cambios sugeridos. Añade uno desde cualquier forma.
+          </div>
+        ) : (
+          <ul className="space-y-2">
+            {entries.map(({ shape, change }) => (
+              <li
+                key={change.id}
+                className="rounded-md border border-[#EBEBEB] bg-white p-2.5 hover:border-[#5B6CF8]"
+              >
+                <button
+                  onClick={() => onJumpToShape(shape.id)}
+                  className="mb-1.5 inline-flex max-w-full items-center gap-1 rounded-full bg-[#EEF0FF] px-2 py-0.5 text-[10px] font-medium text-[#5B6CF8] hover:bg-[#DDE2FF]"
+                >
+                  <span
+                    className="h-1.5 w-1.5 shrink-0 rounded-full"
+                    style={{ background: STATUS_COLORS[shape.status].bg }}
+                  />
+                  <span className="truncate">{shape.title || shape.text}</span>
+                </button>
+                <div className="break-words text-[12px] leading-snug text-[#111827]">
+                  {change.text}
+                </div>
+                <div className="mt-1 text-[10px] text-[#9CA3AF]">{formatDate(change.date)}</div>
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
+    </div>
+  );
+}
+
+
+
 /* -------------------- Canvas -------------------- */
 interface CanvasProps {
   docId: string;
@@ -983,6 +1171,8 @@ interface CanvasProps {
   setZoom: (z: number) => void;
   selectedIds: string[];
   setSelectedIds: (ids: string[] | ((p: string[]) => string[])) => void;
+  pinnedShapeId: string | null;
+  setPinnedShapeId: (id: string | null) => void;
 }
 
 function CanvasArea({
@@ -994,6 +1184,8 @@ function CanvasArea({
   setZoom,
   selectedIds,
   setSelectedIds,
+  pinnedShapeId,
+  setPinnedShapeId,
 }: CanvasProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const [spaceDown, setSpaceDown] = useState(false);
@@ -1056,19 +1248,23 @@ function CanvasArea({
     };
   }, [docId, page.id, selectedIds, setSelectedIds]);
 
-  // Wheel zoom (zoom toward cursor)
+  // Wheel: ctrl/cmd+wheel → zoom (toward cursor); otherwise trackpad two-finger pan
   const handleWheel = (e: ReactWheelEvent<HTMLDivElement>) => {
     e.preventDefault();
     const rect = containerRef.current?.getBoundingClientRect();
     if (!rect) return;
-    const factor = e.deltaY < 0 ? 1.08 : 1 / 1.08;
-    const newZoom = Math.max(0.25, Math.min(4, zoom * factor));
-    const mx = e.clientX - rect.left;
-    const my = e.clientY - rect.top;
-    const wx = (mx - pan.x) / zoom;
-    const wy = (my - pan.y) / zoom;
-    setPan({ x: mx - wx * newZoom, y: my - wy * newZoom });
-    setZoom(newZoom);
+    if (e.ctrlKey || e.metaKey) {
+      const factor = e.deltaY < 0 ? 1.08 : 1 / 1.08;
+      const newZoom = Math.max(0.25, Math.min(4, zoom * factor));
+      const mx = e.clientX - rect.left;
+      const my = e.clientY - rect.top;
+      const wx = (mx - pan.x) / zoom;
+      const wy = (my - pan.y) / zoom;
+      setPan({ x: mx - wx * newZoom, y: my - wy * newZoom });
+      setZoom(newZoom);
+    } else {
+      setPan({ x: pan.x - e.deltaX, y: pan.y - e.deltaY });
+    }
   };
 
   // Pan / selection box
@@ -1303,6 +1499,11 @@ function CanvasArea({
           <ShapeNode
             key={s.id}
             shape={s}
+            docId={docId}
+            pageId={page.id}
+            pinned={pinnedShapeId === s.id}
+            onPin={() => setPinnedShapeId(s.id)}
+            onUnpin={() => setPinnedShapeId(null)}
             selected={selectedIds.includes(s.id)}
             editingText={editingTextId === s.id}
             onPointerDown={(e) => {
@@ -1368,7 +1569,7 @@ function CanvasArea({
 
       {/* Hint */}
       <div className="pointer-events-none absolute bottom-3 left-3 rounded-md bg-white/90 px-2 py-1 text-[11px] text-[#6B7280] shadow-sm">
-        Hold <kbd className="rounded bg-[#F3F4F6] px-1">Space</kbd> + drag to pan · Scroll to zoom · Hover shapes for preview
+        Hold <kbd className="rounded bg-[#F3F4F6] px-1">Space</kbd> + drag to pan · Two-finger scroll to pan · <kbd className="rounded bg-[#F3F4F6] px-1">⌘</kbd> + scroll to zoom · Hover shapes for preview
       </div>
     </div>
   );
@@ -1377,6 +1578,11 @@ function CanvasArea({
 /* -------------------- Shape node + hover popup -------------------- */
 interface ShapeNodeProps {
   shape: Shape;
+  docId: string;
+  pageId: string;
+  pinned: boolean;
+  onPin: () => void;
+  onUnpin: () => void;
   selected: boolean;
   editingText: boolean;
   onPointerDown: (e: ReactPointerEvent<HTMLDivElement>) => void;
@@ -1390,6 +1596,11 @@ interface ShapeNodeProps {
 
 function ShapeNode({
   shape,
+  docId,
+  pageId,
+  pinned,
+  onPin,
+  onUnpin,
   selected,
   editingText,
   onPointerDown,
@@ -1399,44 +1610,73 @@ function ShapeNode({
   onContextAction,
 }: ShapeNodeProps) {
   const [hovered, setHovered] = useState(false);
+  const [popupHovered, setPopupHovered] = useState(false);
   const [showPopup, setShowPopup] = useState(false);
   const hoverTimer = useRef<number | null>(null);
+  const hideTimer = useRef<number | null>(null);
   const nodeRef = useRef<HTMLDivElement>(null);
   const [popupPos, setPopupPos] = useState<{ left: number; top: number } | null>(null);
 
-  // Hover timer — popup after 500ms
+  const computePos = useCallback(() => {
+    const rect = nodeRef.current?.getBoundingClientRect();
+    if (!rect) return;
+    const POP_W = 320;
+    const POP_H = 420;
+    const margin = 12;
+    let left = rect.right + margin;
+    let top = rect.top;
+    if (left + POP_W > window.innerWidth - 8) {
+      left = rect.left - POP_W - margin;
+    }
+    if (left < 8) left = 8;
+    if (top + POP_H > window.innerHeight - 8) {
+      top = Math.max(8, window.innerHeight - POP_H - 8);
+    }
+    setPopupPos({ left, top });
+  }, []);
+
+  // Pinned popup is always shown.
   useEffect(() => {
-    if (hovered) {
-      hoverTimer.current = window.setTimeout(() => {
-        // compute position based on shape rect in viewport
-        const rect = nodeRef.current?.getBoundingClientRect();
-        if (!rect) return;
-        const POP_W = 300;
-        const POP_H = 280;
-        const margin = 12;
-        let left = rect.right + margin;
-        let top = rect.top;
-        if (left + POP_W > window.innerWidth - 8) {
-          left = rect.left - POP_W - margin;
-        }
-        if (left < 8) left = 8;
-        if (top + POP_H > window.innerHeight - 8) {
-          top = Math.max(8, window.innerHeight - POP_H - 8);
-        }
-        setPopupPos({ left, top });
-        setShowPopup(true);
-      }, 500);
+    if (pinned) {
+      computePos();
+      setShowPopup(true);
+    }
+  }, [pinned, computePos]);
+
+  // Hover-show with 500ms delay, hover-hide with grace timer.
+  useEffect(() => {
+    const active = hovered || popupHovered;
+    if (active) {
+      if (hideTimer.current) {
+        clearTimeout(hideTimer.current);
+        hideTimer.current = null;
+      }
+      if (!showPopup && !pinned) {
+        hoverTimer.current = window.setTimeout(() => {
+          computePos();
+          setShowPopup(true);
+        }, 500);
+      }
     } else {
       if (hoverTimer.current) {
         clearTimeout(hoverTimer.current);
         hoverTimer.current = null;
       }
-      setShowPopup(false);
+      if (!pinned) {
+        hideTimer.current = window.setTimeout(() => setShowPopup(false), 120);
+      }
     }
     return () => {
       if (hoverTimer.current) clearTimeout(hoverTimer.current);
     };
-  }, [hovered]);
+  }, [hovered, popupHovered, pinned, showPopup, computePos]);
+
+  const updateThis = useCallback(
+    (patch: Partial<Shape>) =>
+      useDiagramStore.getState().updateShape(docId, pageId, shape.id, patch),
+    [docId, pageId, shape.id],
+  );
+
 
   const style: CSSProperties = {
     position: "absolute",
@@ -1592,41 +1832,106 @@ function ShapeNode({
       {/* HOVER POPUP */}
       {showPopup && popupPos && (
         <div
-          className="flowit-popup pointer-events-none fixed z-50 w-[300px] rounded-[10px] border border-[#EBEBEB] bg-white shadow-[0_4px_20px_rgba(0,0,0,0.12)]"
+          className="flowit-popup fixed z-50 w-[320px] overflow-hidden rounded-[10px] border border-[#EBEBEB] bg-white shadow-[0_4px_20px_rgba(0,0,0,0.12)]"
           style={{ left: popupPos.left, top: popupPos.top }}
+          onMouseEnter={() => setPopupHovered(true)}
+          onMouseLeave={() => setPopupHovered(false)}
+          onPointerDown={(e) => e.stopPropagation()}
         >
-          {shape.imageDataUrl ? (
-            <img
-              src={shape.imageDataUrl}
-              alt={shape.title}
-              className="h-[180px] w-full rounded-t-[10px] object-cover"
-            />
-          ) : (
-            <div className="flex h-[140px] w-full flex-col items-center justify-center gap-2 rounded-t-[10px] border-b border-dashed border-[#D0D0D0] bg-[#FAFAFA] text-[#9CA3AF]">
-              <Camera className="h-6 w-6" />
-              <span className="text-xs">Right-click → Assign image</span>
-            </div>
-          )}
-          <div className="space-y-1.5 p-3">
-            <div className="text-[14px] font-bold text-[#111827]">{shape.title}</div>
-            {shape.description && (
-              <div className="text-[12px] leading-relaxed text-[#6B7280]">{shape.description}</div>
-            )}
-            <div className="text-[12px] text-[#6B7280]">
-              <span className="font-medium text-[#4B5563]">Responsable:</span>{" "}
-              {shape.responsable || "—"}
-            </div>
-            {shape.status !== "ninguno" && (
-              <div className="mt-2 inline-flex items-center gap-1.5">
-                <span
-                  className="h-2 w-2 rounded-full"
-                  style={{ background: STATUS_COLORS[shape.status].bg }}
-                />
-                <span className="text-[11px] text-[#4B5563]">
-                  {STATUS_COLORS[shape.status].label}
-                </span>
+          <div className="relative">
+            {shape.imageDataUrl ? (
+              <img
+                src={shape.imageDataUrl}
+                alt={shape.title}
+                className="h-[160px] w-full object-cover"
+              />
+            ) : (
+              <div className="flex h-[110px] w-full flex-col items-center justify-center gap-2 border-b border-dashed border-[#D0D0D0] bg-[#FAFAFA] text-[#9CA3AF]">
+                <Camera className="h-6 w-6" />
+                <span className="text-xs">Right-click → Assign image</span>
               </div>
             )}
+            <div className="absolute right-2 top-2 flex gap-1">
+              <button
+                onClick={() => (pinned ? onUnpin() : onPin())}
+                title={pinned ? "Desanclar" : "Anclar"}
+                className={cn(
+                  "flex h-7 w-7 items-center justify-center rounded-full border border-[#EBEBEB] bg-white/95 shadow-sm hover:bg-white",
+                  pinned && "bg-[#5B6CF8] text-white border-[#5B6CF8] hover:bg-[#4856E0]",
+                )}
+              >
+                {pinned ? <PinOff className="h-3.5 w-3.5" /> : <Pin className="h-3.5 w-3.5" />}
+              </button>
+              {pinned && (
+                <button
+                  onClick={onUnpin}
+                  title="Cerrar"
+                  className="flex h-7 w-7 items-center justify-center rounded-full border border-[#EBEBEB] bg-white/95 shadow-sm hover:bg-white"
+                >
+                  <X className="h-3.5 w-3.5" />
+                </button>
+              )}
+            </div>
+          </div>
+          <div className="max-h-[420px] space-y-2.5 overflow-y-auto p-3">
+            <div className="text-[14px] font-bold text-[#111827]">
+              {shape.title || shape.text || "Sin título"}
+            </div>
+
+            <div>
+              <div className="mb-1 text-[10px] font-semibold uppercase tracking-wide text-[#6B7280]">
+                Como está hoy
+              </div>
+              <Textarea
+                value={shape.currentReality ?? ""}
+                onChange={(e) => updateThis({ currentReality: e.target.value })}
+                placeholder="Realidad actual de esta etapa"
+                rows={2}
+                className="resize-none text-[12px]"
+              />
+            </div>
+
+            <div>
+              <div className="mb-1 text-[10px] font-semibold uppercase tracking-wide text-[#6B7280]">
+                Estado
+              </div>
+              <StatusSelector
+                value={shape.status}
+                onChange={(v) => updateThis({ status: v })}
+              />
+            </div>
+
+            <div>
+              <div className="mb-1 text-[10px] font-semibold uppercase tracking-wide text-[#6B7280]">
+                Oportunidades de mejora
+              </div>
+              <Textarea
+                value={shape.improvements ?? ""}
+                onChange={(e) => updateThis({ improvements: e.target.value })}
+                placeholder="Ideas para mejorar"
+                rows={2}
+                className="resize-none text-[12px]"
+              />
+            </div>
+
+            <div>
+              <div className="mb-1 text-[10px] font-semibold uppercase tracking-wide text-[#6B7280]">
+                Responsable
+              </div>
+              <Input
+                value={shape.responsable}
+                onChange={(e) => updateThis({ responsable: e.target.value })}
+                placeholder="—"
+                className="h-7 text-[12px]"
+              />
+            </div>
+
+            <div className="border-t border-[#EBEBEB] pt-2.5">
+              <div className="mb-1 text-[10px] font-semibold uppercase tracking-wide text-[#6B7280]">
+                Cambios sugeridos
+              </div>
+              <ChangesList docId={docId} pageId={pageId} shape={shape} />
+            </div>
           </div>
         </div>
       )}

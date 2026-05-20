@@ -12,6 +12,12 @@ export type ShapeType =
   | "sticky"
   | "container";
 
+export interface ChangeEntry {
+  id: string;
+  text: string;
+  date: number;
+}
+
 export interface Shape {
   id: string;
   type: ShapeType;
@@ -22,6 +28,9 @@ export interface Shape {
   text: string;
   title: string;
   description: string;
+  currentReality?: string;
+  improvements?: string;
+  changes?: ChangeEntry[];
   responsable: string;
   status: Status;
   imageDataUrl?: string;
