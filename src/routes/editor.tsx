@@ -4285,9 +4285,17 @@ function ShapeNode({
               </div>
             )}
 
-            {/* Bottom-right badges: docs, image */}
-            {shape.type !== "text" && (hasDocs || missingDocs || shape.imageDataUrl) && (
+            {/* Bottom-right badges: sub-process, docs, image */}
+            {shape.type !== "text" && (shape.subProcessPageId || hasDocs || missingDocs || shape.imageDataUrl) && (
               <div className="pointer-events-none absolute bottom-1.5 right-1.5 flex items-center gap-1">
+                {shape.subProcessPageId && (
+                  <div
+                    className="flex h-5 w-5 items-center justify-center rounded-full bg-[#5B6CF8] text-white text-[11px] font-semibold leading-none"
+                    title="Contiene un sub-proceso"
+                  >
+                    ⊞
+                  </div>
+                )}
                 {missingDocs && (
                   <div
                     className="flex h-5 w-5 items-center justify-center rounded-full bg-[#9CA3AF] text-white"
