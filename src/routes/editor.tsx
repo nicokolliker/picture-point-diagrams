@@ -2191,21 +2191,31 @@ function ShapeNode({
               </span>
             )}
 
-            {/* Status pills bottom-left (diagnostico + prioridad) */}
+            {/* Status pills bottom (diagnostico + prioridad) — left-aligned, inside border */}
             {shape.type !== "text" && (diag || prio) && (
-              <div className="pointer-events-none absolute bottom-1.5 left-1.5 flex flex-col gap-0.5">
+              <div className="pointer-events-none absolute bottom-1.5 left-2 flex flex-col items-start gap-[3px]">
                 {diag && (
                   <div
-                    className="rounded-full px-2 py-0.5 text-[10px] font-medium text-white"
-                    style={{ background: diag.bg }}
+                    className="rounded-full font-medium leading-none text-white"
+                    style={{
+                      background: diag.bg,
+                      fontSize: 10,
+                      padding: "2px 7px",
+                      transition: "background-color 150ms ease-out",
+                    }}
                   >
                     {diag.label}
                   </div>
                 )}
                 {prio && (
                   <div
-                    className="rounded-full px-2 py-0.5 text-[10px] font-medium text-white"
-                    style={{ background: prio.bg }}
+                    className="rounded-full font-medium leading-none text-white"
+                    style={{
+                      background: prio.bg,
+                      fontSize: 10,
+                      padding: "2px 7px",
+                      transition: "background-color 150ms ease-out",
+                    }}
                   >
                     {prio.label}
                   </div>
