@@ -144,8 +144,8 @@ export const useDiagramStore = create<State>()(
       },
       updatePerson: (id, patch) =>
         set({
-          people: get().people.map((p) => (p.id === id ? { ...p, ...patch } : p))
-        ),
+          people: get().people.map((p) => (p.id === id ? { ...p, ...patch } : p)),
+        }),
       deletePerson: (id) => {
         set({ people: get().people.filter((p) => p.id !== id) });
         // Remove from all shapes
@@ -160,7 +160,7 @@ export const useDiagramStore = create<State>()(
               })),
             })),
           })),
-        });
+        );
       },
       ensureSeed: () => {
         if (get().documents.length === 0) {
