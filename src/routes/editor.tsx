@@ -3367,6 +3367,8 @@ function CanvasArea({
             docId={docId}
             pageId={page.id}
             zoom={zoom}
+            pan={pan}
+            allShapes={page.shapes}
             pinned={pinnedIds.includes(s.id)}
             onPin={() => pinShape(s.id)}
             onUnpin={() => unpinShape(s.id)}
