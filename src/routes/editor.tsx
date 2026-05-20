@@ -1330,8 +1330,6 @@ function CanvasArea({
             onUnpin={() => setPinnedShapeId(null)}
             selected={selectedIds.includes(s.id)}
             editingText={editingTextId === s.id}
-            selected={selectedIds.includes(s.id)}
-            editingText={editingTextId === s.id}
             onPointerDown={(e) => {
               e.stopPropagation();
               if (spaceDown) return;
