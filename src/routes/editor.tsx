@@ -374,6 +374,13 @@ function EditorPage() {
                 onJumpToShape={(id) => setSelectedIds([id])}
               />
             )}
+            {activeTab === "summary" && (
+              <div
+                onPointerDown={startSummaryResize}
+                className="absolute right-0 top-0 z-10 h-full w-1 cursor-col-resize bg-transparent transition-colors hover:bg-[#5B6CF8]/30"
+                title="Arrastrá para ajustar el ancho"
+              />
+            )}
           </div>
         )}
 
