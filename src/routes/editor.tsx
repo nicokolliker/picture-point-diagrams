@@ -2876,6 +2876,37 @@ function CanvasArea({
               setEditingTextId(null);
             }}
             onSelectShape={() => setSelectedIds([s.id])}
+            onQuickAdd={() => {
+              const ns: Shape = {
+                ...s,
+                id: `s${Date.now()}${Math.floor(Math.random() * 10000)}`,
+                x: s.x,
+                y: s.y + s.height + 40,
+                text: "Label",
+                title: "Untitled",
+                description: "",
+                status: "ninguno",
+                diagnostico: "sin_definir",
+                prioridad: undefined,
+                changes: [],
+                improvementEntries: [],
+                documents: [],
+                noStandardDoc: false,
+                missingDocTypes: [],
+                imageDataUrl: undefined,
+              };
+              useDiagramStore.getState().addShape(docId, page.id, ns);
+              useDiagramStore.getState().addConnector(docId, page.id, {
+                id: `c${Date.now()}${Math.floor(Math.random() * 10000)}`,
+                fromId: s.id,
+                toId: ns.id,
+                label: "",
+                lineStyle: "solid",
+                weight: 2,
+                arrowEnd: "arrow",
+              });
+              setSelectedIds([ns.id]);
+            }}
             onStartConnector={(e) => {
               e.stopPropagation();
               const w = screenToWorld(e.clientX, e.clientY);
