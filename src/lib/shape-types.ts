@@ -100,6 +100,7 @@ export interface Shape {
   cornerStyle: "sharp" | "rounded";
   fill: string;
   z: number;
+  subProcessPageId?: string;
 }
 
 export interface Connector {

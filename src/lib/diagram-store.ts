@@ -55,6 +55,8 @@ interface State {
   addShapeDoc: (docId: string, pageId: string, shapeId: string) => void;
   updateShapeDoc: (docId: string, pageId: string, shapeId: string, entryId: string, patch: Partial<DocEntry>) => void;
   deleteShapeDoc: (docId: string, pageId: string, shapeId: string, entryId: string) => void;
+  createSubProcess: (docId: string, pageId: string, shapeId: string) => string;
+  deleteSubProcess: (docId: string, pageId: string, shapeId: string) => void;
 }
 
 function mutDoc(
@@ -397,6 +399,44 @@ export const useDiagramStore = create<State>()(
                 : s,
             );
           })
+        ),
+      createSubProcess: (docId, pageId, shapeId) => {
+        const newPageId = `p${Date.now()}${Math.floor(Math.random() * 1000)}`;
+        commit(
+          mutDoc(get().documents, docId, (d) => {
+            const parentShape = d.pages
+              .find((p) => p.id === pageId)
+              ?.shapes.find((s) => s.id === shapeId);
+            const subName = parentShape?.title || parentShape?.text || "Sub-proceso";
+            d.pages.push({
+              id: newPageId,
+              name: `Sub: ${subName}`,
+              shapes: [],
+              connectors: [],
+            });
+            const p = d.pages.find((p) => p.id === pageId);
+            if (p) {
+              p.shapes = p.shapes.map((s) =>
+                s.id === shapeId ? { ...s, subProcessPageId: newPageId } : s,
+              );
+            }
+          }),
+        );
+        return newPageId;
+      },
+      deleteSubProcess: (docId, pageId, shapeId) =>
+        commit(
+          mutDoc(get().documents, docId, (d) => {
+            const p = d.pages.find((pp) => pp.id === pageId);
+            const target = p?.shapes.find((s) => s.id === shapeId);
+            const subId = target?.subProcessPageId;
+            if (p) {
+              p.shapes = p.shapes.map((s) =>
+                s.id === shapeId ? { ...s, subProcessPageId: undefined } : s,
+              );
+            }
+            if (subId) d.pages = d.pages.filter((pg) => pg.id !== subId);
+          }),
         ),
     });
     },

@@ -93,12 +93,14 @@ import { IconTip } from "@/components/icon-tooltip";
 
 interface EditorSearch {
   doc?: string;
+  page?: string;
 }
 
 export const Route = createFileRoute("/editor")({
   ssr: false,
   validateSearch: (s: Record<string, unknown>): EditorSearch => ({
     doc: typeof s.doc === "string" ? s.doc : undefined,
+    page: typeof s.page === "string" ? s.page : undefined,
   }),
   head: () => ({
     meta: [
@@ -146,15 +148,46 @@ function EditorPage() {
   );
 
   const [currentPageId, setCurrentPageId] = useState<string | undefined>();
+  // Sync currentPageId with URL ?page= param when valid; otherwise default to first page.
   useEffect(() => {
-    if (doc && !doc.pages.find((p) => p.id === currentPageId)) {
-      setCurrentPageId(doc.pages[0]?.id);
-    }
-  }, [doc, currentPageId]);
+    if (!doc) return;
+    const fromUrl = search.page && doc.pages.find((p) => p.id === search.page) ? search.page : undefined;
+    const next = fromUrl ?? doc.pages[0]?.id;
+    if (next !== currentPageId) setCurrentPageId(next);
+  }, [doc, search.page, currentPageId]);
 
   const page = doc?.pages.find((p) => p.id === currentPageId) ?? doc?.pages[0];
 
+  // Parent shape lookup: if current page is a sub-process of some shape, find it.
+  const parentLink = useMemo(() => {
+    if (!doc || !page) return null;
+    for (const p of doc.pages) {
+      for (const s of p.shapes) {
+        if (s.subProcessPageId === page.id) return { page: p, shape: s };
+      }
+    }
+    return null;
+  }, [doc, page]);
+
+  // Apply a pending shape selection after a page-change navigation.
+  const pendingSelectRef = useRef<string | null>(null);
+  const goToPage = useCallback(
+    (pageId: string, selectShapeId?: string) => {
+      if (!doc) return;
+      if (selectShapeId) pendingSelectRef.current = selectShapeId;
+      navigate({ to: "/editor", search: { doc: doc.id, page: pageId } });
+    },
+    [doc, navigate],
+  );
+
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  useEffect(() => {
+    if (pendingSelectRef.current && page) {
+      const id = pendingSelectRef.current;
+      pendingSelectRef.current = null;
+      if (page.shapes.some((s) => s.id === id)) setSelectedIds([id]);
+    }
+  }, [page]);
   const [activeTab, setActiveTab] = useState<"shapes" | "images" | "pages" | "summary">("shapes");
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [zoom, setZoom] = useState(1);
@@ -392,7 +425,7 @@ function EditorPage() {
                 docId={doc.id}
                 pages={doc.pages}
                 currentPageId={page.id}
-                onSelect={setCurrentPageId}
+                onSelect={(pid) => goToPage(pid)}
               />
             )}
             {activeTab === "summary" && (
@@ -425,6 +458,24 @@ function EditorPage() {
           pinnedIds={pinnedIds}
           pinShape={pinShape}
           unpinShape={unpinShape}
+          onOpenSubProcess={(pid) => goToPage(pid)}
+          breadcrumb={
+            parentLink ? (
+              <div className="pointer-events-auto absolute left-3 top-3 z-30 flex items-center gap-1.5 rounded-md border border-[#EBEBEB] bg-white/95 px-2.5 py-1.5 text-[12px] text-[#4B5563] shadow-sm">
+                <button
+                  onClick={() => goToPage(parentLink.page.id, parentLink.shape.id)}
+                  className="flex items-center gap-1 rounded text-[#5B6CF8] hover:underline"
+                >
+                  <ArrowLeft className="h-3.5 w-3.5" />
+                  <span>{doc.name}</span>
+                </button>
+                <span className="text-[#9CA3AF]">/</span>
+                <span className="text-[#111827]">
+                  Sub-proceso: {parentLink.shape.title || parentLink.shape.text || "Sin título"}
+                </span>
+              </div>
+            ) : null
+          }
         />
 
         {/* Right panel */}
@@ -439,6 +490,7 @@ function EditorPage() {
                 .updateShape(doc.id, page.id, selectedShape.id, patch)
             }
             onClose={() => setSelectedIds([])}
+            onOpenSubProcess={(pid) => goToPage(pid)}
           />
         )}
       </div>
@@ -1109,12 +1161,14 @@ function RightPanel({
   shape,
   onChange,
   onClose,
+  onOpenSubProcess,
 }: {
   docId: string;
   pageId: string;
   shape: Shape;
   onChange: (patch: Partial<Shape>) => void;
   onClose: () => void;
+  onOpenSubProcess: (pageId: string) => void;
 }) {
   const fileRef = useRef<HTMLInputElement>(null);
   const [url, setUrl] = useState("");
@@ -1215,6 +1269,55 @@ function RightPanel({
           <Label className="text-xs text-[#6B7280]">Documentos</Label>
           <DocumentsSection docId={docId} pageId={pageId} shape={shape} onChange={onChange} />
         </div>
+
+        <div className="space-y-2">
+          <Label className="text-xs text-[#6B7280]">Sub-proceso</Label>
+          {shape.subProcessPageId ? (
+            <div className="flex flex-col gap-1.5">
+              <Button
+                variant="outline"
+                size="sm"
+                className="w-full justify-between text-[#5B6CF8]"
+                onClick={() => onOpenSubProcess(shape.subProcessPageId!)}
+              >
+                <span>Ver sub-proceso</span>
+                <span>→</span>
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                className="w-full text-[#DC2626]"
+                onClick={() => {
+                  if (
+                    typeof window !== "undefined" &&
+                    !window.confirm(
+                      "¿Eliminar el sub-proceso? Se borrará la página y todo su contenido.",
+                    )
+                  )
+                    return;
+                  useDiagramStore.getState().deleteSubProcess(docId, pageId, shape.id);
+                }}
+              >
+                <Trash2 className="h-3.5 w-3.5" /> Eliminar sub-proceso
+              </Button>
+            </div>
+          ) : (
+            <Button
+              variant="outline"
+              size="sm"
+              className="w-full"
+              onClick={() => {
+                const newPageId = useDiagramStore
+                  .getState()
+                  .createSubProcess(docId, pageId, shape.id);
+                onOpenSubProcess(newPageId);
+              }}
+            >
+              <Plus className="h-3.5 w-3.5" /> Crear sub-proceso
+            </Button>
+          )}
+        </div>
+
 
 
         <div className="space-y-2">
@@ -2950,6 +3053,8 @@ interface CanvasProps {
   pinnedIds: string[];
   pinShape: (id: string) => void;
   unpinShape: (id: string) => void;
+  onOpenSubProcess: (pageId: string) => void;
+  breadcrumb?: React.ReactNode;
 }
 
 function CanvasArea({
@@ -2964,6 +3069,8 @@ function CanvasArea({
   pinnedIds,
   pinShape,
   unpinShape,
+  onOpenSubProcess,
+  breadcrumb,
 }: CanvasProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const [spaceDown, setSpaceDown] = useState(false);
@@ -3468,6 +3575,7 @@ function CanvasArea({
                 useDiagramStore.getState().addShape(docId, page.id, copy);
               }
             }}
+            onOpenSubProcess={onOpenSubProcess}
           />
         ))}
 
@@ -3616,6 +3724,8 @@ function CanvasArea({
         )}
       </div>
 
+      {breadcrumb}
+
       {/* Hint */}
       <div className="pointer-events-none absolute bottom-3 left-3 rounded-md bg-white/90 px-2 py-1 text-[11px] text-[#6B7280] shadow-sm">
         Hold <kbd className="rounded bg-[#F3F4F6] px-1">Space</kbd> + drag to pan · Two-finger scroll to pan · <kbd className="rounded bg-[#F3F4F6] px-1">⌘</kbd> + scroll to zoom · Hover shapes for preview
@@ -3647,6 +3757,7 @@ interface ShapeNodeProps {
   onContextAction: (
     a: "editText" | "delete" | "front" | "back" | "duplicate" | "assignImage",
   ) => void;
+  onOpenSubProcess?: (pageId: string) => void;
 }
 
 
@@ -3670,6 +3781,7 @@ function ShapeNode({
   onQuickAdd,
   onQuickAddHover,
   onContextAction,
+  onOpenSubProcess,
 }: ShapeNodeProps) {
 
   const [hovered, setHovered] = useState(false);
@@ -4173,9 +4285,17 @@ function ShapeNode({
               </div>
             )}
 
-            {/* Bottom-right badges: docs, image */}
-            {shape.type !== "text" && (hasDocs || missingDocs || shape.imageDataUrl) && (
+            {/* Bottom-right badges: sub-process, docs, image */}
+            {shape.type !== "text" && (shape.subProcessPageId || hasDocs || missingDocs || shape.imageDataUrl) && (
               <div className="pointer-events-none absolute bottom-1.5 right-1.5 flex items-center gap-1">
+                {shape.subProcessPageId && (
+                  <div
+                    className="flex h-5 w-5 items-center justify-center rounded-full bg-[#5B6CF8] text-white text-[11px] font-semibold leading-none"
+                    title="Contiene un sub-proceso"
+                  >
+                    ⊞
+                  </div>
+                )}
                 {missingDocs && (
                   <div
                     className="flex h-5 w-5 items-center justify-center rounded-full bg-[#9CA3AF] text-white"
@@ -4246,6 +4366,29 @@ function ShapeNode({
           title={pinned ? "Desanclar" : "Anclar"}
         >
           <Pin className="h-3 w-3" style={pinned ? { fill: "currentColor" } : undefined} />
+        </button>
+      )}
+
+      {/* Expand to sub-process button (below pin) */}
+      {(showPopup || pinned || hovered) && shape.subProcessPageId && shape.type !== "text" && onOpenSubProcess && (
+        <button
+          onPointerDown={(e) => e.stopPropagation()}
+          onClick={(e) => {
+            e.stopPropagation();
+            onOpenSubProcess(shape.subProcessPageId!);
+          }}
+          onMouseEnter={() => setHovered(true)}
+          onMouseLeave={() => setHovered(false)}
+          className="flowit-fade-in absolute flex items-center gap-1 rounded-full border border-[#5B6CF8] bg-white px-2 py-0.5 text-[10px] font-medium text-[#5B6CF8] shadow-sm transition-all hover:bg-[#EEF0FF]"
+          style={{
+            left: shape.x + shape.width - 60,
+            top: shape.y + 18,
+            height: 20,
+            zIndex: 9999,
+          }}
+          title="Abrir sub-proceso"
+        >
+          Expand ↗
         </button>
       )}
 
