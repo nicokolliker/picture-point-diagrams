@@ -3326,7 +3326,15 @@ function ShapeNode({
             ref={nodeRef}
             data-shape-id={shape.id}
             style={style}
-            onPointerDown={onPointerDown}
+            onPointerDown={(e) => {
+              setPointerActive(true);
+              const onUp = () => {
+                setPointerActive(false);
+                window.removeEventListener("pointerup", onUp);
+              };
+              window.addEventListener("pointerup", onUp);
+              onPointerDown(e);
+            }}
             onDoubleClick={onDoubleClickText}
             onMouseEnter={() => setHovered(true)}
             onMouseLeave={() => setHovered(false)}
