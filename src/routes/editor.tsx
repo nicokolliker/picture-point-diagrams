@@ -1199,14 +1199,12 @@ function RightPanel({
   shape,
   onChange,
   onClose,
-  onOpenSubProcess,
 }: {
   docId: string;
   pageId: string;
   shape: Shape;
   onChange: (patch: Partial<Shape>) => void;
   onClose: () => void;
-  onOpenSubProcess: (pageId: string) => void;
 }) {
   const fileRef = useRef<HTMLInputElement>(null);
   const [url, setUrl] = useState("");
