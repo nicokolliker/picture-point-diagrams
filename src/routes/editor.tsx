@@ -2962,7 +2962,7 @@ function ShapeNode({
     height: shape.height,
     minHeight: minH,
     background: shape.fill,
-    border: `${selected ? 2 : shape.borderWeight}px ${shape.borderStyle} ${selected ? "#5B6CF8" : "#D0D0D0"}`,
+    border: `${selected ? 2 : shape.borderWeight}px ${shape.borderStyle} ${selected ? "#5B6CF8" : shape.borderColor ?? "#D0D0D0"}`,
     borderRadius: shape.cornerStyle === "rounded" ? 8 : 0,
     padding: `${basePad}px ${basePad}px ${padBottom}px ${basePad}px`,
     display: "flex",
@@ -2990,9 +2990,12 @@ function ShapeNode({
   } else if (shape.type === "parallelogram") {
     style.clipPath = "polygon(15% 0, 100% 0, 85% 100%, 0 100%)";
     style.borderRadius = 0;
+  } else if (shape.type === "cylinder") {
+    style.borderRadius = "50% / 18%";
   } else if (shape.type === "document") {
     style.clipPath =
-      "path('M0 0 H100% V80% Q75% 100% 50% 80% Q25% 60% 0 80% Z')";
+      "polygon(0 0, 100% 0, 100% 88%, 92% 100%, 83% 88%, 75% 100%, 67% 88%, 58% 100%, 50% 88%, 42% 100%, 33% 88%, 25% 100%, 17% 88%, 8% 100%, 0 88%)";
+    style.borderRadius = 0;
   } else if (shape.type === "container") {
     style.background = shape.fill;
     style.border = `${selected ? 2 : 1}px dashed ${selected ? "#5B6CF8" : "#5B6CF8"}`;
