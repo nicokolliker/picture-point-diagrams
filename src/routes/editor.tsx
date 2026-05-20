@@ -988,20 +988,13 @@ function RightPanel({
             className="resize-none text-sm"
           />
         </div>
-        <div className="space-y-2">
-          <Label className="text-xs text-[#6B7280]">Diagnóstico</Label>
-          <DiagnosticoSelector
-            value={shape.diagnostico ?? "sin_definir"}
-            onChange={(v) => onChange({ diagnostico: v })}
-          />
-        </div>
-        <div className="space-y-2">
-          <Label className="text-xs text-[#6B7280]">Prioridad de intervención</Label>
-          <PrioridadSelector
-            value={shape.prioridad}
-            onChange={(v) => onChange({ prioridad: v })}
-          />
-        </div>
+        <CompactDiagPrio
+          diagnostico={shape.diagnostico ?? "sin_definir"}
+          prioridad={shape.prioridad}
+          onChangeDiag={(v) => onChange({ diagnostico: v })}
+          onChangePrio={(v) => onChange({ prioridad: v })}
+        />
+
         <div className="space-y-2">
           <Label className="text-xs text-[#6B7280]">Oportunidades de mejora</Label>
           <ImprovementList docId={docId} pageId={pageId} shape={shape} />
