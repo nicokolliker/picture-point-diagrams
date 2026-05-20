@@ -79,8 +79,10 @@ export interface Shape {
   improvementEntries?: ImprovementEntry[];
   documents?: DocEntry[];
   noStandardDoc?: boolean;
+  missingDocTypes?: MissingDocType[];
   changes?: ChangeEntry[];
   responsable: string;
+  responsableIds?: string[];
   status: Status;
   diagnostico?: Diagnostico;
   prioridad?: Prioridad;
