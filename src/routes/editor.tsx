@@ -2398,25 +2398,39 @@ function ShapeNode({
                 <div className="text-[11px] text-[#9CA3AF]">Sin diagnóstico</div>
               )}
             </div>
-            {pinned && (shape.changes ?? []).length > 0 && (
+            {pinned && (shape.improvementEntries ?? []).length > 0 && (
               <div className="space-y-1.5 pt-1">
                 <div className="text-[10px] font-semibold uppercase tracking-wide text-[#6B7280]">
-                  Cambios sugeridos
+                  Oportunidades de mejora
                 </div>
                 <ul className="space-y-1">
-                  {(shape.changes ?? [])
+                  {(shape.improvementEntries ?? [])
                     .slice()
                     .sort((a, b) => b.date - a.date)
-                    .map((c) => (
+                    .map((e) => (
                       <li
-                        key={c.id}
+                        key={e.id}
                         className="flowit-entry rounded-md border border-[#EBEBEB] bg-white px-2 py-1.5"
                       >
+                        {e.categories.length > 0 && (
+                          <div className="mb-1 flex flex-wrap gap-1">
+                            {e.categories.map((c) => {
+                              const m = CATEGORY_META[c];
+                              return (
+                                <span
+                                  key={c}
+                                  className="inline-flex items-center gap-0.5 rounded-full px-1.5 py-0.5 text-[9px] font-medium"
+                                  style={{ background: m.bg, color: m.fg }}
+                                >
+                                  <span>{m.icon}</span>
+                                  {m.label}
+                                </span>
+                              );
+                            })}
+                          </div>
+                        )}
                         <div className="break-words text-[12px] leading-snug text-[#111827]">
-                          {c.text}
-                        </div>
-                        <div className="mt-0.5 text-[10px] text-[#9CA3AF]">
-                          {formatDate(c.date)}
+                          {e.text}
                         </div>
                       </li>
                     ))}
