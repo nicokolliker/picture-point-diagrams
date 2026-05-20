@@ -2247,10 +2247,21 @@ function SummaryPanel({
   const sectionHeader =
     "mb-2 mt-5 text-[12px] font-semibold uppercase tracking-wider text-[#9CA3AF] first:mt-0";
 
+  const [fullscreen, setFullscreen] = useState(false);
+
   return (
     <div className="flex h-full flex-col">
       <div className="border-b border-[#EBEBEB] px-5 py-4">
-        <h3 className="text-sm font-semibold text-[#111827]">Resumen de cambios</h3>
+        <div className="flex items-center justify-between gap-2">
+          <h3 className="text-sm font-semibold text-[#111827]">Resumen de cambios</h3>
+          <button
+            onClick={() => setFullscreen(true)}
+            title="Ver resumen completo"
+            className="flex h-6 w-6 items-center justify-center rounded text-[#6B7280] hover:bg-[#F3F4F6]"
+          >
+            <Expand className="h-3.5 w-3.5" />
+          </button>
+        </div>
         <p className="mt-1 text-[11px] text-[#6B7280]">
           Todas las mejoras propuestas en el proceso
         </p>
