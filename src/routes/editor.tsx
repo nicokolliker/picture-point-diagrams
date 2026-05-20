@@ -155,6 +155,35 @@ function EditorPage() {
   const [renaming, setRenaming] = useState(false);
   const [renameVal, setRenameVal] = useState("");
   const [pinnedIds, setPinnedIds] = useState<string[]>([]);
+  const [summaryWidth, setSummaryWidth] = useState<number>(() => {
+    if (typeof window === "undefined") return 340;
+    const v = Number(window.localStorage.getItem("flowitSummaryWidth"));
+    return Number.isFinite(v) && v >= 300 && v <= 600 ? v : 340;
+  });
+  const startSummaryResize = useCallback(
+    (e: React.PointerEvent<HTMLDivElement>) => {
+      e.preventDefault();
+      e.stopPropagation();
+      const startX = e.clientX;
+      const startW = summaryWidth;
+      let lastW = startW;
+      const onMove = (ev: PointerEvent) => {
+        const next = Math.max(300, Math.min(600, startW + (ev.clientX - startX)));
+        lastW = next;
+        setSummaryWidth(next);
+      };
+      const onUp = () => {
+        window.removeEventListener("pointermove", onMove);
+        window.removeEventListener("pointerup", onUp);
+        try {
+          window.localStorage.setItem("flowitSummaryWidth", String(lastW));
+        } catch { /* ignore */ }
+      };
+      window.addEventListener("pointermove", onMove);
+      window.addEventListener("pointerup", onUp);
+    },
+    [summaryWidth],
+  );
   const pinShape = useCallback(
     (id: string) => setPinnedIds((p) => (p.includes(id) ? p : [...p, id])),
     [],
