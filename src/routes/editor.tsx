@@ -363,8 +363,52 @@ function EditorPage() {
         )}
       </div>
 
+      <PinnedConnectorsOverlay pinnedIds={pinnedIds} />
+
       <Link to="/editor" className="hidden" aria-hidden />
     </div>
+  );
+}
+
+/* -------------------- Pinned popup → shape connector overlay -------------------- */
+function PinnedConnectorsOverlay({ pinnedIds }: { pinnedIds: string[] }) {
+  const [, force] = useState(0);
+  useEffect(() => {
+    if (pinnedIds.length === 0) return;
+    let raf = 0;
+    const loop = () => {
+      force((n) => (n + 1) % 1000000);
+      raf = requestAnimationFrame(loop);
+    };
+    raf = requestAnimationFrame(loop);
+    return () => cancelAnimationFrame(raf);
+  }, [pinnedIds.length]);
+  if (pinnedIds.length === 0) return null;
+  return (
+    <svg className="pointer-events-none fixed inset-0 z-40 h-full w-full">
+      {pinnedIds.map((id) => {
+        const shape = document.querySelector(`[data-shape-id="${id}"]`) as HTMLElement | null;
+        const popup = document.querySelector(`[data-pinned-popup-for="${id}"]`) as HTMLElement | null;
+        if (!shape || !popup) return null;
+        const s = shape.getBoundingClientRect();
+        const p = popup.getBoundingClientRect();
+        const sc = { x: s.left + s.width / 2, y: s.top + s.height / 2 };
+        const px = Math.max(p.left, Math.min(sc.x, p.right));
+        const py = Math.max(p.top, Math.min(sc.y, p.bottom));
+        return (
+          <line
+            key={id}
+            x1={px}
+            y1={py}
+            x2={sc.x}
+            y2={sc.y}
+            stroke="#CCCCCC"
+            strokeWidth={1}
+            strokeDasharray="4,4"
+          />
+        );
+      })}
+    </svg>
   );
 }
 
