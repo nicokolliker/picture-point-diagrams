@@ -68,6 +68,7 @@ import type {
   DocEntry,
   DocType,
   ImprovementCategory,
+  MissingDocType,
   Prioridad,
   Shape,
   ShapeType,
@@ -76,6 +77,7 @@ import {
   CATEGORY_META,
   DIAGNOSTICO_META,
   DOC_TYPES,
+  MISSING_DOC_TYPES,
   PRIORIDAD_META,
 } from "@/lib/shape-types";
 import { cn } from "@/lib/utils";
