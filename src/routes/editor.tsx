@@ -3671,6 +3671,40 @@ function ShapeNode({
         </div>
       )}
 
+      {editingText && useSvgOutline && typeof document !== "undefined" && (() => {
+        const r = nodeRef.current?.getBoundingClientRect();
+        if (!r) return null;
+        return createPortal(
+          <input
+            autoFocus
+            defaultValue={shape.text}
+            onBlur={(e) => onTextCommit((e.target as HTMLInputElement).value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") (e.target as HTMLInputElement).blur();
+            }}
+            style={{
+              position: "fixed",
+              left: r.left,
+              top: r.top,
+              width: r.width,
+              height: r.height,
+              zIndex: 10000,
+              background: "rgba(255,255,255,0.92)",
+              border: "2px solid #5B6CF8",
+              borderRadius: 6,
+              textAlign: "center",
+              fontSize: shape.fontSize,
+              fontFamily: shape.fontFamily,
+              color: shape.textColor,
+              outline: "none",
+              padding: "8px",
+            }}
+          />,
+          document.body,
+        );
+      })()}
+
+
       {lightbox && shape.imageDataUrl && typeof document !== "undefined" &&
         createPortal(
           <div
