@@ -4353,24 +4353,42 @@ function ShapeNode({
         </button>
       )}
 
-      {/* Expand to sub-process button (below pin) */}
-      {(showPopup || pinned || hovered) && shape.subProcessPageId && shape.type !== "text" && onOpenSubProcess && (
-        <button
-          onPointerDown={(e) => e.stopPropagation()}
-          onClick={(e) => {
-            e.stopPropagation();
-            onOpenSubProcess(shape.subProcessPageId!);
-          }}
-          onMouseEnter={() => setHovered(true)}
-          onMouseLeave={() => setHovered(false)}
-          className="flowit-fade-in absolute flex items-center gap-1 rounded-full border border-[#5B6CF8] bg-white px-2 py-0.5 text-[10px] font-medium text-[#5B6CF8] shadow-sm transition-all hover:bg-[#EEF0FF]"
-          style={{
-            left: shape.x + shape.width - 60,
-            top: shape.y + 18,
-            height: 20,
-            zIndex: 9999,
-          }}
-          title="Abrir sub-proceso"
+      {/* Sub-process trigger (top-left corner) */}
+      {shape.type !== "text" && (() => {
+        const hasSub = !!shape.subProcessPageId;
+        const state = subPanelState;
+        const isOpen = state === "open";
+        const isMin = state === "minimized";
+        const classes = cn(
+          "absolute flex items-center justify-center rounded-full border text-[12px] font-semibold leading-none shadow-sm transition-all hover:scale-110",
+          isOpen && "border-[#5B6CF8] bg-[#5B6CF8] text-white",
+          isMin && "border-[#F59E0B] bg-[#F59E0B] text-white",
+          !isOpen && !isMin && hasSub && "border-[#5B6CF8] bg-white text-[#5B6CF8]",
+          !isOpen && !isMin && !hasSub && "border-[#D1D5DB] bg-white text-[#D1D5DB] hover:border-[#5B6CF8] hover:text-[#5B6CF8]",
+        );
+        return (
+          <button
+            onPointerDown={(e) => e.stopPropagation()}
+            onClick={(e) => {
+              e.stopPropagation();
+              onSubProcessIconClick();
+            }}
+            onMouseEnter={() => setHovered(true)}
+            onMouseLeave={() => setHovered(false)}
+            className={classes}
+            style={{
+              left: shape.x - 10,
+              top: shape.y - 10,
+              width: 22,
+              height: 22,
+              zIndex: 9999,
+            }}
+            title={hasSub ? "Abrir sub-proceso" : "Crear sub-proceso"}
+          >
+            ⊞
+          </button>
+        );
+      })()}
         >
           Expand ↗
         </button>
