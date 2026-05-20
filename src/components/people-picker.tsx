@@ -3,6 +3,7 @@ import { Plus, Settings2, Trash2, X } from "lucide-react";
 import { useDiagramStore } from "@/lib/diagram-store";
 import type { Person } from "@/lib/shape-types";
 import { cn } from "@/lib/utils";
+import { PersonAvatar, PersonStack } from "@/components/person-avatar";
 
 export function PeoplePicker({
   selectedIds,
