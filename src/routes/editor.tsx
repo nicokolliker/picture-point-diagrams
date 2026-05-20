@@ -1735,31 +1735,26 @@ function AllDocsModal({
   );
 }
 
-// Loads pdf.js from a CDN (no bundler dependency) and renders pages into a <canvas>.
+// Loads pdf.js (bundled npm package) and configures its worker via a Vite ?url import.
 let pdfjsPromise: Promise<any> | null = null;
 function loadPdfJs(): Promise<any> {
   if (typeof window === "undefined") return Promise.reject(new Error("ssr"));
-  const w = window as any;
-  if (w.pdfjsLib) return Promise.resolve(w.pdfjsLib);
   if (pdfjsPromise) return pdfjsPromise;
-  const VERSION = "4.7.76";
-  const SRC = `https://cdn.jsdelivr.net/npm/pdfjs-dist@${VERSION}/build/pdf.min.mjs`;
-  const WORKER = `https://cdn.jsdelivr.net/npm/pdfjs-dist@${VERSION}/build/pdf.worker.min.mjs`;
-  pdfjsPromise = import(/* @vite-ignore */ SRC)
-    .then((mod: any) => {
-      const lib = mod?.default ?? mod;
-      try {
-        lib.GlobalWorkerOptions.workerSrc = WORKER;
-      } catch {
-        /* ignore */
-      }
-      w.pdfjsLib = lib;
-      return lib;
-    })
-    .catch((err) => {
-      pdfjsPromise = null;
-      throw err;
-    });
+  pdfjsPromise = (async () => {
+    const lib: any = await import("pdfjs-dist");
+    const workerUrl: string = (
+      await import("pdfjs-dist/build/pdf.worker.min.mjs?url")
+    ).default;
+    try {
+      lib.GlobalWorkerOptions.workerSrc = workerUrl;
+    } catch {
+      /* ignore */
+    }
+    return lib;
+  })().catch((err) => {
+    pdfjsPromise = null;
+    throw err;
+  });
   return pdfjsPromise;
 }
 
