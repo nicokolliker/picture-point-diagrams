@@ -2909,6 +2909,35 @@ function CanvasArea({
             }}
           />
         )}
+
+        {/* Alignment guides */}
+        {alignGuides.map((g, i) =>
+          g.orient === "v" ? (
+            <div
+              key={`gv${i}`}
+              className="pointer-events-none absolute"
+              style={{
+                left: g.pos,
+                top: -10000,
+                width: 1,
+                height: 20000,
+                background: "#FF4D6D",
+              }}
+            />
+          ) : (
+            <div
+              key={`gh${i}`}
+              className="pointer-events-none absolute"
+              style={{
+                top: g.pos,
+                left: -10000,
+                height: 1,
+                width: 20000,
+                background: "#FF4D6D",
+              }}
+            />
+          ),
+        )}
       </div>
 
       {/* Hint */}
