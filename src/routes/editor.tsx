@@ -3367,6 +3367,8 @@ function CanvasArea({
             docId={docId}
             pageId={page.id}
             zoom={zoom}
+            pan={pan}
+            allShapes={page.shapes}
             pinned={pinnedIds.includes(s.id)}
             onPin={() => pinShape(s.id)}
             onUnpin={() => unpinShape(s.id)}
@@ -3628,6 +3630,8 @@ interface ShapeNodeProps {
   docId: string;
   pageId: string;
   zoom: number;
+  pan: { x: number; y: number };
+  allShapes: Shape[];
   pinned: boolean;
   onPin: () => void;
   onUnpin: () => void;
@@ -3651,6 +3655,8 @@ function ShapeNode({
   docId,
   pageId,
   zoom,
+  pan,
+  allShapes,
   pinned,
   onPin,
   onUnpin,
@@ -3770,29 +3776,53 @@ function ShapeNode({
     if (!rect) return;
     const POP_W = pinned ? popupSize?.w ?? 320 : 280;
     const POP_H = pinned ? popupSize?.h ?? 380 : 200;
-    const GAP = 16;
+    const GAP = 12;
     const pad = 8;
-    const spaceRight = window.innerWidth - rect.right;
-    const spaceLeft = rect.left;
-    const spaceBottom = window.innerHeight - rect.bottom;
-    const spaceTop = rect.top;
-    const clampTop = (t: number) =>
-      Math.max(pad, Math.min(t, window.innerHeight - POP_H - pad));
-    const clampLeft = (l: number) =>
+    void pan;
+
+    const canvasOffsetX = rect.left - shape.x * zoom;
+    const canvasOffsetY = rect.top - shape.y * zoom;
+
+    const otherRects = allShapes
+      .filter((s) => s.id !== shape.id)
+      .map((s) => ({
+        left: s.x * zoom + canvasOffsetX,
+        top: s.y * zoom + canvasOffsetY,
+        right: (s.x + s.width) * zoom + canvasOffsetX,
+        bottom: (s.y + s.height) * zoom + canvasOffsetY,
+      }));
+
+    const overlapScore = (pl: number, pt: number) => {
+      const pr = pl + POP_W;
+      const pb = pt + POP_H;
+      return otherRects.reduce((sum, r) => {
+        const ox = Math.max(0, Math.min(pr, r.right) - Math.max(pl, r.left));
+        const oy = Math.max(0, Math.min(pb, r.bottom) - Math.max(pt, r.top));
+        return sum + ox * oy;
+      }, 0);
+    };
+
+    const clampL = (l: number) =>
       Math.max(pad, Math.min(l, window.innerWidth - POP_W - pad));
-    const needed = POP_W + GAP + pad;
-    const neededV = POP_H + GAP + pad;
-    const sides = [
-      { name: "right", space: spaceRight, fits: spaceRight >= needed, left: rect.right + GAP, top: clampTop(rect.top) },
-      { name: "left", space: spaceLeft, fits: spaceLeft >= needed, left: rect.left - POP_W - GAP, top: clampTop(rect.top) },
-      { name: "bottom", space: spaceBottom, fits: spaceBottom >= neededV, left: clampLeft(rect.left), top: rect.bottom + GAP },
-      { name: "top", space: spaceTop, fits: spaceTop >= neededV, left: clampLeft(rect.left), top: rect.top - POP_H - GAP },
+    const clampT = (t: number) =>
+      Math.max(pad, Math.min(t, window.innerHeight - POP_H - pad));
+
+    const raw = [
+      { name: "right", l: rect.right + GAP, t: clampT(rect.top) },
+      { name: "left", l: rect.left - POP_W - GAP, t: clampT(rect.top) },
+      { name: "bottom", l: clampL(rect.left), t: rect.bottom + GAP },
+      { name: "top", l: clampL(rect.left), t: rect.top - POP_H - GAP },
     ];
-    const fitting = sides.filter((s) => s.fits);
-    const pick = (fitting.length ? fitting : sides).sort((a, b) => b.space - a.space)[0];
-    setPopupPos({ left: pick.left, top: pick.top });
-    setPopupSide(pick.name as "top" | "bottom" | "left" | "right");
-  }, [popupSize, pinned]);
+    const priority: Record<string, number> = { right: 0, left: 1, bottom: 2, top: 3 };
+    const candidates = raw
+      .map((c) => ({ ...c, l: clampL(c.l), t: clampT(c.t) }))
+      .map((c) => ({ ...c, score: overlapScore(c.l, c.t) }))
+      .sort((a, b) => a.score - b.score || priority[a.name] - priority[b.name]);
+
+    const best = candidates[0];
+    setPopupPos({ left: best.l, top: best.t });
+    setPopupSide(best.name as "top" | "bottom" | "left" | "right");
+  }, [shape, allShapes, pan, zoom, popupSize, pinned]);
 
   const onResizePopupDown = useCallback(
     (e: React.PointerEvent<HTMLDivElement>) => {
