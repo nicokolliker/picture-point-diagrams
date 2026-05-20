@@ -2152,8 +2152,8 @@ function ShapeNode({
     style.background = "transparent";
   }
 
-  const diag = shape.diagnostico && shape.diagnostico !== "sin_definir" ? DIAGNOSTICO_META[shape.diagnostico] : null;
-  const prio = shape.prioridad ? PRIORIDAD_META[shape.prioridad] : null;
+  const diag = diagPre;
+  const prio = prioPre;
   const hasDocs = (shape.documents ?? []).length > 0;
   const missingDocs = !!shape.noStandardDoc;
 
