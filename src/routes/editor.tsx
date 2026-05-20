@@ -392,16 +392,41 @@ function PinnedConnectorsOverlay({ pinnedIds }: { pinnedIds: string[] }) {
         const s = shape.getBoundingClientRect();
         const p = popup.getBoundingClientRect();
         const sc = { x: s.left + s.width / 2, y: s.top + s.height / 2 };
-        const px = Math.max(p.left, Math.min(sc.x, p.right));
-        const py = Math.max(p.top, Math.min(sc.y, p.bottom));
+        const pc = { x: p.left + p.width / 2, y: p.top + p.height / 2 };
+
+        // Determine nearest edge midpoints based on relative position.
+        const dx = pc.x - sc.x;
+        const dy = pc.y - sc.y;
+        let sx: number, sy: number, ex: number, ey: number;
+        let horizontal = Math.abs(dx) >= Math.abs(dy);
+        if (horizontal) {
+          if (dx >= 0) {
+            sx = s.right; sy = sc.y; ex = p.left; ey = pc.y;
+          } else {
+            sx = s.left; sy = sc.y; ex = p.right; ey = pc.y;
+          }
+        } else {
+          if (dy >= 0) {
+            sx = sc.x; sy = s.bottom; ex = pc.x; ey = p.top;
+          } else {
+            sx = sc.x; sy = s.top; ex = pc.x; ey = p.bottom;
+          }
+        }
+
+        const offset = 80;
+        const c1x = horizontal ? sx + (dx >= 0 ? offset : -offset) : sx;
+        const c1y = horizontal ? sy : sy + (dy >= 0 ? offset : -offset);
+        const c2x = horizontal ? ex + (dx >= 0 ? -offset : offset) : ex;
+        const c2y = horizontal ? ey : ey + (dy >= 0 ? -offset : offset);
+        const d = `M ${sx},${sy} C ${c1x},${c1y} ${c2x},${c2y} ${ex},${ey}`;
+
         return (
-          <line
+          <path
             key={id}
-            x1={px}
-            y1={py}
-            x2={sc.x}
-            y2={sc.y}
+            d={d}
+            fill="none"
             stroke="#CCCCCC"
+            strokeOpacity={0.6}
             strokeWidth={1}
             strokeDasharray="4,4"
           />
