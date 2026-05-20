@@ -55,6 +55,8 @@ interface State {
   addShapeDoc: (docId: string, pageId: string, shapeId: string) => void;
   updateShapeDoc: (docId: string, pageId: string, shapeId: string, entryId: string, patch: Partial<DocEntry>) => void;
   deleteShapeDoc: (docId: string, pageId: string, shapeId: string, entryId: string) => void;
+  createSubProcess: (docId: string, pageId: string, shapeId: string) => string;
+  deleteSubProcess: (docId: string, pageId: string, shapeId: string) => void;
 }
 
 function mutDoc(
