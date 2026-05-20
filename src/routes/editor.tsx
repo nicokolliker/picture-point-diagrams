@@ -1536,6 +1536,39 @@ function DocumentsSection({
         <FileWarning className="h-3.5 w-3.5 text-[#F59E0B]" />
         <span>Sin documentación estandarizada</span>
       </label>
+      {disabled && (
+        <div className="space-y-1 rounded-md border border-[#F59E0B]/30 bg-[#FFFBEB] p-2">
+          <div className="text-[10px] font-semibold uppercase tracking-wide text-[#92400E]">
+            ¿Qué falta?
+          </div>
+          <div className="flex flex-wrap gap-1">
+            {MISSING_DOC_TYPES.map((t) => {
+              const sel = (shape.missingDocTypes ?? []).includes(t);
+              return (
+                <button
+                  key={t}
+                  onClick={() => {
+                    const cur = shape.missingDocTypes ?? [];
+                    onChange({
+                      missingDocTypes: sel
+                        ? cur.filter((x) => x !== t)
+                        : [...cur, t],
+                    });
+                  }}
+                  className={cn(
+                    "rounded-full border px-2 py-0.5 text-[11px] font-medium transition-all",
+                    sel
+                      ? "border-transparent bg-[#F59E0B] text-white"
+                      : "border-[#E5E7EB] bg-white text-[#6B7280] hover:border-[#F59E0B]",
+                  )}
+                >
+                  {t}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      )}
       <div className={cn("space-y-1.5", disabled && "pointer-events-none opacity-50")}>
         {docs.length === 0 && !adding ? (
           <div className="rounded-md border border-dashed border-[#E5E7EB] p-2 text-center text-[11px] text-[#9CA3AF]">
