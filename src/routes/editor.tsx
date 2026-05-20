@@ -4389,10 +4389,7 @@ function ShapeNode({
           </button>
         );
       })()}
-        >
-          Expand ↗
-        </button>
-      )}
+
 
       {/* Quick-add (+) button on edge nearest mouse */}
       {showQuickAdd && shape.type !== "text" && (() => {
