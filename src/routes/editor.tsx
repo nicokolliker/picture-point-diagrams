@@ -3442,6 +3442,12 @@ function CanvasArea({
                 arrowEnd: "arrow",
               });
               setSelectedIds([ns.id]);
+              setQuickGhost(null);
+            }}
+            onQuickAddHover={(edge) => {
+              setQuickGhost(edge ? { shapeId: s.id, edge } : null);
+            }}
+
             }}
             onStartConnector={(e) => {
               e.stopPropagation();
