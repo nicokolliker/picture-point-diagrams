@@ -342,8 +342,9 @@ function EditorPage() {
           setZoom={setZoom}
           selectedIds={selectedIds}
           setSelectedIds={setSelectedIds}
-          pinnedShapeId={pinnedShapeId}
-          setPinnedShapeId={setPinnedShapeId}
+          pinnedIds={pinnedIds}
+          pinShape={pinShape}
+          unpinShape={unpinShape}
         />
 
         {/* Right panel */}
