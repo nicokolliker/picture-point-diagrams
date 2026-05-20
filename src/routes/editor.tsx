@@ -3058,8 +3058,8 @@ function CanvasArea({
   pinnedIds,
   pinShape,
   unpinShape,
-  onOpenSubProcess,
-  breadcrumb,
+  onSubProcessIconClick,
+  subPanelStates,
 }: CanvasProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const [spaceDown, setSpaceDown] = useState(false);
