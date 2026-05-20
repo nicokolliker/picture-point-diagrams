@@ -95,6 +95,7 @@ interface EditorSearch {
 }
 
 export const Route = createFileRoute("/editor")({
+  ssr: false,
   validateSearch: (s: Record<string, unknown>): EditorSearch => ({
     doc: typeof s.doc === "string" ? s.doc : undefined,
   }),
