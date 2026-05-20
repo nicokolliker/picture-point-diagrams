@@ -3006,6 +3006,33 @@ function ShapeNode({
     return () => window.removeEventListener("keydown", onKey);
   }, [lightbox]);
 
+  // Quick-add (+) button: appears 600ms after hover, 200ms grace on leave.
+  const [showQuickAdd, setShowQuickAdd] = useState(false);
+  const [qaHover, setQaHover] = useState(false);
+  const [pointerActive, setPointerActive] = useState(false);
+  const qaShowTimer = useRef<number | null>(null);
+  const qaHideTimer = useRef<number | null>(null);
+  useEffect(() => {
+    const active = (hovered || qaHover) && !pointerActive;
+    if (active) {
+      if (qaHideTimer.current) { clearTimeout(qaHideTimer.current); qaHideTimer.current = null; }
+      if (!showQuickAdd && !qaShowTimer.current) {
+        qaShowTimer.current = window.setTimeout(() => {
+          setShowQuickAdd(true);
+          qaShowTimer.current = null;
+        }, 600);
+      }
+    } else {
+      if (qaShowTimer.current) { clearTimeout(qaShowTimer.current); qaShowTimer.current = null; }
+      if (showQuickAdd && !qaHideTimer.current) {
+        qaHideTimer.current = window.setTimeout(() => {
+          setShowQuickAdd(false);
+          qaHideTimer.current = null;
+        }, 200);
+      }
+    }
+  }, [hovered, qaHover, pointerActive, showQuickAdd]);
+
   // Reset drag position when unpinned
   useEffect(() => {
     if (!pinned) setDragPos(null);
