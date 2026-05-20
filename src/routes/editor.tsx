@@ -2493,40 +2493,30 @@ function ShapeNode({
   const computePos = useCallback(() => {
     const rect = nodeRef.current?.getBoundingClientRect();
     if (!rect) return;
-    const POP_W = popupSize?.w ?? 320;
-    const POP_H = popupSize?.h ?? 380;
+    const POP_W = pinned ? popupSize?.w ?? 320 : 280;
+    const POP_H = pinned ? popupSize?.h ?? 380 : 200;
     const GAP = 16;
     const pad = 8;
+    const spaceRight = window.innerWidth - rect.right;
+    const spaceLeft = rect.left;
+    const spaceBottom = window.innerHeight - rect.bottom;
+    const spaceTop = rect.top;
     const clampTop = (t: number) =>
       Math.max(pad, Math.min(t, window.innerHeight - POP_H - pad));
     const clampLeft = (l: number) =>
       Math.max(pad, Math.min(l, window.innerWidth - POP_W - pad));
-    // Try right, left, bottom, top — pick first that fits inside viewport with the 16px gap.
-    const candidates = [
-      {
-        left: rect.right + GAP,
-        top: clampTop(rect.top),
-        ok: rect.right + GAP + POP_W + pad <= window.innerWidth,
-      },
-      {
-        left: rect.left - POP_W - GAP,
-        top: clampTop(rect.top),
-        ok: rect.left - POP_W - GAP >= pad,
-      },
-      {
-        left: clampLeft(rect.left),
-        top: rect.bottom + GAP,
-        ok: rect.bottom + GAP + POP_H + pad <= window.innerHeight,
-      },
-      {
-        left: clampLeft(rect.left),
-        top: rect.top - POP_H - GAP,
-        ok: rect.top - POP_H - GAP >= pad,
-      },
+    const needed = POP_W + GAP + pad;
+    const neededV = POP_H + GAP + pad;
+    const sides = [
+      { name: "right", space: spaceRight, fits: spaceRight >= needed, left: rect.right + GAP, top: clampTop(rect.top) },
+      { name: "left", space: spaceLeft, fits: spaceLeft >= needed, left: rect.left - POP_W - GAP, top: clampTop(rect.top) },
+      { name: "bottom", space: spaceBottom, fits: spaceBottom >= neededV, left: clampLeft(rect.left), top: rect.bottom + GAP },
+      { name: "top", space: spaceTop, fits: spaceTop >= neededV, left: clampLeft(rect.left), top: rect.top - POP_H - GAP },
     ];
-    const pick = candidates.find((c) => c.ok) ?? candidates[0];
+    const fitting = sides.filter((s) => s.fits);
+    const pick = (fitting.length ? fitting : sides).sort((a, b) => b.space - a.space)[0];
     setPopupPos({ left: pick.left, top: pick.top });
-  }, [popupSize]);
+  }, [popupSize, pinned]);
 
   const onResizePopupDown = useCallback(
     (e: React.PointerEvent<HTMLDivElement>) => {
