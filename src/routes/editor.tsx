@@ -1791,6 +1791,7 @@ function ShapeNode({
     textAlign: shape.align,
     boxSizing: "border-box",
     cursor: "move",
+    transition: "border-color 100ms ease-out, box-shadow 150ms ease-out",
   };
 
   // Diamond / oval / parallelogram / cylinder / document use clip-path
