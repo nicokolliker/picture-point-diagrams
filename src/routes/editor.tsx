@@ -3399,12 +3399,18 @@ function CanvasArea({
               setEditingTextId(null);
             }}
             onSelectShape={() => setSelectedIds([s.id])}
-            onQuickAdd={() => {
+            onQuickAdd={(edge) => {
+              let nx = s.x;
+              let ny = s.y;
+              if (edge === "bottom") { nx = s.x; ny = s.y + s.height + 40; }
+              else if (edge === "top") { nx = s.x; ny = s.y - s.height - 40; }
+              else if (edge === "right") { nx = s.x + s.width + 60; ny = s.y; }
+              else if (edge === "left") { nx = s.x - s.width - 60; ny = s.y; }
               const ns: Shape = {
                 ...s,
                 id: `s${Date.now()}${Math.floor(Math.random() * 10000)}`,
-                x: s.x,
-                y: s.y + s.height + 40,
+                x: nx,
+                y: ny,
                 text: "Label",
                 title: "Untitled",
                 description: "",
@@ -3419,10 +3425,13 @@ function CanvasArea({
                 imageDataUrl: undefined,
               };
               useDiagramStore.getState().addShape(docId, page.id, ns);
+              // For "top", arrow goes from new -> original; otherwise original -> new
+              const fromId = edge === "top" ? ns.id : s.id;
+              const toId = edge === "top" ? s.id : ns.id;
               useDiagramStore.getState().addConnector(docId, page.id, {
                 id: `c${Date.now()}${Math.floor(Math.random() * 10000)}`,
-                fromId: s.id,
-                toId: ns.id,
+                fromId,
+                toId,
                 label: "",
                 lineStyle: "solid",
                 weight: 2,
@@ -3518,7 +3527,7 @@ interface ShapeNodeProps {
   onTextCommit: (text: string) => void;
   onStartConnector: (e: ReactPointerEvent<HTMLDivElement>) => void;
   onSelectShape: () => void;
-  onQuickAdd: () => void;
+  onQuickAdd: (edge: "top" | "bottom" | "left" | "right") => void;
   onContextAction: (
     a: "editText" | "delete" | "front" | "back" | "duplicate" | "assignImage",
   ) => void;
@@ -3548,6 +3557,9 @@ function ShapeNode({
   const hideTimer = useRef<number | null>(null);
   const nodeRef = useRef<HTMLDivElement>(null);
   const [popupPos, setPopupPos] = useState<{ left: number; top: number } | null>(null);
+  const [popupSide, setPopupSide] = useState<"top" | "bottom" | "left" | "right" | null>(null);
+  const mouseRef = useRef<{ x: number; y: number }>({ x: 0, y: 0 });
+  const [qaEdge, setQaEdge] = useState<"top" | "bottom" | "left" | "right">("bottom");
   const [dragPos, setDragPos] = useState<{ left: number; top: number } | null>(null);
   const [dragging, setDragging] = useState(false);
   const [lightbox, setLightbox] = useState(false);
@@ -3560,7 +3572,7 @@ function ShapeNode({
     return () => window.removeEventListener("keydown", onKey);
   }, [lightbox]);
 
-  // Quick-add (+) button: appears 600ms after hover, 200ms grace on leave.
+  // Quick-add (+) button: appears 400ms after hover, 200ms grace on leave.
   const [showQuickAdd, setShowQuickAdd] = useState(false);
   const [qaHover, setQaHover] = useState(false);
   const [pointerActive, setPointerActive] = useState(false);
@@ -3572,9 +3584,24 @@ function ShapeNode({
       if (qaHideTimer.current) { clearTimeout(qaHideTimer.current); qaHideTimer.current = null; }
       if (!showQuickAdd && !qaShowTimer.current) {
         qaShowTimer.current = window.setTimeout(() => {
+          // Compute closest edge to mouse
+          const rect = nodeRef.current?.getBoundingClientRect();
+          let edge: "top" | "bottom" | "left" | "right" = "bottom";
+          if (rect) {
+            const relX = mouseRef.current.x - (rect.left + rect.width / 2);
+            const relY = mouseRef.current.y - (rect.top + rect.height / 2);
+            if (Math.abs(relX) > Math.abs(relY)) edge = relX > 0 ? "right" : "left";
+            else edge = relY > 0 ? "bottom" : "top";
+          }
+          // Avoid collision with popup
+          if (showPopup && popupSide === edge) {
+            const opp: Record<typeof edge, typeof edge> = { top: "bottom", bottom: "top", left: "right", right: "left" };
+            edge = opp[edge];
+          }
+          setQaEdge(edge);
           setShowQuickAdd(true);
           qaShowTimer.current = null;
-        }, 600);
+        }, 400);
       }
     } else {
       if (qaShowTimer.current) { clearTimeout(qaShowTimer.current); qaShowTimer.current = null; }
@@ -3585,7 +3612,7 @@ function ShapeNode({
         }, 200);
       }
     }
-  }, [hovered, qaHover, pointerActive, showQuickAdd]);
+  }, [hovered, qaHover, pointerActive, showQuickAdd, showPopup, popupSide]);
 
   // Reset drag position when unpinned
   useEffect(() => {
@@ -3648,6 +3675,7 @@ function ShapeNode({
     const fitting = sides.filter((s) => s.fits);
     const pick = (fitting.length ? fitting : sides).sort((a, b) => b.space - a.space)[0];
     setPopupPos({ left: pick.left, top: pick.top });
+    setPopupSide(pick.name as "top" | "bottom" | "left" | "right");
   }, [popupSize, pinned]);
 
   const onResizePopupDown = useCallback(
@@ -3682,9 +3710,9 @@ function ShapeNode({
     }
   }, [pinned, computePos, dragPos]);
 
-  // Hover-show with 500ms delay, hover-hide with grace timer.
+  // Hover-show with 600ms delay; popup hover zone also includes the + button.
   useEffect(() => {
-    const active = hovered || popupHovered;
+    const active = hovered || popupHovered || qaHover;
     if (active) {
       if (hideTimer.current) {
         clearTimeout(hideTimer.current);
@@ -3694,7 +3722,7 @@ function ShapeNode({
         hoverTimer.current = window.setTimeout(() => {
           computePos();
           setShowPopup(true);
-        }, 500);
+        }, 600);
       }
     } else {
       if (hoverTimer.current) {
@@ -3708,7 +3736,7 @@ function ShapeNode({
     return () => {
       if (hoverTimer.current) clearTimeout(hoverTimer.current);
     };
-  }, [hovered, popupHovered, pinned, showPopup, computePos]);
+  }, [hovered, popupHovered, qaHover, pinned, showPopup, computePos]);
 
 
 
@@ -3902,6 +3930,9 @@ function ShapeNode({
             onDoubleClick={onDoubleClickText}
             onMouseEnter={() => setHovered(true)}
             onMouseLeave={() => setHovered(false)}
+            onMouseMove={(e) => {
+              mouseRef.current = { x: e.clientX, y: e.clientY };
+            }}
           >
             {editingText && !useSvgOutline ? (
               <input
@@ -4002,29 +4033,33 @@ function ShapeNode({
         </ContextMenuContent>
       </ContextMenu>
 
-      {/* Quick-add (+) button below shape */}
-      {showQuickAdd && shape.type !== "text" && (
-        <button
-          onPointerDown={(e) => e.stopPropagation()}
-          onClick={(e) => {
-            e.stopPropagation();
-            onQuickAdd();
-          }}
-          onMouseEnter={() => setQaHover(true)}
-          onMouseLeave={() => setQaHover(false)}
-          className="flowit-fade-in absolute flex items-center justify-center rounded-full border-2 border-[#5B6CF8] bg-white text-[#5B6CF8] hover:bg-[#EEF0FF]"
-          style={{
-            left: shape.x + shape.width / 2 - 12,
-            top: shape.y + shape.height + 16,
-            width: 24,
-            height: 24,
-            zIndex: 9998,
-          }}
-          title="Add connected shape"
-        >
-          <Plus className="h-4 w-4" />
-        </button>
-      )}
+      {/* Quick-add (+) button on edge nearest mouse */}
+      {showQuickAdd && shape.type !== "text" && (() => {
+        const SIZE = 24;
+        const OFFSET = 8;
+        let left = shape.x + shape.width / 2 - SIZE / 2;
+        let top = shape.y + shape.height / 2 - SIZE / 2;
+        if (qaEdge === "bottom") top = shape.y + shape.height + OFFSET;
+        else if (qaEdge === "top") top = shape.y - OFFSET - SIZE;
+        else if (qaEdge === "right") left = shape.x + shape.width + OFFSET;
+        else if (qaEdge === "left") left = shape.x - OFFSET - SIZE;
+        return (
+          <button
+            onPointerDown={(e) => e.stopPropagation()}
+            onClick={(e) => {
+              e.stopPropagation();
+              onQuickAdd(qaEdge);
+            }}
+            onMouseEnter={() => setQaHover(true)}
+            onMouseLeave={() => setQaHover(false)}
+            className="flowit-fade-in absolute flex items-center justify-center rounded-full border-2 border-[#5B6CF8] bg-white text-[#5B6CF8] hover:bg-[#EEF0FF]"
+            style={{ left, top, width: SIZE, height: SIZE, zIndex: 9998 }}
+            title="Add connected shape"
+          >
+            <Plus className="h-4 w-4" />
+          </button>
+        );
+      })()}
 
       {/* HOVER POPUP */}
       {showPopup && popupPos && (
