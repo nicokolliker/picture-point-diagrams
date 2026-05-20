@@ -3538,29 +3538,54 @@ function ShapeNode({
         </div>
       )}
 
-      {lightbox && shape.imageDataUrl && (
-        <div
-          className="flowit-fade-in fixed inset-0 z-[200] flex items-center justify-center bg-black/90"
-          onClick={() => setLightbox(false)}
-        >
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
-              setLightbox(false);
+      {lightbox && shape.imageDataUrl && typeof document !== "undefined" &&
+        createPortal(
+          <div
+            onClick={() => setLightbox(false)}
+            style={{
+              position: "fixed",
+              inset: 0,
+              zIndex: 9999,
+              background: "rgba(0,0,0,0.85)",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              opacity: 1,
+              animation: "flowitLightboxIn 200ms ease-out",
             }}
-            className="absolute right-4 top-4 flex h-10 w-10 items-center justify-center rounded-full bg-white/10 text-white hover:bg-white/20"
-            aria-label="Cerrar"
           >
-            <X className="h-5 w-5" />
-          </button>
-          <img
-            src={shape.imageDataUrl}
-            alt={shape.title}
-            onClick={(e) => e.stopPropagation()}
-            style={{ maxWidth: "90vw", maxHeight: "90vh", objectFit: "contain" }}
-          />
-        </div>
-      )}
+            <span
+              onClick={(e) => {
+                e.stopPropagation();
+                setLightbox(false);
+              }}
+              style={{
+                position: "absolute",
+                top: 20,
+                right: 24,
+                fontSize: 28,
+                color: "white",
+                cursor: "pointer",
+                lineHeight: 1,
+                userSelect: "none",
+              }}
+            >
+              ×
+            </span>
+            <img
+              src={shape.imageDataUrl}
+              alt={shape.title}
+              onClick={(e) => e.stopPropagation()}
+              style={{
+                maxWidth: "90vw",
+                maxHeight: "90vh",
+                objectFit: "contain",
+                borderRadius: 8,
+              }}
+            />
+          </div>,
+          document.body,
+        )}
     </>
   );
 }
