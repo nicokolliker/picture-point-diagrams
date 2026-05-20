@@ -2306,7 +2306,7 @@ function SummaryPanel({
           )}
         </div>
 
-        <div className="mt-5 h-px bg-[#EBEBEB]" />
+        <div className="my-6 h-px bg-[#EBEBEB]" />
 
         <div>
           <div className={sectionHeader}>Oportunidades de mejora</div>
