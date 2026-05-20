@@ -1230,14 +1230,16 @@ function CategoryToggle({
         onClick();
       }}
       className={cn(
-        "inline-flex items-center gap-1 rounded-full border px-1.5 py-0.5 text-[10px] font-medium transition-all",
-        active ? "border-transparent" : "border-[#E5E7EB] bg-white text-[#9CA3AF] hover:border-[#D1D5DB]",
+        "inline-flex h-6 w-6 items-center justify-center rounded-full border text-[12px] transition-all",
+        active
+          ? "border-transparent shadow-sm"
+          : "border-[#E5E7EB] bg-white opacity-50 hover:opacity-100",
       )}
       style={active ? { background: meta.bg, color: meta.fg } : undefined}
       title={meta.label}
+      aria-label={meta.label}
     >
       <span>{meta.icon}</span>
-      {meta.label}
     </button>
   );
 }
