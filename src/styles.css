@@ -184,3 +184,6 @@
   background-image: radial-gradient(circle, #E0E0E0 0.5px, transparent 0.5px);
   background-size: 20px 20px;
 }
+
+@keyframes flowitLightboxIn { from { opacity: 0; } to { opacity: 1; } }
+
