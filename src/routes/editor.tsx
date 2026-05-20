@@ -74,6 +74,7 @@ import type {
   DocType,
   ImprovementCategory,
   MissingDocType,
+  Person,
   Prioridad,
   Shape,
   ShapeType,
