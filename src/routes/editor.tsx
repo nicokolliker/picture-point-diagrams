@@ -1557,9 +1557,9 @@ function CanvasArea({
             shape={s}
             docId={docId}
             pageId={page.id}
-            pinned={pinnedShapeId === s.id}
-            onPin={() => setPinnedShapeId(s.id)}
-            onUnpin={() => setPinnedShapeId(null)}
+            pinned={pinnedIds.includes(s.id)}
+            onPin={() => pinShape(s.id)}
+            onUnpin={() => unpinShape(s.id)}
             selected={selectedIds.includes(s.id)}
             editingText={editingTextId === s.id}
             onPointerDown={(e) => {
