@@ -96,6 +96,7 @@ export interface Shape {
   align: "left" | "center" | "right";
   borderStyle: "solid" | "dashed" | "dotted";
   borderWeight: 1 | 2 | 3;
+  borderColor?: string;
   cornerStyle: "sharp" | "rounded";
   fill: string;
   z: number;
