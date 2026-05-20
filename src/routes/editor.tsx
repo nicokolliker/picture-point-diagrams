@@ -148,13 +148,37 @@ function EditorPage() {
   );
 
   const [currentPageId, setCurrentPageId] = useState<string | undefined>();
+  // Sync currentPageId with URL ?page= param when valid; otherwise default to first page.
   useEffect(() => {
-    if (doc && !doc.pages.find((p) => p.id === currentPageId)) {
-      setCurrentPageId(doc.pages[0]?.id);
-    }
-  }, [doc, currentPageId]);
+    if (!doc) return;
+    const fromUrl = search.page && doc.pages.find((p) => p.id === search.page) ? search.page : undefined;
+    const next = fromUrl ?? doc.pages[0]?.id;
+    if (next !== currentPageId) setCurrentPageId(next);
+  }, [doc, search.page, currentPageId]);
 
   const page = doc?.pages.find((p) => p.id === currentPageId) ?? doc?.pages[0];
+
+  // Parent shape lookup: if current page is a sub-process of some shape, find it.
+  const parentLink = useMemo(() => {
+    if (!doc || !page) return null;
+    for (const p of doc.pages) {
+      for (const s of p.shapes) {
+        if (s.subProcessPageId === page.id) return { page: p, shape: s };
+      }
+    }
+    return null;
+  }, [doc, page]);
+
+  // Apply a pending shape selection after a page-change navigation.
+  const pendingSelectRef = useRef<string | null>(null);
+  const goToPage = useCallback(
+    (pageId: string, selectShapeId?: string) => {
+      if (!doc) return;
+      if (selectShapeId) pendingSelectRef.current = selectShapeId;
+      navigate({ to: "/editor", search: { doc: doc.id, page: pageId } });
+    },
+    [doc, navigate],
+  );
 
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [activeTab, setActiveTab] = useState<"shapes" | "images" | "pages" | "summary">("shapes");
