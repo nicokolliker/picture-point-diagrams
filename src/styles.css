@@ -167,6 +167,12 @@
 }
 .flowit-slide-in-right { animation: flowit-slide-in-right 200ms ease-out; }
 
+@keyframes flowit-fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+.flowit-fade-in { animation: flowit-fade-in 150ms ease-out; }
+
 @keyframes flowit-entry {
   from { opacity: 0; transform: translateY(-4px); }
   to { opacity: 1; transform: translateY(0); }

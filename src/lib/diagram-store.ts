@@ -403,6 +403,7 @@ export function makeDefaultShape(type: ShapeType, x: number, y: number): Shape {
     align: "center",
     borderStyle: "solid",
     borderWeight: 1,
+    borderColor: "#D0D0D0",
     cornerStyle: "rounded",
     fill: isSticky ? "#FEF3C7" : isContainer ? "rgba(91,108,248,0.04)" : "#ffffff",
     z: 1,

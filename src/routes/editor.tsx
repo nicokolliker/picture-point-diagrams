@@ -33,6 +33,7 @@ import {
   Underline,
   Upload,
   X,
+  ZoomIn,
   AlignLeft,
   AlignCenter,
   AlignRight,
@@ -155,6 +156,35 @@ function EditorPage() {
   const [renaming, setRenaming] = useState(false);
   const [renameVal, setRenameVal] = useState("");
   const [pinnedIds, setPinnedIds] = useState<string[]>([]);
+  const [summaryWidth, setSummaryWidth] = useState<number>(() => {
+    if (typeof window === "undefined") return 340;
+    const v = Number(window.localStorage.getItem("flowitSummaryWidth"));
+    return Number.isFinite(v) && v >= 300 && v <= 600 ? v : 340;
+  });
+  const startSummaryResize = useCallback(
+    (e: React.PointerEvent<HTMLDivElement>) => {
+      e.preventDefault();
+      e.stopPropagation();
+      const startX = e.clientX;
+      const startW = summaryWidth;
+      let lastW = startW;
+      const onMove = (ev: PointerEvent) => {
+        const next = Math.max(300, Math.min(600, startW + (ev.clientX - startX)));
+        lastW = next;
+        setSummaryWidth(next);
+      };
+      const onUp = () => {
+        window.removeEventListener("pointermove", onMove);
+        window.removeEventListener("pointerup", onUp);
+        try {
+          window.localStorage.setItem("flowitSummaryWidth", String(lastW));
+        } catch { /* ignore */ }
+      };
+      window.addEventListener("pointermove", onMove);
+      window.addEventListener("pointerup", onUp);
+    },
+    [summaryWidth],
+  );
   const pinShape = useCallback(
     (id: string) => setPinnedIds((p) => (p.includes(id) ? p : [...p, id])),
     [],
@@ -299,7 +329,10 @@ function EditorPage() {
 
         {/* Left panel */}
         {sidebarOpen && (
-          <div className="w-[260px] shrink-0 border-r border-[#EBEBEB] bg-white">
+          <div
+            className="relative shrink-0 border-r border-[#EBEBEB] bg-white"
+            style={{ width: activeTab === "summary" ? summaryWidth : 260 }}
+          >
             {activeTab === "shapes" && (
               <ShapesPanel
                 onAddShape={(type) => {
@@ -340,6 +373,13 @@ function EditorPage() {
                 docId={doc.id}
                 page={page}
                 onJumpToShape={(id) => setSelectedIds([id])}
+              />
+            )}
+            {activeTab === "summary" && (
+              <div
+                onPointerDown={startSummaryResize}
+                className="absolute right-0 top-0 z-10 h-full w-1 cursor-col-resize bg-transparent transition-colors hover:bg-[#5B6CF8]/30"
+                title="Arrastrá para ajustar el ancho"
               />
             )}
           </div>
@@ -563,7 +603,78 @@ function FormatBar({
           <SelectItem value="rounded">Rounded</SelectItem>
         </SelectContent>
       </Select>
+      <div className="mx-1 h-5 w-px bg-[#EBEBEB]" />
+      <ColorSwatchPicker
+        label="Fill"
+        value={shape.fill}
+        onChange={(c) => onChange({ fill: c })}
+      />
+      <ColorSwatchPicker
+        label="Border"
+        value={shape.borderColor ?? "#D0D0D0"}
+        onChange={(c) => onChange({ borderColor: c })}
+      />
     </div>
+  );
+}
+
+const SWATCHES = [
+  "#FFFFFF", "#000000", "#6B7280", "#D0D0D0",
+  "#FCA5A5", "#F59E0B", "#FCD34D", "#86EFAC",
+  "#5EEAD4", "#93C5FD", "#A78BFA", "#F0ABFC",
+];
+
+function ColorSwatchPicker({
+  label,
+  value,
+  onChange,
+}: {
+  label: string;
+  value: string;
+  onChange: (c: string) => void;
+}) {
+  return (
+    <Popover>
+      <PopoverTrigger asChild>
+        <button
+          className="flex h-7 items-center gap-1 rounded border border-[#EBEBEB] px-1.5 text-[11px] text-[#374151] hover:bg-[#F3F4F6]"
+          title={`${label} color`}
+        >
+          <span
+            className="h-4 w-4 rounded border border-[#D0D0D0]"
+            style={{ background: value }}
+          />
+          <span>{label}</span>
+        </button>
+      </PopoverTrigger>
+      <PopoverContent className="w-auto p-2" align="start">
+        <div className="grid grid-cols-6 gap-1">
+          {SWATCHES.map((c) => (
+            <button
+              key={c}
+              onClick={() => onChange(c)}
+              className={cn(
+                "h-6 w-6 rounded border",
+                value.toLowerCase() === c.toLowerCase()
+                  ? "border-[#5B6CF8] ring-1 ring-[#5B6CF8]"
+                  : "border-[#D0D0D0]",
+              )}
+              style={{ background: c }}
+              title={c}
+            />
+          ))}
+        </div>
+        <div className="mt-2 flex items-center gap-1.5">
+          <input
+            type="color"
+            value={value}
+            onChange={(e) => onChange(e.target.value)}
+            className="h-7 w-7 cursor-pointer rounded border border-[#EBEBEB]"
+          />
+          <span className="text-[11px] text-[#6B7280]">Custom</span>
+        </div>
+      </PopoverContent>
+    </Popover>
   );
 }
 
@@ -947,7 +1058,11 @@ function RightPanel({
 }) {
   const fileRef = useRef<HTMLInputElement>(null);
   const [url, setUrl] = useState("");
-  const [panelWidth, setPanelWidth] = useState(320);
+  const [panelWidth, setPanelWidth] = useState<number>(() => {
+    if (typeof window === "undefined") return 320;
+    const v = Number(window.localStorage.getItem("flowitPanelWidth"));
+    return Number.isFinite(v) && v >= 240 && v <= 520 ? v : 320;
+  });
 
   const startResize = useCallback(
     (e: React.PointerEvent<HTMLDivElement>) => {
@@ -955,13 +1070,20 @@ function RightPanel({
       e.stopPropagation();
       const startX = e.clientX;
       const startW = panelWidth;
+      let lastW = startW;
       const onMove = (ev: PointerEvent) => {
         const next = Math.max(240, Math.min(520, startW - (ev.clientX - startX)));
+        lastW = next;
         setPanelWidth(next);
       };
       const onUp = () => {
         window.removeEventListener("pointermove", onMove);
         window.removeEventListener("pointerup", onUp);
+        try {
+          window.localStorage.setItem("flowitPanelWidth", String(lastW));
+        } catch {
+          /* ignore */
+        }
       };
       window.addEventListener("pointermove", onMove);
       window.addEventListener("pointerup", onUp);
@@ -2056,53 +2178,51 @@ function SummaryPanel({
     });
   }
 
-  const toneStyle = (tone: Alert["tone"]) =>
-    tone === "red"
-      ? "border-[#FECACA] bg-[#FEF2F2]"
-      : tone === "amber"
-        ? "border-[#FDE68A] bg-[#FFFBEB]"
-        : "border-[#BFDBFE] bg-[#EFF6FF]";
+  const toneAccent = (tone: Alert["tone"]) =>
+    tone === "red" ? "#DC2626" : tone === "amber" ? "#F59E0B" : "#3B82F6";
+
+  const sectionHeader =
+    "mb-2 mt-5 text-[12px] font-semibold uppercase tracking-wider text-[#9CA3AF] first:mt-0";
 
   return (
     <div className="flex h-full flex-col">
-      <div className="border-b border-[#EBEBEB] p-3">
+      <div className="border-b border-[#EBEBEB] px-5 py-4">
         <h3 className="text-sm font-semibold text-[#111827]">Resumen de cambios</h3>
-        <p className="mt-0.5 text-[11px] text-[#6B7280]">
+        <p className="mt-1 text-[11px] text-[#6B7280]">
           Todas las mejoras propuestas en el proceso
         </p>
       </div>
-      <div className="flex-1 space-y-4 overflow-y-auto p-3">
+      <div className="flex-1 overflow-y-auto px-5 py-4">
         {/* Alertas */}
         <div>
-          <div className="mb-1.5 text-[11px] font-semibold uppercase tracking-wide text-[#6B7280]">
-            ⚠️ Alertas
-          </div>
+          <div className={sectionHeader}>⚠️ Alertas</div>
           {alerts.length === 0 ? (
-            <div className="rounded-md border border-[#BBF7D0] bg-[#F0FDF4] p-3 text-center text-xs text-[#166534]">
+            <div className="rounded-md border border-[#BBF7D0] bg-[#F0FDF4] p-4 text-center text-xs text-[#166534]">
               ✅ Sin alertas detectadas
             </div>
           ) : (
-            <ul className="space-y-2">
+            <ul className="flex flex-col gap-3">
               {alerts.map((a) => (
                 <li
                   key={a.id}
-                  className={cn("rounded-md border p-2.5", toneStyle(a.tone))}
+                  className="rounded-md border border-[#EBEBEB] bg-white p-4 shadow-sm"
+                  style={{ borderLeft: `3px solid ${toneAccent(a.tone)}` }}
                 >
-                  <div className="mb-0.5 flex items-center gap-1.5 text-[12px] font-semibold text-[#111827]">
+                  <div className="mb-1 flex items-center gap-1.5 text-[13px] font-semibold text-[#111827]">
                     <span>{a.icon}</span>
                     <span>{a.title}</span>
                   </div>
-                  <div className="mb-1.5 text-[11px] text-[#4B5563]">
+                  <div className="mb-2 text-[12px] leading-relaxed text-[#4B5563]">
                     {a.explanation}
                   </div>
-                  <div className="flex flex-wrap gap-1">
+                  <div className="flex flex-wrap gap-1.5">
                     {a.shapes.map((s) => (
                       <button
                         key={s.id}
                         onClick={() => onJumpToShape(s.id)}
-                        className="inline-flex items-center rounded-full bg-white/80 px-2 py-0.5 text-[10px] font-medium text-[#374151] ring-1 ring-[#E5E7EB] hover:bg-white"
+                        className="inline-flex max-w-full items-center rounded-full bg-[#F3F4F6] px-2 py-0.5 text-[11px] font-medium text-[#374151] hover:bg-[#E5E7EB]"
                       >
-                        {s.title || s.text || "Sin título"}
+                        <span className="truncate">{s.title || s.text || "Sin título"}</span>
                       </button>
                     ))}
                   </div>
@@ -2112,24 +2232,24 @@ function SummaryPanel({
           )}
         </div>
 
+        <div className="mt-5 h-px bg-[#EBEBEB]" />
+
         <div>
-          <div className="mb-1.5 text-[11px] font-semibold uppercase tracking-wide text-[#6B7280]">
-            Oportunidades de mejora
-          </div>
+          <div className={sectionHeader}>Oportunidades de mejora</div>
           {entries.length === 0 ? (
             <div className="rounded-md border border-dashed border-[#E5E7EB] p-4 text-center text-xs text-[#9CA3AF]">
               Aún no hay oportunidades de mejora.
             </div>
           ) : (
-            <ul className="space-y-2">
+            <ul className="flex flex-col gap-2.5">
               {entries.map(({ shape, entry }) => (
                 <li
                   key={entry.id}
-                  className="rounded-md border border-[#EBEBEB] bg-white p-2.5 hover:border-[#5B6CF8]"
+                  className="rounded-lg border border-[#EBEBEB] bg-white p-4 transition-colors hover:border-[#5B6CF8]"
                 >
                   <button
                     onClick={() => onJumpToShape(shape.id)}
-                    className="mb-1.5 inline-flex max-w-full items-center gap-1 rounded-full bg-[#EEF0FF] px-2 py-0.5 text-[10px] font-medium text-[#5B6CF8] hover:bg-[#DDE2FF]"
+                    className="mb-2 inline-flex max-w-full items-center gap-1 rounded-full bg-[#EEF0FF] px-2 py-0.5 text-[10px] font-medium text-[#5B6CF8] hover:bg-[#DDE2FF]"
                   >
                     <span
                       className="h-1.5 w-1.5 shrink-0 rounded-full"
@@ -2140,11 +2260,11 @@ function SummaryPanel({
                     />
                     <span className="truncate">{shape.title || shape.text}</span>
                   </button>
-                  <div className="break-words text-[12px] leading-snug text-[#111827]">
+                  <div className="break-words text-[12px] leading-relaxed text-[#111827]">
                     {entry.text}
                   </div>
                   {entry.categories.length > 0 && (
-                    <div className="mt-1 flex flex-wrap gap-1">
+                    <div className="mt-2 flex flex-wrap gap-1">
                       {entry.categories.map((c) => {
                         const m = CATEGORY_META[c];
                         return (
@@ -2160,24 +2280,26 @@ function SummaryPanel({
                       })}
                     </div>
                   )}
-                  <div className="mt-1 text-[10px] text-[#9CA3AF]">{formatDate(entry.date)}</div>
+                  <div className="mt-2 text-[10px] text-[#9CA3AF]">{formatDate(entry.date)}</div>
                 </li>
               ))}
             </ul>
           )}
         </div>
 
+        <div className="mt-5 h-px bg-[#EBEBEB]" />
+
         {/* Documentación faltante */}
         <div>
-          <div className="mb-2 flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wide text-[#6B7280]">
+          <div className={cn(sectionHeader, "flex items-center gap-1.5")}>
             <FileText className="h-3.5 w-3.5" />
-            Documentación faltante
+            <span>Documentación faltante</span>
           </div>
           {(() => {
             const missing = page.shapes.filter((s) => s.noStandardDoc);
             if (missing.length === 0) {
               return (
-                <div className="rounded-md border border-dashed border-[#E5E7EB] p-3 text-center text-xs text-[#9CA3AF]">
+                <div className="rounded-md border border-dashed border-[#E5E7EB] p-4 text-center text-xs text-[#9CA3AF]">
                   Todas las etapas tienen documentación.
                 </div>
               );
@@ -2193,10 +2315,10 @@ function SummaryPanel({
               }
             }
             return (
-              <div className="space-y-4">
+              <div className="flex flex-col gap-4">
                 {Array.from(groups.entries()).map(([type, shapes]) => (
                   <div key={type}>
-                    <div className="mb-2 flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wide text-[#4B5563]">
+                    <div className="mb-2 flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wider text-[#9CA3AF]">
                       <span>
                         {type === "Sin tipo definido" ? type : `${type} faltante`}
                       </span>
@@ -2204,12 +2326,12 @@ function SummaryPanel({
                         {shapes.length}
                       </span>
                     </div>
-                    <ul className="space-y-2">
+                    <ul className="flex flex-col gap-2">
                       {shapes.map((s) => (
                         <li key={s.id}>
                           <button
                             onClick={() => onJumpToShape(s.id)}
-                            className="flex w-full items-center gap-2 rounded-md border border-[#EBEBEB] bg-white px-2 py-1.5 text-left text-[12px] text-[#111827] hover:border-[#9CA3AF]"
+                            className="flex w-full items-center gap-2 rounded-md border border-[#EBEBEB] bg-white px-3 py-2 text-left text-[12px] text-[#111827] hover:border-[#9CA3AF]"
                           >
                             <FileText className="h-3.5 w-3.5 shrink-0 text-[#9CA3AF]" />
                             <span className="truncate">
@@ -2695,6 +2817,15 @@ function ShapeNode({
   const [popupPos, setPopupPos] = useState<{ left: number; top: number } | null>(null);
   const [dragPos, setDragPos] = useState<{ left: number; top: number } | null>(null);
   const [dragging, setDragging] = useState(false);
+  const [lightbox, setLightbox] = useState(false);
+  useEffect(() => {
+    if (!lightbox) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setLightbox(false);
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [lightbox]);
 
   // Reset drag position when unpinned
   useEffect(() => {
@@ -2841,7 +2972,7 @@ function ShapeNode({
     height: shape.height,
     minHeight: minH,
     background: shape.fill,
-    border: `${selected ? 2 : shape.borderWeight}px ${shape.borderStyle} ${selected ? "#5B6CF8" : "#D0D0D0"}`,
+    border: `${selected ? 2 : shape.borderWeight}px ${shape.borderStyle} ${selected ? "#5B6CF8" : shape.borderColor ?? "#D0D0D0"}`,
     borderRadius: shape.cornerStyle === "rounded" ? 8 : 0,
     padding: `${basePad}px ${basePad}px ${padBottom}px ${basePad}px`,
     display: "flex",
@@ -2869,9 +3000,12 @@ function ShapeNode({
   } else if (shape.type === "parallelogram") {
     style.clipPath = "polygon(15% 0, 100% 0, 85% 100%, 0 100%)";
     style.borderRadius = 0;
+  } else if (shape.type === "cylinder") {
+    style.borderRadius = "50% / 18%";
   } else if (shape.type === "document") {
     style.clipPath =
-      "path('M0 0 H100% V80% Q75% 100% 50% 80% Q25% 60% 0 80% Z')";
+      "polygon(0 0, 100% 0, 100% 88%, 92% 100%, 83% 88%, 75% 100%, 67% 88%, 58% 100%, 50% 88%, 42% 100%, 33% 88%, 25% 100%, 17% 88%, 8% 100%, 0 88%)";
+    style.borderRadius = 0;
   } else if (shape.type === "container") {
     style.background = shape.fill;
     style.border = `${selected ? 2 : 1}px dashed ${selected ? "#5B6CF8" : "#5B6CF8"}`;
@@ -3079,16 +3213,30 @@ function ShapeNode({
           )}
           <div className="relative shrink-0">
             {shape.imageDataUrl ? (
-              <img
-                src={shape.imageDataUrl}
-                alt={shape.title}
-                className="block w-full object-cover"
-                style={{ height: pinned ? Math.min(240, ((popupSize?.w ?? 320) * 9) / 16) : 160 }}
-                draggable={false}
-                onError={(e) => {
-                  (e.currentTarget as HTMLImageElement).style.display = "none";
+              <div
+                className="group/img relative cursor-zoom-in"
+                onClick={(e) => {
+                  if (!pinned) return;
+                  e.stopPropagation();
+                  setLightbox(true);
                 }}
-              />
+              >
+                <img
+                  src={shape.imageDataUrl}
+                  alt={shape.title}
+                  className="block w-full object-cover"
+                  style={{ height: pinned ? Math.min(240, ((popupSize?.w ?? 320) * 9) / 16) : 160 }}
+                  draggable={false}
+                  onError={(e) => {
+                    (e.currentTarget as HTMLImageElement).style.display = "none";
+                  }}
+                />
+                {pinned && (
+                  <div className="pointer-events-none absolute bottom-2 right-2 flex h-7 w-7 items-center justify-center rounded-full bg-black/60 text-white opacity-0 transition-opacity group-hover/img:opacity-100">
+                    <ZoomIn className="h-3.5 w-3.5" />
+                  </div>
+                )}
+              </div>
             ) : (
               <div className="flex h-[110px] w-full flex-col items-center justify-center gap-2 border-b border-dashed border-[#D0D0D0] bg-[#FAFAFA] text-[#9CA3AF]">
                 <Camera className="h-6 w-6" />
@@ -3186,6 +3334,29 @@ function ShapeNode({
         </div>
       )}
 
+      {lightbox && shape.imageDataUrl && (
+        <div
+          className="flowit-fade-in fixed inset-0 z-[200] flex items-center justify-center bg-black/90"
+          onClick={() => setLightbox(false)}
+        >
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              setLightbox(false);
+            }}
+            className="absolute right-4 top-4 flex h-10 w-10 items-center justify-center rounded-full bg-white/10 text-white hover:bg-white/20"
+            aria-label="Cerrar"
+          >
+            <X className="h-5 w-5" />
+          </button>
+          <img
+            src={shape.imageDataUrl}
+            alt={shape.title}
+            onClick={(e) => e.stopPropagation()}
+            style={{ maxWidth: "90vw", maxHeight: "90vh", objectFit: "contain" }}
+          />
+        </div>
+      )}
     </>
   );
 }
