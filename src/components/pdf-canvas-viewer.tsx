@@ -1,22 +1,46 @@
 import { useEffect, useRef, useState } from "react";
 import { Download, FileText } from "lucide-react";
 
+const PDFJS_VERSION = "3.11.174";
+const PDFJS_SRC = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/${PDFJS_VERSION}/pdf.min.js`;
+const PDFJS_WORKER = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/${PDFJS_VERSION}/pdf.worker.min.js`;
+
 let pdfjsPromise: Promise<any> | null = null;
 function loadPdfJs(): Promise<any> {
   if (typeof window === "undefined") return Promise.reject(new Error("ssr"));
-  if (pdfjsPromise) return pdfjsPromise;
-  pdfjsPromise = (async () => {
-    const lib: any = await import("pdfjs-dist");
-    const workerUrl: string = (
-      await import("pdfjs-dist/build/pdf.worker.min.mjs?url")
-    ).default;
+  const w = window as any;
+  if (w.pdfjsLib) {
     try {
-      lib.GlobalWorkerOptions.workerSrc = workerUrl;
-    } catch {
-      /* ignore */
+      w.pdfjsLib.GlobalWorkerOptions.workerSrc = PDFJS_WORKER;
+    } catch {}
+    return Promise.resolve(w.pdfjsLib);
+  }
+  if (pdfjsPromise) return pdfjsPromise;
+  pdfjsPromise = new Promise((resolve, reject) => {
+    const existing = document.querySelector(
+      `script[data-pdfjs="${PDFJS_VERSION}"]`,
+    ) as HTMLScriptElement | null;
+    const onReady = () => {
+      const lib = (window as any).pdfjsLib;
+      if (!lib) return reject(new Error("pdfjs failed to load"));
+      try {
+        lib.GlobalWorkerOptions.workerSrc = PDFJS_WORKER;
+      } catch {}
+      resolve(lib);
+    };
+    if (existing) {
+      existing.addEventListener("load", onReady);
+      existing.addEventListener("error", () => reject(new Error("pdfjs script error")));
+      return;
     }
-    return lib;
-  })().catch((err) => {
+    const s = document.createElement("script");
+    s.src = PDFJS_SRC;
+    s.async = true;
+    s.dataset.pdfjs = PDFJS_VERSION;
+    s.onload = onReady;
+    s.onerror = () => reject(new Error("pdfjs script error"));
+    document.head.appendChild(s);
+  }).catch((err) => {
     pdfjsPromise = null;
     throw err;
   });
@@ -61,16 +85,7 @@ export function PdfCanvasViewer({
         setNumPages(doc.numPages);
       } catch (e) {
         console.warn("pdfjs load failed", e);
-        if (!cancelled) {
-          setLoadFailed(true);
-          if (src) {
-            try {
-              window.open(src, "_blank", "noopener,noreferrer");
-            } catch {
-              /* ignore */
-            }
-          }
-        }
+        if (!cancelled) setLoadFailed(true);
       } finally {
         if (!cancelled) setLoading(false);
       }
@@ -104,9 +119,7 @@ export function PdfCanvasViewer({
       cancelled = true;
       try {
         renderTask?.cancel?.();
-      } catch {
-        /* ignore */
-      }
+      } catch {}
     };
   }, [pdf, page]);
 
