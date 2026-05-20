@@ -2876,6 +2876,37 @@ function CanvasArea({
               setEditingTextId(null);
             }}
             onSelectShape={() => setSelectedIds([s.id])}
+            onQuickAdd={() => {
+              const ns: Shape = {
+                ...s,
+                id: `s${Date.now()}${Math.floor(Math.random() * 10000)}`,
+                x: s.x,
+                y: s.y + s.height + 40,
+                text: "Label",
+                title: "Untitled",
+                description: "",
+                status: "ninguno",
+                diagnostico: "sin_definir",
+                prioridad: undefined,
+                changes: [],
+                improvementEntries: [],
+                documents: [],
+                noStandardDoc: false,
+                missingDocTypes: [],
+                imageDataUrl: undefined,
+              };
+              useDiagramStore.getState().addShape(docId, page.id, ns);
+              useDiagramStore.getState().addConnector(docId, page.id, {
+                id: `c${Date.now()}${Math.floor(Math.random() * 10000)}`,
+                fromId: s.id,
+                toId: ns.id,
+                label: "",
+                lineStyle: "solid",
+                weight: 2,
+                arrowEnd: "arrow",
+              });
+              setSelectedIds([ns.id]);
+            }}
             onStartConnector={(e) => {
               e.stopPropagation();
               const w = screenToWorld(e.clientX, e.clientY);
@@ -2964,6 +2995,7 @@ interface ShapeNodeProps {
   onTextCommit: (text: string) => void;
   onStartConnector: (e: ReactPointerEvent<HTMLDivElement>) => void;
   onSelectShape: () => void;
+  onQuickAdd: () => void;
   onContextAction: (
     a: "editText" | "delete" | "front" | "back" | "duplicate" | "assignImage",
   ) => void;
@@ -2983,6 +3015,7 @@ function ShapeNode({
   onTextCommit,
   onStartConnector,
   onSelectShape,
+  onQuickAdd,
   onContextAction,
 }: ShapeNodeProps) {
   const [hovered, setHovered] = useState(false);
@@ -3003,6 +3036,33 @@ function ShapeNode({
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   }, [lightbox]);
+
+  // Quick-add (+) button: appears 600ms after hover, 200ms grace on leave.
+  const [showQuickAdd, setShowQuickAdd] = useState(false);
+  const [qaHover, setQaHover] = useState(false);
+  const [pointerActive, setPointerActive] = useState(false);
+  const qaShowTimer = useRef<number | null>(null);
+  const qaHideTimer = useRef<number | null>(null);
+  useEffect(() => {
+    const active = (hovered || qaHover) && !pointerActive;
+    if (active) {
+      if (qaHideTimer.current) { clearTimeout(qaHideTimer.current); qaHideTimer.current = null; }
+      if (!showQuickAdd && !qaShowTimer.current) {
+        qaShowTimer.current = window.setTimeout(() => {
+          setShowQuickAdd(true);
+          qaShowTimer.current = null;
+        }, 600);
+      }
+    } else {
+      if (qaShowTimer.current) { clearTimeout(qaShowTimer.current); qaShowTimer.current = null; }
+      if (showQuickAdd && !qaHideTimer.current) {
+        qaHideTimer.current = window.setTimeout(() => {
+          setShowQuickAdd(false);
+          qaHideTimer.current = null;
+        }, 200);
+      }
+    }
+  }, [hovered, qaHover, pointerActive, showQuickAdd]);
 
   // Reset drag position when unpinned
   useEffect(() => {
@@ -3168,21 +3228,16 @@ function ShapeNode({
     transition: "border-color 100ms ease-out, box-shadow 150ms ease-out",
   };
 
-  // Diamond / oval / parallelogram / cylinder / document use clip-path
-  if (shape.type === "diamond") {
-    style.clipPath = "polygon(50% 0, 100% 50%, 50% 100%, 0 50%)";
+  // Shapes rendered with an SVG outline sibling (so absolute children — pills,
+  // badges — are never clipped). Their content div is transparent w/ no border.
+  const CLIP_TYPES: ShapeType[] = ["diamond", "parallelogram", "cylinder", "document", "manual"];
+  const useSvgOutline = CLIP_TYPES.includes(shape.type);
+  if (useSvgOutline) {
+    style.background = "transparent";
+    style.border = "none";
     style.borderRadius = 0;
   } else if (shape.type === "oval") {
     style.borderRadius = 9999;
-  } else if (shape.type === "parallelogram") {
-    style.clipPath = "polygon(15% 0, 100% 0, 85% 100%, 0 100%)";
-    style.borderRadius = 0;
-  } else if (shape.type === "cylinder") {
-    style.borderRadius = "50% / 18%";
-  } else if (shape.type === "document") {
-    style.clipPath =
-      "polygon(0 0, 100% 0, 100% 88%, 92% 100%, 83% 88%, 75% 100%, 67% 88%, 58% 100%, 50% 88%, 42% 100%, 33% 88%, 25% 100%, 17% 88%, 8% 100%, 0 88%)";
-    style.borderRadius = 0;
   } else if (shape.type === "container") {
     style.background = shape.fill;
     style.border = `1px dashed #5B6CF8`;
@@ -3203,6 +3258,50 @@ function ShapeNode({
 
   return (
     <>
+      {useSvgOutline && (() => {
+        const w = shape.width;
+        const h = shape.height;
+        const stroke = shape.borderColor ?? "#D0D0D0";
+        const sw = shape.borderWeight;
+        const fill = shape.fill;
+        const dash =
+          shape.borderStyle === "dashed" ? "8,4" : shape.borderStyle === "dotted" ? "2,3" : undefined;
+        const common = { fill, stroke, strokeWidth: sw, strokeDasharray: dash } as const;
+        let inner: React.ReactNode = null;
+        if (shape.type === "diamond")
+          inner = <polygon points={`${w / 2},0 ${w},${h / 2} ${w / 2},${h} 0,${h / 2}`} {...common} />;
+        else if (shape.type === "parallelogram")
+          inner = <polygon points={`${w * 0.15},0 ${w},0 ${w * 0.85},${h} 0,${h}`} {...common} />;
+        else if (shape.type === "manual")
+          inner = <polygon points={`0,0 ${w},${h * 0.15} ${w},${h} 0,${h}`} {...common} />;
+        else if (shape.type === "cylinder") {
+          const ry = Math.min(h * 0.12, 18);
+          inner = (
+            <>
+              <path
+                d={`M0,${ry} L0,${h - ry} A${w / 2},${ry} 0 0 0 ${w},${h - ry} L${w},${ry}`}
+                {...common}
+              />
+              <ellipse cx={w / 2} cy={ry} rx={w / 2} ry={ry} {...common} />
+            </>
+          );
+        } else if (shape.type === "document") {
+          inner = (
+            <polygon
+              points={`0,0 ${w},0 ${w},${h * 0.88} ${w * 0.92},${h} ${w * 0.83},${h * 0.88} ${w * 0.75},${h} ${w * 0.67},${h * 0.88} ${w * 0.58},${h} ${w * 0.5},${h * 0.88} ${w * 0.42},${h} ${w * 0.33},${h * 0.88} ${w * 0.25},${h} ${w * 0.17},${h * 0.88} ${w * 0.08},${h} 0,${h * 0.88}`}
+              {...common}
+            />
+          );
+        }
+        return (
+          <svg
+            className="pointer-events-none absolute"
+            style={{ left: shape.x, top: shape.y, width: w, height: h, overflow: "visible", zIndex: shape.z }}
+          >
+            {inner}
+          </svg>
+        );
+      })()}
       {selected && (
         <div
           className="pointer-events-none absolute"
@@ -3227,21 +3326,29 @@ function ShapeNode({
               ["sw", 0, 1],
               ["w", 0, 0.5],
             ] as const
-          ).map(([k, fx, fy]) => (
-            <div
-              key={k}
-              style={{
-                position: "absolute",
-                left: `${fx * 100}%`,
-                top: `${fy * 100}%`,
-                width: 8,
-                height: 8,
-                background: "white",
-                border: "1px solid #5B6CF8",
-                transform: "translate(-50%, -50%)",
-              }}
-            />
-          ))}
+          ).map(([k, fx, fy]) => {
+            const isConn = k === "e" || k === "s";
+            return (
+              <div
+                key={k}
+                onPointerDown={isConn ? (ev) => onStartConnector(ev) : undefined}
+                style={{
+                  position: "absolute",
+                  left: `${fx * 100}%`,
+                  top: `${fy * 100}%`,
+                  width: 10,
+                  height: 10,
+                  background: "white",
+                  border: "1px solid #5B6CF8",
+                  transform: "translate(-50%, -50%)",
+                  pointerEvents: isConn ? "auto" : "none",
+                  cursor: isConn ? "crosshair" : "default",
+                  borderRadius: isConn ? 9999 : 0,
+                }}
+                title={isConn ? "Drag to connect" : undefined}
+              />
+            );
+          })}
         </div>
       )}
       <ContextMenu>
@@ -3250,7 +3357,15 @@ function ShapeNode({
             ref={nodeRef}
             data-shape-id={shape.id}
             style={style}
-            onPointerDown={onPointerDown}
+            onPointerDown={(e) => {
+              setPointerActive(true);
+              const onUp = () => {
+                setPointerActive(false);
+                window.removeEventListener("pointerup", onUp);
+              };
+              window.addEventListener("pointerup", onUp);
+              onPointerDown(e);
+            }}
             onDoubleClick={onDoubleClickText}
             onMouseEnter={() => setHovered(true)}
             onMouseLeave={() => setHovered(false)}
@@ -3336,23 +3451,6 @@ function ShapeNode({
             )}
 
 
-            {/* Connector handles only (selection ring drawn as sibling overlay below) */}
-            {selected && (
-              <>
-                <div
-                  onPointerDown={onStartConnector}
-                  className="absolute h-3 w-3 -translate-y-1/2 cursor-crosshair rounded-full border-2 border-[#5B6CF8] bg-white hover:scale-125 transition-transform"
-                  style={{ right: -6, top: "50%" }}
-                  title="Drag to connect"
-                />
-                <div
-                  onPointerDown={onStartConnector}
-                  className="absolute h-3 w-3 -translate-x-1/2 cursor-crosshair rounded-full border-2 border-[#5B6CF8] bg-white hover:scale-125 transition-transform"
-                  style={{ bottom: -6, left: "50%" }}
-                  title="Drag to connect"
-                />
-              </>
-            )}
           </div>
         </ContextMenuTrigger>
         <ContextMenuContent>
@@ -3370,6 +3468,30 @@ function ShapeNode({
           </ContextMenuItem>
         </ContextMenuContent>
       </ContextMenu>
+
+      {/* Quick-add (+) button below shape */}
+      {showQuickAdd && shape.type !== "text" && (
+        <button
+          onPointerDown={(e) => e.stopPropagation()}
+          onClick={(e) => {
+            e.stopPropagation();
+            onQuickAdd();
+          }}
+          onMouseEnter={() => setQaHover(true)}
+          onMouseLeave={() => setQaHover(false)}
+          className="flowit-fade-in absolute flex items-center justify-center rounded-full border-2 border-[#5B6CF8] bg-white text-[#5B6CF8] hover:bg-[#EEF0FF]"
+          style={{
+            left: shape.x + shape.width / 2 - 12,
+            top: shape.y + shape.height + 16,
+            width: 24,
+            height: 24,
+            zIndex: 9998,
+          }}
+          title="Add connected shape"
+        >
+          <Plus className="h-4 w-4" />
+        </button>
+      )}
 
       {/* HOVER POPUP */}
       {showPopup && popupPos && (
