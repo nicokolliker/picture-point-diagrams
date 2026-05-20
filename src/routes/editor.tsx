@@ -13,14 +13,18 @@ import {
   ArrowLeft,
   Bold,
   Camera,
+  Download,
+  Eye,
   FileText,
   FileWarning,
   Image as ImageIcon,
   Italic,
   Layers,
+  
   ListChecks,
   Maximize2,
   GripVertical,
+  Paperclip,
   Pin,
   Plus,
   Search,
@@ -57,6 +61,7 @@ import { edgePoint, GRID, shapeCenter, snap } from "@/lib/geometry";
 import type {
   Connector,
   Diagnostico,
+  DocEntry,
   DocType,
   ImprovementCategory,
   Prioridad,
@@ -1006,10 +1011,7 @@ function RightPanel({
           />
         </div>
 
-        <div className="space-y-2">
-          <Label className="text-xs text-[#6B7280]">Cambios sugeridos</Label>
-          <ChangesList docId={docId} pageId={pageId} shape={shape} />
-        </div>
+
 
         <div className="space-y-2">
           <Label className="text-xs text-[#6B7280]">Documentos</Label>
@@ -1324,6 +1326,22 @@ function DocumentsSection({
   const deleteShapeDoc = useDiagramStore((s) => s.deleteShapeDoc);
   const docs = shape.documents ?? [];
   const disabled = !!shape.noStandardDoc;
+  const [previewDoc, setPreviewDoc] = useState<DocEntry | null>(null);
+
+  const handleFile = (entryId: string, file: File) => {
+    const reader = new FileReader();
+    reader.onload = () => {
+      const dataUrl = reader.result as string;
+      updateShapeDoc(docId, pageId, shape.id, entryId, {
+        fileDataUrl: dataUrl,
+        fileMime: file.type,
+        fileSize: file.size,
+        fileName: file.name,
+        url: "",
+      });
+    };
+    reader.readAsDataURL(file);
+  };
 
   return (
     <div className="space-y-2">
@@ -1344,57 +1362,124 @@ function DocumentsSection({
           </div>
         ) : (
           <ul className="space-y-1.5">
-            {docs.map((d) => (
-              <li
-                key={d.id}
-                className="group space-y-1 rounded-md border border-[#EBEBEB] bg-white p-1.5"
-              >
-                <div className="flex items-center gap-1">
-                  <Input
-                    value={d.name}
-                    onChange={(e) =>
-                      updateShapeDoc(docId, pageId, shape.id, d.id, { name: e.target.value })
-                    }
-                    placeholder="Nombre del documento"
-                    className="h-7 text-xs"
-                  />
-                  <button
-                    onClick={() => deleteShapeDoc(docId, pageId, shape.id, d.id)}
-                    className="opacity-0 transition-opacity group-hover:opacity-100"
-                    title="Eliminar"
-                  >
-                    <Trash2 className="h-3.5 w-3.5 text-[#DC2626]" />
-                  </button>
-                </div>
-                <div className="flex gap-1">
-                  <Select
-                    value={d.docType}
-                    onValueChange={(v) =>
-                      updateShapeDoc(docId, pageId, shape.id, d.id, { docType: v as DocType })
-                    }
-                  >
-                    <SelectTrigger className="h-7 w-[100px] text-xs">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {DOC_TYPES.map((t) => (
-                        <SelectItem key={t} value={t}>
-                          {t}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  <Input
-                    value={d.url}
-                    onChange={(e) =>
-                      updateShapeDoc(docId, pageId, shape.id, d.id, { url: e.target.value })
-                    }
-                    placeholder="https://…"
-                    className="h-7 flex-1 text-xs"
-                  />
-                </div>
-              </li>
-            ))}
+            {docs.map((d) => {
+              const hasFile = !!d.fileDataUrl;
+              const isLarge = (d.fileSize ?? 0) > 2 * 1024 * 1024;
+              return (
+                <li
+                  key={d.id}
+                  className="group space-y-1 rounded-md border border-[#EBEBEB] bg-white p-1.5"
+                >
+                  <div className="flex items-center gap-1">
+                    <Input
+                      value={d.name}
+                      onChange={(e) =>
+                        updateShapeDoc(docId, pageId, shape.id, d.id, {
+                          name: e.target.value,
+                        })
+                      }
+                      placeholder="Nombre del documento"
+                      className="h-7 text-xs"
+                    />
+                    <button
+                      onClick={() => deleteShapeDoc(docId, pageId, shape.id, d.id)}
+                      className="opacity-0 transition-opacity group-hover:opacity-100"
+                      title="Eliminar"
+                    >
+                      <Trash2 className="h-3.5 w-3.5 text-[#DC2626]" />
+                    </button>
+                  </div>
+                  <div className="flex gap-1">
+                    <Select
+                      value={d.docType}
+                      onValueChange={(v) =>
+                        updateShapeDoc(docId, pageId, shape.id, d.id, {
+                          docType: v as DocType,
+                        })
+                      }
+                    >
+                      <SelectTrigger className="h-7 w-[100px] text-xs">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {DOC_TYPES.map((t) => (
+                          <SelectItem key={t} value={t}>
+                            {t}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    {hasFile ? (
+                      <div className="flex h-7 flex-1 items-center gap-1 rounded-md border border-[#EBEBEB] bg-[#F9FAFB] px-2 text-[11px] text-[#374151]">
+                        <Paperclip className="h-3 w-3 shrink-0 text-[#5B6CF8]" />
+                        <span className="truncate">{d.fileName}</span>
+                      </div>
+                    ) : (
+                      <Input
+                        value={d.url}
+                        onChange={(e) =>
+                          updateShapeDoc(docId, pageId, shape.id, d.id, {
+                            url: e.target.value,
+                          })
+                        }
+                        placeholder="https://…"
+                        className="h-7 flex-1 text-xs"
+                      />
+                    )}
+                  </div>
+                  <div className="flex items-center gap-1">
+                    {hasFile ? (
+                      <>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="h-6 flex-1 text-[11px]"
+                          onClick={() => setPreviewDoc(d)}
+                        >
+                          <Eye className="h-3 w-3" /> Vista previa
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="h-6 text-[11px]"
+                          onClick={() =>
+                            updateShapeDoc(docId, pageId, shape.id, d.id, {
+                              fileDataUrl: undefined,
+                              fileMime: undefined,
+                              fileSize: undefined,
+                              fileName: undefined,
+                            })
+                          }
+                          title="Quitar archivo"
+                        >
+                          <X className="h-3 w-3" />
+                        </Button>
+                      </>
+                    ) : (
+                      <label className="flex h-6 flex-1 cursor-pointer items-center justify-center gap-1 rounded-md border border-dashed border-[#D0D0D0] text-[11px] text-[#6B7280] hover:border-[#5B6CF8] hover:text-[#5B6CF8]">
+                        <Upload className="h-3 w-3" />
+                        Subir archivo
+                        <input
+                          type="file"
+                          accept=".pdf,.png,.jpg,.jpeg,.docx,application/pdf,image/png,image/jpeg,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+                          className="hidden"
+                          onChange={(e) => {
+                            const f = e.target.files?.[0];
+                            if (f) handleFile(d.id, f);
+                            e.target.value = "";
+                          }}
+                        />
+                      </label>
+                    )}
+                  </div>
+                  {hasFile && isLarge && (
+                    <div className="text-[10px] text-[#F59E0B]">
+                      Archivo grande — puede afectar el rendimiento
+                    </div>
+                  )}
+                </li>
+              );
+            })}
           </ul>
         )}
         <Button
@@ -1407,80 +1492,88 @@ function DocumentsSection({
           <Plus className="h-3.5 w-3.5" /> Agregar documento
         </Button>
       </div>
-    </div>
-  );
-}
-
-function ChangesList({
-  docId,
-  pageId,
-  shape,
-}: {
-  docId: string;
-  pageId: string;
-  shape: Shape;
-}) {
-  const [text, setText] = useState("");
-  const addChange = useDiagramStore((s) => s.addChange);
-  const deleteChange = useDiagramStore((s) => s.deleteChange);
-  const changes = shape.changes ?? [];
-  const submit = () => {
-    const v = text.trim();
-    if (!v) return;
-    addChange(docId, pageId, shape.id, v);
-    setText("");
-  };
-  return (
-    <div className="space-y-2">
-      <div className="flex gap-1">
-        <Input
-          value={text}
-          onChange={(e) => setText(e.target.value)}
-          onKeyDown={(e) => {
-            if (e.key === "Enter") {
-              e.preventDefault();
-              submit();
-            }
-          }}
-          placeholder="Sugerir cambio…"
-          className="h-8 text-xs"
-        />
-        <Button size="sm" onClick={submit} disabled={!text.trim()}>
-          <Plus className="h-3.5 w-3.5" />
-        </Button>
-      </div>
-      {changes.length === 0 ? (
-        <div className="rounded-md border border-dashed border-[#E5E7EB] p-2 text-center text-[11px] text-[#9CA3AF]">
-          Sin cambios sugeridos
-        </div>
-      ) : (
-        <ul className="space-y-1">
-          {changes
-            .slice()
-            .sort((a, b) => b.date - a.date)
-            .map((c) => (
-              <li
-                key={c.id}
-                className="flowit-entry group flex items-start gap-2 rounded-md border border-[#EBEBEB] bg-white px-2 py-1.5"
-              >
-                <div className="min-w-0 flex-1">
-                  <div className="break-words text-[12px] leading-snug text-[#111827]">{c.text}</div>
-                  <div className="mt-0.5 text-[10px] text-[#9CA3AF]">{formatDate(c.date)}</div>
-                </div>
-                <button
-                  onClick={() => deleteChange(docId, pageId, shape.id, c.id)}
-                  className="opacity-0 transition-opacity group-hover:opacity-100"
-                  title="Eliminar"
-                >
-                  <Trash2 className="h-3.5 w-3.5 text-[#DC2626]" />
-                </button>
-              </li>
-            ))}
-        </ul>
+      {previewDoc && (
+        <DocPreviewModal doc={previewDoc} onClose={() => setPreviewDoc(null)} />
       )}
     </div>
   );
 }
+
+function DocPreviewModal({ doc, onClose }: { doc: DocEntry; onClose: () => void }) {
+  const mime = doc.fileMime ?? "";
+  const isPdf = mime.includes("pdf");
+  const isImage = mime.startsWith("image/");
+  const isDocx = mime.includes("word") || (doc.fileName ?? "").toLowerCase().endsWith(".docx");
+  return (
+    <div
+      className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 p-4"
+      onClick={onClose}
+    >
+      <div
+        className="flex max-h-[90vh] w-full max-w-[900px] flex-col overflow-hidden rounded-lg bg-white shadow-2xl"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="flex items-center justify-between border-b border-[#EBEBEB] px-4 py-2.5">
+          <div className="min-w-0 flex-1">
+            <div className="truncate text-sm font-semibold text-[#111827]">
+              {doc.name || doc.fileName || "Documento"}
+            </div>
+            {doc.fileName && (
+              <div className="truncate text-[11px] text-[#6B7280]">{doc.fileName}</div>
+            )}
+          </div>
+          <button
+            onClick={onClose}
+            className="flex h-8 w-8 items-center justify-center rounded-md text-[#6B7280] hover:bg-[#F3F4F6] hover:text-[#111827]"
+          >
+            <X className="h-4 w-4" />
+          </button>
+        </div>
+        <div className="flex-1 overflow-auto bg-[#F9FAFB]">
+          {isPdf && doc.fileDataUrl && (
+            <iframe
+              src={doc.fileDataUrl}
+              title={doc.name}
+              className="h-[75vh] w-full border-0"
+            />
+          )}
+          {isImage && doc.fileDataUrl && (
+            <img
+              src={doc.fileDataUrl}
+              alt={doc.name}
+              className="mx-auto block max-h-[75vh] w-full object-contain"
+            />
+          )}
+          {isDocx && (
+            <div className="flex flex-col items-center justify-center gap-3 p-12 text-center">
+              <FileText className="h-12 w-12 text-[#6B7280]" />
+              <div className="text-sm text-[#374151]">
+                Descargá el archivo para visualizarlo
+              </div>
+              {doc.fileDataUrl && (
+                <a
+                  href={doc.fileDataUrl}
+                  download={doc.fileName || doc.name || "documento"}
+                  className="inline-flex items-center gap-1.5 rounded-md bg-[#5B6CF8] px-3 py-1.5 text-xs font-medium text-white hover:bg-[#4854d1]"
+                >
+                  <Download className="h-3.5 w-3.5" /> Descargar
+                </a>
+              )}
+            </div>
+          )}
+          {!isPdf && !isImage && !isDocx && (
+            <div className="p-12 text-center text-sm text-[#6B7280]">
+              Vista previa no disponible
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+
+
 
 function formatDate(ts: number) {
   const d = new Date(ts);
@@ -1499,9 +1592,9 @@ function SummaryPanel({
 }) {
   const entries = page.shapes
     .flatMap((s) =>
-      (s.changes ?? []).map((c) => ({ shape: s, change: c })),
+      (s.improvementEntries ?? []).map((e) => ({ shape: s, entry: e })),
     )
-    .sort((a, b) => b.change.date - a.change.date);
+    .sort((a, b) => b.entry.date - a.entry.date);
   return (
     <div className="flex h-full flex-col">
       <div className="border-b border-[#EBEBEB] p-3">
@@ -1513,17 +1606,17 @@ function SummaryPanel({
       <div className="flex-1 space-y-4 overflow-y-auto p-3">
         <div>
           <div className="mb-1.5 text-[11px] font-semibold uppercase tracking-wide text-[#6B7280]">
-            Cambios sugeridos
+            Oportunidades de mejora
           </div>
           {entries.length === 0 ? (
             <div className="rounded-md border border-dashed border-[#E5E7EB] p-4 text-center text-xs text-[#9CA3AF]">
-              Aún no hay cambios sugeridos.
+              Aún no hay oportunidades de mejora.
             </div>
           ) : (
             <ul className="space-y-2">
-              {entries.map(({ shape, change }) => (
+              {entries.map(({ shape, entry }) => (
                 <li
-                  key={change.id}
+                  key={entry.id}
                   className="rounded-md border border-[#EBEBEB] bg-white p-2.5 hover:border-[#5B6CF8]"
                 >
                   <button
@@ -1540,9 +1633,26 @@ function SummaryPanel({
                     <span className="truncate">{shape.title || shape.text}</span>
                   </button>
                   <div className="break-words text-[12px] leading-snug text-[#111827]">
-                    {change.text}
+                    {entry.text}
                   </div>
-                  <div className="mt-1 text-[10px] text-[#9CA3AF]">{formatDate(change.date)}</div>
+                  {entry.categories.length > 0 && (
+                    <div className="mt-1 flex flex-wrap gap-1">
+                      {entry.categories.map((c) => {
+                        const m = CATEGORY_META[c];
+                        return (
+                          <span
+                            key={c}
+                            className="inline-flex items-center gap-0.5 rounded-full px-1.5 py-0.5 text-[9px] font-medium"
+                            style={{ background: m.bg, color: m.fg }}
+                          >
+                            <span>{m.icon}</span>
+                            {m.label}
+                          </span>
+                        );
+                      })}
+                    </div>
+                  )}
+                  <div className="mt-1 text-[10px] text-[#9CA3AF]">{formatDate(entry.date)}</div>
                 </li>
               ))}
             </ul>
@@ -2140,16 +2250,29 @@ function ShapeNode({
 
 
 
+  const diagPre =
+    shape.diagnostico && shape.diagnostico !== "sin_definir"
+      ? DIAGNOSTICO_META[shape.diagnostico]
+      : null;
+  const prioPre = shape.prioridad ? PRIORIDAD_META[shape.prioridad] : null;
+  const pillsCount = (diagPre ? 1 : 0) + (prioPre ? 1 : 0);
+  // Each pill ≈ 18px tall + 4px gap, plus 8px breathing room above
+  const pillsArea = pillsCount > 0 ? pillsCount * 18 + (pillsCount - 1) * 4 + 8 : 0;
+  const basePad = 16;
+  const padBottom = shape.type === "text" ? basePad : basePad + pillsArea;
+  const minH = shape.type === "text" ? undefined : 56 + pillsArea;
+
   const style: CSSProperties = {
     position: "absolute",
     left: shape.x,
     top: shape.y,
     width: shape.width,
     height: shape.height,
+    minHeight: minH,
     background: shape.fill,
     border: `${selected ? 2 : shape.borderWeight}px ${shape.borderStyle} ${selected ? "#5B6CF8" : "#D0D0D0"}`,
     borderRadius: shape.cornerStyle === "rounded" ? 8 : 0,
-    padding: 16,
+    padding: `${basePad}px ${basePad}px ${padBottom}px ${basePad}px`,
     display: "flex",
     alignItems: "center",
     justifyContent:
@@ -2191,8 +2314,8 @@ function ShapeNode({
     style.background = "transparent";
   }
 
-  const diag = shape.diagnostico && shape.diagnostico !== "sin_definir" ? DIAGNOSTICO_META[shape.diagnostico] : null;
-  const prio = shape.prioridad ? PRIORIDAD_META[shape.prioridad] : null;
+  const diag = diagPre;
+  const prio = prioPre;
   const hasDocs = (shape.documents ?? []).length > 0;
   const missingDocs = !!shape.noStandardDoc;
 
@@ -2230,21 +2353,31 @@ function ShapeNode({
               </span>
             )}
 
-            {/* Status pills bottom-left (diagnostico + prioridad) */}
+            {/* Status pills bottom (diagnostico + prioridad) — left-aligned, inside border */}
             {shape.type !== "text" && (diag || prio) && (
-              <div className="pointer-events-none absolute bottom-1.5 left-1.5 flex flex-col gap-0.5">
+              <div className="pointer-events-none absolute bottom-1.5 left-2 flex flex-col items-start gap-[3px]">
                 {diag && (
                   <div
-                    className="rounded-full px-2 py-0.5 text-[10px] font-medium text-white"
-                    style={{ background: diag.bg }}
+                    className="rounded-full font-medium leading-none text-white"
+                    style={{
+                      background: diag.bg,
+                      fontSize: 10,
+                      padding: "2px 7px",
+                      transition: "background-color 150ms ease-out",
+                    }}
                   >
                     {diag.label}
                   </div>
                 )}
                 {prio && (
                   <div
-                    className="rounded-full px-2 py-0.5 text-[10px] font-medium text-white"
-                    style={{ background: prio.bg }}
+                    className="rounded-full font-medium leading-none text-white"
+                    style={{
+                      background: prio.bg,
+                      fontSize: 10,
+                      padding: "2px 7px",
+                      transition: "background-color 150ms ease-out",
+                    }}
                   >
                     {prio.label}
                   </div>
@@ -2427,25 +2560,39 @@ function ShapeNode({
                 <div className="text-[11px] text-[#9CA3AF]">Sin diagnóstico</div>
               )}
             </div>
-            {pinned && (shape.changes ?? []).length > 0 && (
+            {pinned && (shape.improvementEntries ?? []).length > 0 && (
               <div className="space-y-1.5 pt-1">
                 <div className="text-[10px] font-semibold uppercase tracking-wide text-[#6B7280]">
-                  Cambios sugeridos
+                  Oportunidades de mejora
                 </div>
                 <ul className="space-y-1">
-                  {(shape.changes ?? [])
+                  {(shape.improvementEntries ?? [])
                     .slice()
                     .sort((a, b) => b.date - a.date)
-                    .map((c) => (
+                    .map((e) => (
                       <li
-                        key={c.id}
+                        key={e.id}
                         className="flowit-entry rounded-md border border-[#EBEBEB] bg-white px-2 py-1.5"
                       >
+                        {e.categories.length > 0 && (
+                          <div className="mb-1 flex flex-wrap gap-1">
+                            {e.categories.map((c) => {
+                              const m = CATEGORY_META[c];
+                              return (
+                                <span
+                                  key={c}
+                                  className="inline-flex items-center gap-0.5 rounded-full px-1.5 py-0.5 text-[9px] font-medium"
+                                  style={{ background: m.bg, color: m.fg }}
+                                >
+                                  <span>{m.icon}</span>
+                                  {m.label}
+                                </span>
+                              );
+                            })}
+                          </div>
+                        )}
                         <div className="break-words text-[12px] leading-snug text-[#111827]">
-                          {c.text}
-                        </div>
-                        <div className="mt-0.5 text-[10px] text-[#9CA3AF]">
-                          {formatDate(c.date)}
+                          {e.text}
                         </div>
                       </li>
                     ))}

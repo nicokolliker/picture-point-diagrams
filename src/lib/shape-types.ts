@@ -42,6 +42,10 @@ export interface DocEntry {
   name: string;
   docType: DocType;
   url: string;
+  fileDataUrl?: string;
+  fileMime?: string;
+  fileSize?: number;
+  fileName?: string;
 }
 
 export interface Shape {
