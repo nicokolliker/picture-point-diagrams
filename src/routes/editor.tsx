@@ -20,7 +20,6 @@ import {
   Maximize2,
   GripVertical,
   Pin,
-  PinOff,
   Plus,
   Search,
   Share2,
@@ -126,7 +125,15 @@ function EditorPage() {
   const [pan, setPan] = useState({ x: 80, y: 40 });
   const [renaming, setRenaming] = useState(false);
   const [renameVal, setRenameVal] = useState("");
-  const [pinnedShapeId, setPinnedShapeId] = useState<string | null>(null);
+  const [pinnedIds, setPinnedIds] = useState<string[]>([]);
+  const pinShape = useCallback(
+    (id: string) => setPinnedIds((p) => (p.includes(id) ? p : [...p, id])),
+    [],
+  );
+  const unpinShape = useCallback(
+    (id: string) => setPinnedIds((p) => p.filter((x) => x !== id)),
+    [],
+  );
 
   const selectedShape =
     selectedIds.length === 1 ? page?.shapes.find((s) => s.id === selectedIds[0]) : undefined;
@@ -334,8 +341,9 @@ function EditorPage() {
           setZoom={setZoom}
           selectedIds={selectedIds}
           setSelectedIds={setSelectedIds}
-          pinnedShapeId={pinnedShapeId}
-          setPinnedShapeId={setPinnedShapeId}
+          pinnedIds={pinnedIds}
+          pinShape={pinShape}
+          unpinShape={unpinShape}
         />
 
         {/* Right panel */}
@@ -354,8 +362,52 @@ function EditorPage() {
         )}
       </div>
 
+      <PinnedConnectorsOverlay pinnedIds={pinnedIds} />
+
       <Link to="/editor" className="hidden" aria-hidden />
     </div>
+  );
+}
+
+/* -------------------- Pinned popup → shape connector overlay -------------------- */
+function PinnedConnectorsOverlay({ pinnedIds }: { pinnedIds: string[] }) {
+  const [, force] = useState(0);
+  useEffect(() => {
+    if (pinnedIds.length === 0) return;
+    let raf = 0;
+    const loop = () => {
+      force((n) => (n + 1) % 1000000);
+      raf = requestAnimationFrame(loop);
+    };
+    raf = requestAnimationFrame(loop);
+    return () => cancelAnimationFrame(raf);
+  }, [pinnedIds.length]);
+  if (pinnedIds.length === 0) return null;
+  return (
+    <svg className="pointer-events-none fixed inset-0 z-40 h-full w-full">
+      {pinnedIds.map((id) => {
+        const shape = document.querySelector(`[data-shape-id="${id}"]`) as HTMLElement | null;
+        const popup = document.querySelector(`[data-pinned-popup-for="${id}"]`) as HTMLElement | null;
+        if (!shape || !popup) return null;
+        const s = shape.getBoundingClientRect();
+        const p = popup.getBoundingClientRect();
+        const sc = { x: s.left + s.width / 2, y: s.top + s.height / 2 };
+        const px = Math.max(p.left, Math.min(sc.x, p.right));
+        const py = Math.max(p.top, Math.min(sc.y, p.bottom));
+        return (
+          <line
+            key={id}
+            x1={px}
+            y1={py}
+            x2={sc.x}
+            y2={sc.y}
+            stroke="#CCCCCC"
+            strokeWidth={1}
+            strokeDasharray="4,4"
+          />
+        );
+      })}
+    </svg>
   );
 }
 
@@ -858,7 +910,7 @@ function RightPanel({
   const [url, setUrl] = useState("");
 
   return (
-    <div className="flex w-[300px] shrink-0 flex-col border-l border-[#EBEBEB] bg-white">
+    <div className="flowit-slide-in-right flex h-full w-[300px] shrink-0 flex-col overflow-hidden border-l border-[#EBEBEB] bg-white">
       <div className="flex items-center justify-between border-b border-[#EBEBEB] px-4 py-3">
         <h3 className="text-sm font-semibold">Properties</h3>
         <button
@@ -1076,7 +1128,7 @@ function ChangesList({
             .map((c) => (
               <li
                 key={c.id}
-                className="group flex items-start gap-2 rounded-md border border-[#EBEBEB] bg-white px-2 py-1.5"
+                className="flowit-entry group flex items-start gap-2 rounded-md border border-[#EBEBEB] bg-white px-2 py-1.5"
               >
                 <div className="min-w-0 flex-1">
                   <div className="break-words text-[12px] leading-snug text-[#111827]">{c.text}</div>
@@ -1172,8 +1224,9 @@ interface CanvasProps {
   setZoom: (z: number) => void;
   selectedIds: string[];
   setSelectedIds: (ids: string[] | ((p: string[]) => string[])) => void;
-  pinnedShapeId: string | null;
-  setPinnedShapeId: (id: string | null) => void;
+  pinnedIds: string[];
+  pinShape: (id: string) => void;
+  unpinShape: (id: string) => void;
 }
 
 function CanvasArea({
@@ -1185,8 +1238,9 @@ function CanvasArea({
   setZoom,
   selectedIds,
   setSelectedIds,
-  pinnedShapeId,
-  setPinnedShapeId,
+  pinnedIds,
+  pinShape,
+  unpinShape,
 }: CanvasProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const [spaceDown, setSpaceDown] = useState(false);
@@ -1502,9 +1556,9 @@ function CanvasArea({
             shape={s}
             docId={docId}
             pageId={page.id}
-            pinned={pinnedShapeId === s.id}
-            onPin={() => setPinnedShapeId(s.id)}
-            onUnpin={() => setPinnedShapeId(null)}
+            pinned={pinnedIds.includes(s.id)}
+            onPin={() => pinShape(s.id)}
+            onUnpin={() => unpinShape(s.id)}
             selected={selectedIds.includes(s.id)}
             editingText={editingTextId === s.id}
             onPointerDown={(e) => {
@@ -1737,6 +1791,7 @@ function ShapeNode({
     textAlign: shape.align,
     boxSizing: "border-box",
     cursor: "move",
+    transition: "border-color 100ms ease-out, box-shadow 150ms ease-out",
   };
 
   // Diamond / oval / parallelogram / cylinder / document use clip-path
@@ -1868,8 +1923,10 @@ function ShapeNode({
       {/* HOVER POPUP */}
       {showPopup && popupPos && (
         <div
+          data-pinned-popup-for={pinned ? shape.id : undefined}
           className={cn(
-            "flowit-popup fixed z-50 w-[280px] overflow-hidden rounded-[10px] border border-[#EBEBEB] bg-white",
+            "fixed z-50 w-[280px] overflow-hidden rounded-[10px] border border-[#EBEBEB] bg-white",
+            pinned ? "flowit-pin-in" : "flowit-popup",
             dragging
               ? "shadow-[0_12px_40px_rgba(0,0,0,0.25)]"
               : "shadow-[0_4px_20px_rgba(0,0,0,0.12)]",
@@ -1877,6 +1934,7 @@ function ShapeNode({
           style={{
             left: (dragPos ?? popupPos).left,
             top: (dragPos ?? popupPos).top,
+            transition: dragging ? "none" : "box-shadow 150ms ease-out",
           }}
           onMouseEnter={() => setPopupHovered(true)}
           onMouseLeave={() => setPopupHovered(false)}
@@ -1889,27 +1947,17 @@ function ShapeNode({
               title="Drag to move"
             >
               <GripVertical className="h-3.5 w-3.5 text-[#9CA3AF]" />
-              <div className="truncate text-[11px] font-medium text-[#6B7280]">
+              <div className="truncate px-2 text-[11px] font-medium text-[#6B7280]">
                 {shape.title || shape.text || "Sin título"}
               </div>
-              <div className="flex gap-1">
-                <button
-                  onClick={onUnpin}
-                  title="Desanclar"
-                  onPointerDown={(e) => e.stopPropagation()}
-                  className="flex h-5 w-5 items-center justify-center rounded text-[#5B6CF8] hover:bg-white"
-                >
-                  <PinOff className="h-3 w-3" />
-                </button>
-                <button
-                  onClick={onUnpin}
-                  title="Cerrar"
-                  onPointerDown={(e) => e.stopPropagation()}
-                  className="flex h-5 w-5 items-center justify-center rounded text-[#6B7280] hover:bg-white"
-                >
-                  <X className="h-3 w-3" />
-                </button>
-              </div>
+              <button
+                onClick={onUnpin}
+                title="Cerrar"
+                onPointerDown={(e) => e.stopPropagation()}
+                className="flex h-5 w-5 items-center justify-center rounded text-[#6B7280] transition-colors hover:bg-white hover:text-[#111827]"
+              >
+                <X className="h-3 w-3" />
+              </button>
             </div>
           )}
           <div className="relative">
@@ -1919,6 +1967,9 @@ function ShapeNode({
                 alt={shape.title}
                 className="h-[160px] w-full object-cover"
                 draggable={false}
+                onError={(e) => {
+                  (e.currentTarget as HTMLImageElement).style.display = "none";
+                }}
               />
             ) : (
               <div className="flex h-[110px] w-full flex-col items-center justify-center gap-2 border-b border-dashed border-[#D0D0D0] bg-[#FAFAFA] text-[#9CA3AF]">
@@ -1930,7 +1981,7 @@ function ShapeNode({
               <button
                 onClick={onPin}
                 title="Anclar"
-                className="absolute right-2 top-2 flex h-7 w-7 items-center justify-center rounded-full border border-[#EBEBEB] bg-white/95 shadow-sm hover:bg-white"
+                className="absolute right-2 top-2 flex h-7 w-7 items-center justify-center rounded-full border border-[#EBEBEB] bg-white/95 shadow-sm transition-all hover:bg-white hover:scale-105"
               >
                 <Pin className="h-3.5 w-3.5" />
               </button>
@@ -1942,10 +1993,50 @@ function ShapeNode({
                 {shape.title || shape.text || "Sin título"}
               </div>
             )}
-            <StatusSelector
-              value={shape.status}
-              onChange={(v) => updateThis({ status: v })}
-            />
+            {pinned ? (
+              <>
+                <div
+                  className="inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-medium text-white"
+                  style={{
+                    background: STATUS_COLORS[shape.status].bg,
+                    transition: "background-color 150ms ease-out",
+                  }}
+                >
+                  <span className="h-1.5 w-1.5 rounded-full bg-white" />
+                  {STATUS_COLORS[shape.status].label}
+                </div>
+                {(shape.changes ?? []).length > 0 && (
+                  <div className="space-y-1.5 pt-1">
+                    <div className="text-[10px] font-semibold uppercase tracking-wide text-[#6B7280]">
+                      Cambios sugeridos
+                    </div>
+                    <ul className="space-y-1">
+                      {(shape.changes ?? [])
+                        .slice()
+                        .sort((a, b) => b.date - a.date)
+                        .map((c) => (
+                          <li
+                            key={c.id}
+                            className="flowit-entry rounded-md border border-[#EBEBEB] bg-white px-2 py-1.5"
+                          >
+                            <div className="break-words text-[12px] leading-snug text-[#111827]">
+                              {c.text}
+                            </div>
+                            <div className="mt-0.5 text-[10px] text-[#9CA3AF]">
+                              {formatDate(c.date)}
+                            </div>
+                          </li>
+                        ))}
+                    </ul>
+                  </div>
+                )}
+              </>
+            ) : (
+              <StatusSelector
+                value={shape.status}
+                onChange={(v) => updateThis({ status: v })}
+              />
+            )}
           </div>
         </div>
       )}

@@ -155,6 +155,24 @@
 }
 .flowit-popup { animation: flowit-popup-in 150ms ease-out; }
 
+@keyframes flowit-pin-in {
+  from { opacity: 0; transform: scale(0.95); }
+  to { opacity: 1; transform: scale(1); }
+}
+.flowit-pin-in { animation: flowit-pin-in 150ms ease-out; }
+
+@keyframes flowit-slide-in-right {
+  from { opacity: 0; transform: translateX(20px); }
+  to { opacity: 1; transform: translateX(0); }
+}
+.flowit-slide-in-right { animation: flowit-slide-in-right 200ms ease-out; }
+
+@keyframes flowit-entry {
+  from { opacity: 0; transform: translateY(-4px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.flowit-entry { animation: flowit-entry 150ms ease-out; }
+
 .flowit-canvas-bg {
   background-color: #FAFAFA;
   background-image: radial-gradient(circle, #E0E0E0 0.5px, transparent 0.5px);
