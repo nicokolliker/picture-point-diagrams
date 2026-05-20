@@ -1090,71 +1090,109 @@ function RightPanel({
 }
 
 
-/* -------------------- Diagnóstico selector -------------------- */
-function DiagnosticoSelector({
-  value,
-  onChange,
+/* -------------------- Compact Diagnóstico + Prioridad rows -------------------- */
+function CompactDiagPrio({
+  diagnostico,
+  prioridad,
+  onChangeDiag,
+  onChangePrio,
 }: {
-  value: Diagnostico;
-  onChange: (v: Diagnostico) => void;
+  diagnostico: Diagnostico;
+  prioridad: Prioridad | undefined;
+  onChangeDiag: (v: Diagnostico) => void;
+  onChangePrio: (v: Prioridad) => void;
 }) {
-  const order: Diagnostico[] = ["funciona", "inconsistente", "roto", "sin_definir"];
+  const diagOrder: Diagnostico[] = ["funciona", "inconsistente", "roto", "sin_definir"];
+  const prioOrder: Prioridad[] = ["urgente", "proximo_sprint", "backlog", "ok"];
+  const diagMeta = DIAGNOSTICO_META[diagnostico];
+  const prioMeta = prioridad ? PRIORIDAD_META[prioridad] : null;
+
   return (
-    <div className="flex flex-wrap gap-1.5">
-      {order.map((s) => {
-        const meta = DIAGNOSTICO_META[s];
-        const active = value === s;
-        return (
-          <button
-            key={s}
-            onClick={() => onChange(s)}
-            className={cn(
-              "flex items-center gap-1 rounded-full px-2.5 py-1 text-[11px] font-medium transition-all",
-              active ? "text-white shadow-sm" : "bg-[#F3F4F6] text-[#4B5563] hover:bg-[#E5E7EB]",
-            )}
-            style={active ? { background: meta.bg } : undefined}
-          >
-            <span>{meta.dot}</span>
-            {meta.label}
-          </button>
-        );
-      })}
+    <div className="space-y-2">
+      <div className="flex items-center justify-between gap-2">
+        <span className="text-[11px] font-semibold uppercase tracking-wide text-[#6B7280]">
+          Diagnóstico
+        </span>
+        <Popover>
+          <PopoverTrigger asChild>
+            <button
+              className="inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-medium text-white transition-colors"
+              style={{ background: diagMeta.bg }}
+            >
+              <span>{diagMeta.dot}</span>
+              {diagMeta.label}
+              <ChevronRight className="h-3 w-3 rotate-90 opacity-80" />
+            </button>
+          </PopoverTrigger>
+          <PopoverContent align="end" className="w-44 p-1">
+            {diagOrder.map((d) => {
+              const m = DIAGNOSTICO_META[d];
+              return (
+                <button
+                  key={d}
+                  onClick={() => onChangeDiag(d)}
+                  className={cn(
+                    "flex w-full items-center gap-2 rounded px-2 py-1.5 text-left text-[12px] hover:bg-[#F3F4F6]",
+                    diagnostico === d && "bg-[#F3F4F6] font-medium",
+                  )}
+                >
+                  <span
+                    className="h-2.5 w-2.5 rounded-full"
+                    style={{ background: m.bg }}
+                  />
+                  {m.label}
+                </button>
+              );
+            })}
+          </PopoverContent>
+        </Popover>
+      </div>
+      <div className="flex items-center justify-between gap-2">
+        <span className="text-[11px] font-semibold uppercase tracking-wide text-[#6B7280]">
+          Prioridad
+        </span>
+        <Popover>
+          <PopoverTrigger asChild>
+            <button
+              className="inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-medium transition-colors"
+              style={
+                prioMeta
+                  ? { background: prioMeta.bg, color: "#fff" }
+                  : { background: "#F3F4F6", color: "#6B7280" }
+              }
+            >
+              <span>{prioMeta?.dot ?? "—"}</span>
+              {prioMeta?.label ?? "Sin definir"}
+              <ChevronRight className="h-3 w-3 rotate-90 opacity-80" />
+            </button>
+          </PopoverTrigger>
+          <PopoverContent align="end" className="w-44 p-1">
+            {prioOrder.map((p) => {
+              const m = PRIORIDAD_META[p];
+              return (
+                <button
+                  key={p}
+                  onClick={() => onChangePrio(p)}
+                  className={cn(
+                    "flex w-full items-center gap-2 rounded px-2 py-1.5 text-left text-[12px] hover:bg-[#F3F4F6]",
+                    prioridad === p && "bg-[#F3F4F6] font-medium",
+                  )}
+                >
+                  <span
+                    className="h-2.5 w-2.5 rounded-full"
+                    style={{ background: m.bg }}
+                  />
+                  {m.label}
+                </button>
+              );
+            })}
+          </PopoverContent>
+        </Popover>
+      </div>
     </div>
   );
 }
 
-/* -------------------- Prioridad selector -------------------- */
-function PrioridadSelector({
-  value,
-  onChange,
-}: {
-  value: Prioridad | undefined;
-  onChange: (v: Prioridad) => void;
-}) {
-  const order: Prioridad[] = ["urgente", "proximo_sprint", "backlog", "ok"];
-  return (
-    <div className="flex flex-wrap gap-1.5">
-      {order.map((s) => {
-        const meta = PRIORIDAD_META[s];
-        const active = value === s;
-        return (
-          <button
-            key={s}
-            onClick={() => onChange(s)}
-            className={cn(
-              "flex items-center gap-1 rounded-full px-2.5 py-1 text-[11px] font-medium transition-all",
-              active ? "text-white shadow-sm" : "bg-[#F3F4F6] text-[#4B5563] hover:bg-[#E5E7EB]",
-            )}
-            style={active ? { background: meta.bg } : undefined}
-          >
-            <span>{meta.dot}</span>
-            {meta.label}
-          </button>
-        );
-      })}
-    </div>
-  );
-}
 
 /* -------------------- Improvement list (multi-category) -------------------- */
 function CategoryToggle({
