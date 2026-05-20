@@ -4221,7 +4221,7 @@ function ShapeNode({
       {/* HOVER POPUP */}
       {showPopup && popupPos && (
         <div
-          data-pinned-popup-for={pinned ? shape.id : undefined}
+          data-popup-for={shape.id}
           className={cn(
             "fixed z-50 flex flex-col overflow-hidden rounded-[10px] border border-[#EBEBEB] bg-white",
             pinned ? "flowit-pin-in" : "flowit-popup",
@@ -4235,9 +4235,8 @@ function ShapeNode({
             width: pinned ? popupSize?.w ?? 320 : 280,
             height: pinned ? popupSize?.h ?? 380 : undefined,
             transition: dragging ? "none" : "box-shadow 150ms ease-out",
+            pointerEvents: pinned ? "auto" : "none",
           }}
-          onMouseEnter={() => setPopupHovered(true)}
-          onMouseLeave={() => setPopupHovered(false)}
           onPointerDown={(e) => {
             e.stopPropagation();
             if (pinned) onSelectShape();
