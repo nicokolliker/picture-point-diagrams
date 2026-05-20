@@ -2851,7 +2851,7 @@ function ShapeNode({
         <div
           data-pinned-popup-for={pinned ? shape.id : undefined}
           className={cn(
-            "fixed z-50 w-[280px] overflow-hidden rounded-[10px] border border-[#EBEBEB] bg-white",
+            "fixed z-50 flex flex-col overflow-hidden rounded-[10px] border border-[#EBEBEB] bg-white",
             pinned ? "flowit-pin-in" : "flowit-popup",
             dragging
               ? "shadow-[0_12px_40px_rgba(0,0,0,0.25)]"
@@ -2860,6 +2860,8 @@ function ShapeNode({
           style={{
             left: (dragPos ?? popupPos).left,
             top: (dragPos ?? popupPos).top,
+            width: pinned ? popupSize?.w ?? 320 : 280,
+            height: pinned ? popupSize?.h ?? 380 : undefined,
             transition: dragging ? "none" : "box-shadow 150ms ease-out",
           }}
           onMouseEnter={() => setPopupHovered(true)}
@@ -2872,7 +2874,7 @@ function ShapeNode({
           {pinned && (
             <div
               onPointerDown={onDragHandleDown}
-              className="flex h-7 cursor-grab items-center justify-between border-b border-[#EBEBEB] bg-[#FAFAFA] px-2 active:cursor-grabbing"
+              className="flex h-7 shrink-0 cursor-grab items-center justify-between border-b border-[#EBEBEB] bg-[#FAFAFA] px-2 active:cursor-grabbing"
               title="Drag to move"
             >
               <GripVertical className="h-3.5 w-3.5 text-[#9CA3AF]" />
@@ -2889,12 +2891,13 @@ function ShapeNode({
               </button>
             </div>
           )}
-          <div className="relative">
+          <div className="relative shrink-0">
             {shape.imageDataUrl ? (
               <img
                 src={shape.imageDataUrl}
                 alt={shape.title}
-                className="h-[160px] w-full object-cover"
+                className="block w-full object-cover"
+                style={{ height: pinned ? Math.min(240, ((popupSize?.w ?? 320) * 9) / 16) : 160 }}
                 draggable={false}
                 onError={(e) => {
                   (e.currentTarget as HTMLImageElement).style.display = "none";
@@ -2916,17 +2919,18 @@ function ShapeNode({
               </button>
             )}
           </div>
-          <div className="space-y-2 p-3">
+          <div className="min-h-0 flex-1 space-y-2 overflow-y-auto p-3">
             {!pinned && (
               <div className="text-[14px] font-bold text-[#111827]">
                 {shape.title || shape.text || "Sin título"}
               </div>
             )}
-            <div className="flex flex-col gap-1.5">
+            <div className="flex flex-wrap items-center gap-1.5">
               {diag && (
                 <div
-                  className="inline-flex w-fit items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-medium text-white"
+                  className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-medium text-white"
                   style={{ background: diag.bg, transition: "background-color 150ms ease-out" }}
+                  title={`Diagnóstico: ${diag.label}`}
                 >
                   <span>{diag.dot}</span>
                   {diag.label}
@@ -2934,8 +2938,9 @@ function ShapeNode({
               )}
               {prio && (
                 <div
-                  className="inline-flex w-fit items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-medium text-white"
+                  className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-medium text-white"
                   style={{ background: prio.bg, transition: "background-color 150ms ease-out" }}
+                  title={`Prioridad: ${prio.label}`}
                 >
                   <span>{prio.dot}</span>
                   {prio.label}
@@ -2954,40 +2959,47 @@ function ShapeNode({
                   {(shape.improvementEntries ?? [])
                     .slice()
                     .sort((a, b) => b.date - a.date)
-                    .map((e) => (
-                      <li
-                        key={e.id}
-                        className="flowit-entry rounded-md border border-[#EBEBEB] bg-white px-2 py-1.5"
-                      >
-                        {e.categories.length > 0 && (
-                          <div className="mb-1 flex flex-wrap gap-1">
-                            {e.categories.map((c) => {
-                              const m = CATEGORY_META[c];
-                              return (
-                                <span
-                                  key={c}
-                                  className="inline-flex items-center gap-0.5 rounded-full px-1.5 py-0.5 text-[9px] font-medium"
-                                  style={{ background: m.bg, color: m.fg }}
-                                >
-                                  <span>{m.icon}</span>
-                                  {m.label}
-                                </span>
-                              );
-                            })}
+                    .map((e) => {
+                      const dominant = e.categories[0];
+                      const dotMeta = dominant ? CATEGORY_META[dominant] : null;
+                      const tooltip =
+                        e.categories.length > 0
+                          ? e.categories.map((c) => CATEGORY_META[c].label).join(", ")
+                          : "Sin categoría";
+                      return (
+                        <li
+                          key={e.id}
+                          className="flowit-entry flex items-start gap-2 rounded-md border border-[#EBEBEB] bg-white px-2 py-1.5"
+                          title={tooltip}
+                        >
+                          <span
+                            className="mt-1 h-2 w-2 shrink-0 rounded-full"
+                            style={{ background: dotMeta?.fg ?? "#D1D5DB" }}
+                          />
+                          <div className="min-w-0 flex-1 break-words text-[12px] leading-snug text-[#111827]">
+                            {e.text}
                           </div>
-                        )}
-                        <div className="break-words text-[12px] leading-snug text-[#111827]">
-                          {e.text}
-                        </div>
-                      </li>
-                    ))}
+                        </li>
+                      );
+                    })}
                 </ul>
               </div>
             )}
-
           </div>
+          {pinned && (
+            <div
+              onPointerDown={onResizePopupDown}
+              className="absolute bottom-0 right-0 z-10 h-4 w-4 cursor-se-resize"
+              title="Redimensionar"
+              style={{
+                background:
+                  "linear-gradient(135deg, transparent 0 50%, #9CA3AF 50% 60%, transparent 60% 70%, #9CA3AF 70% 80%, transparent 80%)",
+              }}
+            />
+          )}
         </div>
       )}
+
     </>
   );
 }
