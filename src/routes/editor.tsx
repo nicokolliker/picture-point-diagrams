@@ -2986,6 +2986,8 @@ function CanvasArea({
   } | null>(null);
   const [editingTextId, setEditingTextId] = useState<string | null>(null);
   const [editingConnectorId, setEditingConnectorId] = useState<string | null>(null);
+  const [quickGhost, setQuickGhost] = useState<{ shapeId: string; edge: "top" | "bottom" | "left" | "right" } | null>(null);
+
   const [alignGuides, setAlignGuides] = useState<
     { orient: "h" | "v"; pos: number }[]
   >([]);
@@ -3368,9 +3370,11 @@ function CanvasArea({
             shape={s}
             docId={docId}
             pageId={page.id}
+            zoom={zoom}
             pinned={pinnedIds.includes(s.id)}
             onPin={() => pinShape(s.id)}
             onUnpin={() => unpinShape(s.id)}
+
             selected={selectedIds.includes(s.id)}
             editingText={editingTextId === s.id}
             onPointerDown={(e) => {
@@ -3438,7 +3442,12 @@ function CanvasArea({
                 arrowEnd: "arrow",
               });
               setSelectedIds([ns.id]);
+              setQuickGhost(null);
             }}
+            onQuickAddHover={(edge) => {
+              setQuickGhost(edge ? { shapeId: s.id, edge } : null);
+            }}
+
             onStartConnector={(e) => {
               e.stopPropagation();
               const w = screenToWorld(e.clientX, e.clientY);
@@ -3460,6 +3469,93 @@ function CanvasArea({
             }}
           />
         ))}
+
+        {/* Quick-add ghost preview */}
+        {quickGhost && (() => {
+          const src = page.shapes.find((sh) => sh.id === quickGhost.shapeId);
+          if (!src) return null;
+          let nx = src.x, ny = src.y;
+          if (quickGhost.edge === "bottom") ny = src.y + src.height + 40;
+          else if (quickGhost.edge === "top") ny = src.y - src.height - 40;
+          else if (quickGhost.edge === "right") nx = src.x + src.width + 60;
+          else if (quickGhost.edge === "left") nx = src.x - src.width - 60;
+          const w = src.width, h = src.height;
+          const stroke = "#5B6CF8";
+          const fillRgba = src.fill;
+          const isSvg = ["diamond", "parallelogram", "cylinder", "document", "manual"].includes(src.type);
+          // Connector line endpoints (centers)
+          const sc = { x: src.x + src.width / 2, y: src.y + src.height / 2 };
+          const gc = { x: nx + w / 2, y: ny + h / 2 };
+          return (
+            <>
+              <svg
+                className="pointer-events-none absolute left-0 top-0 overflow-visible"
+                style={{
+                  opacity: 0.45,
+                  transition: "opacity 120ms ease-out",
+                  zIndex: 9997,
+                }}
+              >
+                <line
+                  x1={sc.x} y1={sc.y} x2={gc.x} y2={gc.y}
+                  stroke={stroke} strokeWidth={2} strokeDasharray="6,4"
+                />
+              </svg>
+              {isSvg ? (
+                <svg
+                  className="pointer-events-none absolute"
+                  style={{
+                    left: nx, top: ny, width: w, height: h,
+                    overflow: "visible", opacity: 0.45,
+                    transition: "opacity 120ms ease-out", zIndex: 9997,
+                  }}
+                >
+                  {src.type === "diamond" && (
+                    <polygon points={`${w/2},2 ${w-2},${h/2} ${w/2},${h-2} 2,${h/2}`}
+                      fill={fillRgba} fillOpacity={0.6} stroke={stroke} strokeWidth={2} strokeDasharray="6,4" />
+                  )}
+                  {src.type === "parallelogram" && (
+                    <polygon points={`${w*0.15},2 ${w-2},2 ${w*0.85},${h-2} 2,${h-2}`}
+                      fill={fillRgba} fillOpacity={0.6} stroke={stroke} strokeWidth={2} strokeDasharray="6,4" />
+                  )}
+                  {src.type === "manual" && (
+                    <polygon points={`2,${h*0.15} ${w-2},2 ${w-2},${h-2} 2,${h-2}`}
+                      fill={fillRgba} fillOpacity={0.6} stroke={stroke} strokeWidth={2} strokeDasharray="6,4" />
+                  )}
+                  {src.type === "cylinder" && (
+                    <>
+                      <rect x={2} y={h*0.15} width={w-4} height={h*0.75}
+                        fill={fillRgba} fillOpacity={0.6} stroke={stroke} strokeWidth={2} strokeDasharray="6,4" />
+                      <ellipse cx={w/2} cy={h*0.9} rx={(w-4)/2} ry={h*0.12}
+                        fill={fillRgba} fillOpacity={0.6} stroke={stroke} strokeWidth={2} strokeDasharray="6,4" />
+                      <ellipse cx={w/2} cy={h*0.15} rx={(w-4)/2} ry={h*0.12}
+                        fill={fillRgba} fillOpacity={0.6} stroke={stroke} strokeWidth={2} strokeDasharray="6,4" />
+                    </>
+                  )}
+                  {src.type === "document" && (
+                    <path
+                      d={`M 2,2 L ${w-2},2 L ${w-2},${h*0.78} C ${w*0.85},${h*0.78} ${w*0.85},${h*0.95} ${w*0.75},${h*0.95} C ${w*0.65},${h*0.95} ${w*0.65},${h*0.78} ${w*0.5},${h*0.78} C ${w*0.35},${h*0.78} ${w*0.35},${h*0.95} ${w*0.25},${h*0.95} C ${w*0.15},${h*0.95} ${w*0.15},${h*0.78} 2,${h*0.78} Z`}
+                      fill={fillRgba} fillOpacity={0.6} stroke={stroke} strokeWidth={2} strokeDasharray="6,4"
+                    />
+                  )}
+                </svg>
+              ) : (
+                <div
+                  className="pointer-events-none absolute"
+                  style={{
+                    left: nx, top: ny, width: w, height: h,
+                    background: fillRgba, opacity: 0.45,
+                    border: `2px dashed ${stroke}`,
+                    borderRadius: src.type === "oval" ? 9999 : src.cornerStyle === "rounded" ? 8 : 0,
+                    transition: "opacity 120ms ease-out",
+                    zIndex: 9997,
+                  }}
+                />
+              )}
+            </>
+          );
+        })()}
+
 
         {/* Selection box */}
         {selBox && (
@@ -3517,6 +3613,7 @@ interface ShapeNodeProps {
   shape: Shape;
   docId: string;
   pageId: string;
+  zoom: number;
   pinned: boolean;
   onPin: () => void;
   onUnpin: () => void;
@@ -3528,15 +3625,18 @@ interface ShapeNodeProps {
   onStartConnector: (e: ReactPointerEvent<HTMLDivElement>) => void;
   onSelectShape: () => void;
   onQuickAdd: (edge: "top" | "bottom" | "left" | "right") => void;
+  onQuickAddHover: (edge: "top" | "bottom" | "left" | "right" | null) => void;
   onContextAction: (
     a: "editText" | "delete" | "front" | "back" | "duplicate" | "assignImage",
   ) => void;
 }
 
+
 function ShapeNode({
   shape,
   docId,
   pageId,
+  zoom,
   pinned,
   onPin,
   onUnpin,
@@ -3548,8 +3648,10 @@ function ShapeNode({
   onStartConnector,
   onSelectShape,
   onQuickAdd,
+  onQuickAddHover,
   onContextAction,
 }: ShapeNodeProps) {
+
   const [hovered, setHovered] = useState(false);
   const [popupHovered, setPopupHovered] = useState(false);
   const [showPopup, setShowPopup] = useState(false);
@@ -3865,17 +3967,25 @@ function ShapeNode({
       })()}
       {selected && (
         <div
-          className="pointer-events-none absolute"
+          className="absolute"
           style={{
             left: shape.x - 2,
             top: shape.y - 2,
             width: shape.width + 4,
             height: shape.height + 4,
-            border: "2px solid #5B6CF8",
-            borderRadius: shape.cornerStyle === "rounded" ? 10 : 0,
             zIndex: 9999,
+            pointerEvents: "none",
           }}
         >
+          {/* Border (non-interactive) */}
+          <div
+            className="absolute inset-0"
+            style={{
+              border: "2px solid #5B6CF8",
+              borderRadius: shape.cornerStyle === "rounded" ? 10 : 0,
+              pointerEvents: "none",
+            }}
+          />
           {(
             [
               ["nw", 0, 0],
@@ -3888,11 +3998,41 @@ function ShapeNode({
               ["w", 0, 0.5],
             ] as const
           ).map(([k, fx, fy]) => {
-            const isConn = k === "e" || k === "s";
+            const CURSORS: Record<string, string> = {
+              nw: "nw-resize", n: "n-resize", ne: "ne-resize", e: "e-resize",
+              se: "se-resize", s: "s-resize", sw: "sw-resize", w: "w-resize",
+            };
             return (
               <div
                 key={k}
-                onPointerDown={isConn ? (ev) => onStartConnector(ev) : undefined}
+                onPointerDown={(e) => {
+                  e.stopPropagation();
+                  e.preventDefault();
+                  const startX = e.clientX;
+                  const startY = e.clientY;
+                  const orig = { x: shape.x, y: shape.y, w: shape.width, h: shape.height };
+                  const MIN = 60;
+                  const onMove = (ev: PointerEvent) => {
+                    const dx = (ev.clientX - startX) / zoom;
+                    const dy = (ev.clientY - startY) / zoom;
+                    let { x, y, w, h } = orig;
+                    if (k === "e" || k === "ne" || k === "se") w = Math.max(MIN, orig.w + dx);
+                    if (k === "w" || k === "nw" || k === "sw") { x = orig.x + dx; w = Math.max(MIN, orig.w - dx); }
+                    if (k === "s" || k === "se" || k === "sw") h = Math.max(MIN, orig.h + dy);
+                    if (k === "n" || k === "ne" || k === "nw") { y = orig.y + dy; h = Math.max(MIN, orig.h - dy); }
+                    useDiagramStore.getState().updateShape(docId, pageId, shape.id, {
+                      x: Math.round(x), y: Math.round(y),
+                      width: Math.round(w), height: Math.round(h),
+                    });
+                  };
+                  const onUp = () => {
+                    window.removeEventListener("pointermove", onMove);
+                    window.removeEventListener("pointerup", onUp);
+                  };
+                  window.addEventListener("pointermove", onMove);
+                  window.addEventListener("pointerup", onUp);
+                  try { (e.currentTarget as Element).setPointerCapture?.(e.pointerId); } catch {}
+                }}
                 style={{
                   position: "absolute",
                   left: `${fx * 100}%`,
@@ -3902,16 +4042,17 @@ function ShapeNode({
                   background: "white",
                   border: "1px solid #5B6CF8",
                   transform: "translate(-50%, -50%)",
-                  pointerEvents: isConn ? "auto" : "none",
-                  cursor: isConn ? "crosshair" : "default",
-                  borderRadius: isConn ? 9999 : 0,
+                  pointerEvents: "auto",
+                  cursor: CURSORS[k],
+                  borderRadius: 2,
+                  zIndex: 10001,
                 }}
-                title={isConn ? "Drag to connect" : undefined}
               />
             );
           })}
         </div>
       )}
+
       <ContextMenu>
         <ContextMenuTrigger asChild>
           <div
@@ -4050,8 +4191,9 @@ function ShapeNode({
               e.stopPropagation();
               onQuickAdd(qaEdge);
             }}
-            onMouseEnter={() => setQaHover(true)}
-            onMouseLeave={() => setQaHover(false)}
+            onMouseEnter={() => { setQaHover(true); onQuickAddHover(qaEdge); }}
+            onMouseLeave={() => { setQaHover(false); onQuickAddHover(null); }}
+
             className="flowit-fade-in absolute flex items-center justify-center rounded-full border-2 border-[#5B6CF8] bg-white text-[#5B6CF8] hover:bg-[#EEF0FF]"
             style={{ left, top, width: SIZE, height: SIZE, zIndex: 9998 }}
             title="Add connected shape"
