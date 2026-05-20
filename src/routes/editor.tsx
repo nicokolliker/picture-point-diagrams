@@ -1669,6 +1669,7 @@ interface ShapeNodeProps {
   onDoubleClickText: () => void;
   onTextCommit: (text: string) => void;
   onStartConnector: (e: ReactPointerEvent<HTMLDivElement>) => void;
+  onSelectShape: () => void;
   onContextAction: (
     a: "editText" | "delete" | "front" | "back" | "duplicate" | "assignImage",
   ) => void;
@@ -1687,6 +1688,7 @@ function ShapeNode({
   onDoubleClickText,
   onTextCommit,
   onStartConnector,
+  onSelectShape,
   onContextAction,
 }: ShapeNodeProps) {
   const [hovered, setHovered] = useState(false);
