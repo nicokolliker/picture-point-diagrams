@@ -93,12 +93,14 @@ import { IconTip } from "@/components/icon-tooltip";
 
 interface EditorSearch {
   doc?: string;
+  page?: string;
 }
 
 export const Route = createFileRoute("/editor")({
   ssr: false,
   validateSearch: (s: Record<string, unknown>): EditorSearch => ({
     doc: typeof s.doc === "string" ? s.doc : undefined,
+    page: typeof s.page === "string" ? s.page : undefined,
   }),
   head: () => ({
     meta: [
