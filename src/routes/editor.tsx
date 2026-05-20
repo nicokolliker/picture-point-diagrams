@@ -126,7 +126,15 @@ function EditorPage() {
   const [pan, setPan] = useState({ x: 80, y: 40 });
   const [renaming, setRenaming] = useState(false);
   const [renameVal, setRenameVal] = useState("");
-  const [pinnedShapeId, setPinnedShapeId] = useState<string | null>(null);
+  const [pinnedIds, setPinnedIds] = useState<string[]>([]);
+  const pinShape = useCallback(
+    (id: string) => setPinnedIds((p) => (p.includes(id) ? p : [...p, id])),
+    [],
+  );
+  const unpinShape = useCallback(
+    (id: string) => setPinnedIds((p) => p.filter((x) => x !== id)),
+    [],
+  );
 
   const selectedShape =
     selectedIds.length === 1 ? page?.shapes.find((s) => s.id === selectedIds[0]) : undefined;
