@@ -9,6 +9,7 @@ import type {
   ImprovementCategory,
   ImprovementEntry,
   Page,
+  Person,
   Shape,
   ShapeType,
   Status,
@@ -18,6 +19,10 @@ import { createDemoDocument } from "./preloaded-demo";
 interface State {
   documents: DiagramDocument[];
   uploads: string[];
+  people: Person[];
+  addPerson: (name: string, role?: string) => Person;
+  updatePerson: (id: string, patch: Partial<Person>) => void;
+  deletePerson: (id: string) => void;
   ensureSeed: () => void;
   createDocument: (name?: string) => string;
   deleteDocument: (id: string) => void;
@@ -84,6 +89,41 @@ export const useDiagramStore = create<State>()(
     (set, get) => ({
       documents: [],
       uploads: [],
+      people: [],
+      addPerson: (name, role) => {
+        const trimmed = name.trim();
+        const existing = get().people.find(
+          (p) => p.name.toLowerCase() === trimmed.toLowerCase(),
+        );
+        if (existing) return existing;
+        const person: Person = {
+          id: `pp${Date.now()}${Math.floor(Math.random() * 1000)}`,
+          name: trimmed,
+          role: role?.trim() || undefined,
+        };
+        set({ people: [...get().people, person] });
+        return person;
+      },
+      updatePerson: (id, patch) =>
+        set({
+          people: get().people.map((p) => (p.id === id ? { ...p, ...patch } : p)),
+        }),
+      deletePerson: (id) => {
+        set({ people: get().people.filter((p) => p.id !== id) });
+        // Remove from all shapes
+        set({
+          documents: get().documents.map((d) => ({
+            ...d,
+            pages: d.pages.map((p) => ({
+              ...p,
+              shapes: p.shapes.map((s) => ({
+                ...s,
+                responsableIds: (s.responsableIds ?? []).filter((x) => x !== id),
+              })),
+            })),
+          })),
+        });
+      },
       ensureSeed: () => {
         if (get().documents.length === 0) {
           set({ documents: [createDemoDocument()] });

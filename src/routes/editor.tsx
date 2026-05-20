@@ -68,6 +68,7 @@ import type {
   DocEntry,
   DocType,
   ImprovementCategory,
+  MissingDocType,
   Prioridad,
   Shape,
   ShapeType,
@@ -76,10 +77,12 @@ import {
   CATEGORY_META,
   DIAGNOSTICO_META,
   DOC_TYPES,
+  MISSING_DOC_TYPES,
   PRIORIDAD_META,
 } from "@/lib/shape-types";
 import { cn } from "@/lib/utils";
 import { PdfCanvasViewer } from "@/components/pdf-canvas-viewer";
+import { PeoplePicker } from "@/components/people-picker";
 
 interface EditorSearch {
   doc?: string;
@@ -1017,10 +1020,9 @@ function RightPanel({
         </div>
         <div className="space-y-1.5">
           <Label className="text-xs text-[#6B7280]">Responsable</Label>
-          <Input
-            value={shape.responsable}
-            onChange={(e) => onChange({ responsable: e.target.value })}
-            className="h-8 text-sm"
+          <PeoplePicker
+            selectedIds={shape.responsableIds ?? []}
+            onChange={(ids) => onChange({ responsableIds: ids })}
           />
         </div>
 
@@ -1228,14 +1230,16 @@ function CategoryToggle({
         onClick();
       }}
       className={cn(
-        "inline-flex items-center gap-1 rounded-full border px-1.5 py-0.5 text-[10px] font-medium transition-all",
-        active ? "border-transparent" : "border-[#E5E7EB] bg-white text-[#9CA3AF] hover:border-[#D1D5DB]",
+        "inline-flex h-6 w-6 items-center justify-center rounded-full border text-[12px] transition-all",
+        active
+          ? "border-transparent shadow-sm"
+          : "border-[#E5E7EB] bg-white opacity-50 hover:opacity-100",
       )}
       style={active ? { background: meta.bg, color: meta.fg } : undefined}
       title={meta.label}
+      aria-label={meta.label}
     >
       <span>{meta.icon}</span>
-      {meta.label}
     </button>
   );
 }
@@ -1532,6 +1536,39 @@ function DocumentsSection({
         <FileWarning className="h-3.5 w-3.5 text-[#F59E0B]" />
         <span>Sin documentación estandarizada</span>
       </label>
+      {disabled && (
+        <div className="space-y-1 rounded-md border border-[#F59E0B]/30 bg-[#FFFBEB] p-2">
+          <div className="text-[10px] font-semibold uppercase tracking-wide text-[#92400E]">
+            ¿Qué falta?
+          </div>
+          <div className="flex flex-wrap gap-1">
+            {MISSING_DOC_TYPES.map((t) => {
+              const sel = (shape.missingDocTypes ?? []).includes(t);
+              return (
+                <button
+                  key={t}
+                  onClick={() => {
+                    const cur = shape.missingDocTypes ?? [];
+                    onChange({
+                      missingDocTypes: sel
+                        ? cur.filter((x) => x !== t)
+                        : [...cur, t],
+                    });
+                  }}
+                  className={cn(
+                    "rounded-full border px-2 py-0.5 text-[11px] font-medium transition-all",
+                    sel
+                      ? "border-transparent bg-[#F59E0B] text-white"
+                      : "border-[#E5E7EB] bg-white text-[#6B7280] hover:border-[#F59E0B]",
+                  )}
+                >
+                  {t}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      )}
       <div className={cn("space-y-1.5", disabled && "pointer-events-none opacity-50")}>
         {docs.length === 0 && !adding ? (
           <div className="rounded-md border border-dashed border-[#E5E7EB] p-2 text-center text-[11px] text-[#9CA3AF]">
@@ -1967,20 +2004,41 @@ function SummaryPanel({
                 </div>
               );
             }
+            const groups = new Map<string, Shape[]>();
+            const UNSPEC = "Sin especificar";
+            for (const s of missing) {
+              const types = s.missingDocTypes ?? [];
+              const keys = types.length > 0 ? types : [UNSPEC];
+              for (const k of keys) {
+                if (!groups.has(k)) groups.set(k, []);
+                groups.get(k)!.push(s);
+              }
+            }
             return (
-              <ul className="space-y-1">
-                {missing.map((s) => (
-                  <li key={s.id}>
-                    <button
-                      onClick={() => onJumpToShape(s.id)}
-                      className="flex w-full items-center gap-2 rounded-md border border-[#EBEBEB] bg-white px-2 py-1.5 text-left text-[12px] hover:border-[#F59E0B] hover:bg-[#FFFBEB]"
-                    >
-                      <FileWarning className="h-3.5 w-3.5 shrink-0 text-[#F59E0B]" />
-                      <span className="truncate">{s.title || s.text || "Sin título"}</span>
-                    </button>
-                  </li>
+              <div className="space-y-3">
+                {Array.from(groups.entries()).map(([type, shapes]) => (
+                  <div key={type}>
+                    <div className="mb-1 text-[10px] font-bold uppercase tracking-wide text-[#92400E]">
+                      {type} faltante
+                    </div>
+                    <ul className="space-y-1">
+                      {shapes.map((s) => (
+                        <li key={s.id}>
+                          <button
+                            onClick={() => onJumpToShape(s.id)}
+                            className="flex w-full items-center gap-2 rounded-md border border-[#EBEBEB] bg-white px-2 py-1.5 text-left text-[12px] hover:border-[#F59E0B] hover:bg-[#FFFBEB]"
+                          >
+                            <FileWarning className="h-3.5 w-3.5 shrink-0 text-[#F59E0B]" />
+                            <span className="truncate">
+                              {s.title || s.text || "Sin título"}
+                            </span>
+                          </button>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
                 ))}
-              </ul>
+              </div>
             );
           })()}
         </div>
