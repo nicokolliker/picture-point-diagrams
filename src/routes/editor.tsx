@@ -515,6 +515,43 @@ function PinnedConnectorsOverlay({ pinnedIds }: { pinnedIds: string[] }) {
   );
 }
 
+/* -------------------- Undo / Redo -------------------- */
+function UndoRedoButtons() {
+  const past = useDiagramStore((s) => s.past);
+  const future = useDiagramStore((s) => s.future);
+  const undo = useDiagramStore((s) => s.undo);
+  const redo = useDiagramStore((s) => s.redo);
+  const canU = past.length > 0;
+  const canR = future.length > 0;
+  return (
+    <div className="mr-1 flex items-center gap-0.5 rounded-md border border-[#EBEBEB] bg-white p-1">
+      <button
+        onClick={undo}
+        disabled={!canU}
+        title="Deshacer (⌘Z)"
+        className={cn(
+          "flex h-7 w-7 items-center justify-center rounded",
+          canU ? "text-[#111827] hover:bg-[#F3F4F6]" : "text-[#D1D5DB] cursor-not-allowed",
+        )}
+      >
+        <Undo2 className="h-3.5 w-3.5" />
+      </button>
+      <button
+        onClick={redo}
+        disabled={!canR}
+        title="Rehacer (⌘⇧Z)"
+        className={cn(
+          "flex h-7 w-7 items-center justify-center rounded",
+          canR ? "text-[#111827] hover:bg-[#F3F4F6]" : "text-[#D1D5DB] cursor-not-allowed",
+        )}
+      >
+        <Redo2 className="h-3.5 w-3.5" />
+      </button>
+    </div>
+  );
+}
+
+
 /* -------------------- Format bar -------------------- */
 function FormatBar({
   shape,
