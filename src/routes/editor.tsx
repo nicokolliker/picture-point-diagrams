@@ -3930,6 +3930,9 @@ function ShapeNode({
             onDoubleClick={onDoubleClickText}
             onMouseEnter={() => setHovered(true)}
             onMouseLeave={() => setHovered(false)}
+            onMouseMove={(e) => {
+              mouseRef.current = { x: e.clientX, y: e.clientY };
+            }}
           >
             {editingText && !useSvgOutline ? (
               <input
