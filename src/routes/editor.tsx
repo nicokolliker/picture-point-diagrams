@@ -20,7 +20,7 @@ import {
   Image as ImageIcon,
   Italic,
   Layers,
-  Link as LinkIcon,
+  
   ListChecks,
   Maximize2,
   GripVertical,
