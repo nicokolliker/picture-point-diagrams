@@ -425,7 +425,7 @@ function EditorPage() {
                 docId={doc.id}
                 pages={doc.pages}
                 currentPageId={page.id}
-                onSelect={setCurrentPageId}
+                onSelect={(pid) => goToPage(pid)}
               />
             )}
             {activeTab === "summary" && (
@@ -458,6 +458,24 @@ function EditorPage() {
           pinnedIds={pinnedIds}
           pinShape={pinShape}
           unpinShape={unpinShape}
+          onOpenSubProcess={(pid) => goToPage(pid)}
+          breadcrumb={
+            parentLink ? (
+              <div className="pointer-events-auto absolute left-3 top-3 z-30 flex items-center gap-1.5 rounded-md border border-[#EBEBEB] bg-white/95 px-2.5 py-1.5 text-[12px] text-[#4B5563] shadow-sm">
+                <button
+                  onClick={() => goToPage(parentLink.page.id, parentLink.shape.id)}
+                  className="flex items-center gap-1 rounded text-[#5B6CF8] hover:underline"
+                >
+                  <ArrowLeft className="h-3.5 w-3.5" />
+                  <span>{doc.name}</span>
+                </button>
+                <span className="text-[#9CA3AF]">/</span>
+                <span className="text-[#111827]">
+                  Sub-proceso: {parentLink.shape.title || parentLink.shape.text || "Sin título"}
+                </span>
+              </div>
+            ) : null
+          }
         />
 
         {/* Right panel */}
@@ -472,6 +490,7 @@ function EditorPage() {
                 .updateShape(doc.id, page.id, selectedShape.id, patch)
             }
             onClose={() => setSelectedIds([])}
+            onOpenSubProcess={(pid) => goToPage(pid)}
           />
         )}
       </div>
