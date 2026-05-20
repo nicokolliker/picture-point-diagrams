@@ -2004,20 +2004,41 @@ function SummaryPanel({
                 </div>
               );
             }
+            const groups = new Map<string, Shape[]>();
+            const UNSPEC = "Sin especificar";
+            for (const s of missing) {
+              const types = s.missingDocTypes ?? [];
+              const keys = types.length > 0 ? types : [UNSPEC];
+              for (const k of keys) {
+                if (!groups.has(k)) groups.set(k, []);
+                groups.get(k)!.push(s);
+              }
+            }
             return (
-              <ul className="space-y-1">
-                {missing.map((s) => (
-                  <li key={s.id}>
-                    <button
-                      onClick={() => onJumpToShape(s.id)}
-                      className="flex w-full items-center gap-2 rounded-md border border-[#EBEBEB] bg-white px-2 py-1.5 text-left text-[12px] hover:border-[#F59E0B] hover:bg-[#FFFBEB]"
-                    >
-                      <FileWarning className="h-3.5 w-3.5 shrink-0 text-[#F59E0B]" />
-                      <span className="truncate">{s.title || s.text || "Sin título"}</span>
-                    </button>
-                  </li>
+              <div className="space-y-3">
+                {Array.from(groups.entries()).map(([type, shapes]) => (
+                  <div key={type}>
+                    <div className="mb-1 text-[10px] font-bold uppercase tracking-wide text-[#92400E]">
+                      {type} faltante
+                    </div>
+                    <ul className="space-y-1">
+                      {shapes.map((s) => (
+                        <li key={s.id}>
+                          <button
+                            onClick={() => onJumpToShape(s.id)}
+                            className="flex w-full items-center gap-2 rounded-md border border-[#EBEBEB] bg-white px-2 py-1.5 text-left text-[12px] hover:border-[#F59E0B] hover:bg-[#FFFBEB]"
+                          >
+                            <FileWarning className="h-3.5 w-3.5 shrink-0 text-[#F59E0B]" />
+                            <span className="truncate">
+                              {s.title || s.text || "Sin título"}
+                            </span>
+                          </button>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
                 ))}
-              </ul>
+              </div>
             );
           })()}
         </div>
