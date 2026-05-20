@@ -9,6 +9,7 @@ import {
   type PointerEvent as ReactPointerEvent,
   type WheelEvent as ReactWheelEvent,
 } from "react";
+import { createPortal } from "react-dom";
 import {
   ArrowLeft,
   Bold,
@@ -31,12 +32,15 @@ import {
   Shapes as ShapesIcon,
   Trash2,
   Underline,
+  Undo2,
+  Redo2,
   Upload,
   X,
   ZoomIn,
   AlignLeft,
   AlignCenter,
   AlignRight,
+  Expand,
 } from "lucide-react";
 import {
   Popover,
@@ -194,6 +198,26 @@ function EditorPage() {
     [],
   );
 
+  // Global undo/redo keyboard
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      const tag = (e.target as HTMLElement)?.tagName;
+      if (tag === "INPUT" || tag === "TEXTAREA") return;
+      const mod = e.metaKey || e.ctrlKey;
+      if (!mod) return;
+      const k = e.key.toLowerCase();
+      if (k === "z" && !e.shiftKey) {
+        e.preventDefault();
+        useDiagramStore.getState().undo();
+      } else if ((k === "z" && e.shiftKey) || k === "y") {
+        e.preventDefault();
+        useDiagramStore.getState().redo();
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, []);
+
   const selectedShape =
     selectedIds.length === 1 ? page?.shapes.find((s) => s.id === selectedIds[0]) : undefined;
 
@@ -270,6 +294,7 @@ function EditorPage() {
 
         {/* Format controls when shape selected */}
         <div className="ml-2 flex flex-1 items-center justify-center gap-1">
+          <UndoRedoButtons />
           {selectedShape && (
             <FormatBar
               shape={selectedShape}
@@ -489,6 +514,43 @@ function PinnedConnectorsOverlay({ pinnedIds }: { pinnedIds: string[] }) {
     </svg>
   );
 }
+
+/* -------------------- Undo / Redo -------------------- */
+function UndoRedoButtons() {
+  const past = useDiagramStore((s) => s.past);
+  const future = useDiagramStore((s) => s.future);
+  const undo = useDiagramStore((s) => s.undo);
+  const redo = useDiagramStore((s) => s.redo);
+  const canU = past.length > 0;
+  const canR = future.length > 0;
+  return (
+    <div className="mr-1 flex items-center gap-0.5 rounded-md border border-[#EBEBEB] bg-white p-1">
+      <button
+        onClick={undo}
+        disabled={!canU}
+        title="Deshacer (⌘Z)"
+        className={cn(
+          "flex h-7 w-7 items-center justify-center rounded",
+          canU ? "text-[#111827] hover:bg-[#F3F4F6]" : "text-[#D1D5DB] cursor-not-allowed",
+        )}
+      >
+        <Undo2 className="h-3.5 w-3.5" />
+      </button>
+      <button
+        onClick={redo}
+        disabled={!canR}
+        title="Rehacer (⌘⇧Z)"
+        className={cn(
+          "flex h-7 w-7 items-center justify-center rounded",
+          canR ? "text-[#111827] hover:bg-[#F3F4F6]" : "text-[#D1D5DB] cursor-not-allowed",
+        )}
+      >
+        <Redo2 className="h-3.5 w-3.5" />
+      </button>
+    </div>
+  );
+}
+
 
 /* -------------------- Format bar -------------------- */
 function FormatBar({
@@ -2400,6 +2462,9 @@ function CanvasArea({
   } | null>(null);
   const [editingTextId, setEditingTextId] = useState<string | null>(null);
   const [editingConnectorId, setEditingConnectorId] = useState<string | null>(null);
+  const [alignGuides, setAlignGuides] = useState<
+    { orient: "h" | "v"; pos: number }[]
+  >([]);
 
   const screenToWorld = useCallback(
     (sx: number, sy: number) => {
@@ -2492,11 +2557,90 @@ function CanvasArea({
       const w = screenToWorld(e.clientX, e.clientY);
       const dx = w.x - dragging.startX;
       const dy = w.y - dragging.startY;
+      // Smart alignment: compute against the FIRST dragged shape's bounds, snap whole group.
+      const SNAP = 6;
+      const firstId = dragging.ids[0];
+      const firstOrig = dragging.orig[firstId];
+      const first = page.shapes.find((s) => s.id === firstId);
+      let snapDX = 0;
+      let snapDY = 0;
+      const guides: { orient: "h" | "v"; pos: number }[] = [];
+      if (first) {
+        const movedLeft = firstOrig.x + dx;
+        const movedTop = firstOrig.y + dy;
+        const movedRight = movedLeft + first.width;
+        const movedBottom = movedTop + first.height;
+        const movedCX = movedLeft + first.width / 2;
+        const movedCY = movedTop + first.height / 2;
+        const others = page.shapes.filter((s) => !dragging.ids.includes(s.id));
+        let bestVx: { delta: number; pos: number } | null = null;
+        let bestHy: { delta: number; pos: number } | null = null;
+        for (const o of others) {
+          const oXs = [o.x, o.x + o.width / 2, o.x + o.width];
+          const oYs = [o.y, o.y + o.height / 2, o.y + o.height];
+          for (const tx of oXs) {
+            for (const m of [movedLeft, movedCX, movedRight]) {
+              const d = tx - m;
+              if (Math.abs(d) <= SNAP && (!bestVx || Math.abs(d) < Math.abs(bestVx.delta))) {
+                bestVx = { delta: d, pos: tx };
+              }
+            }
+          }
+          for (const ty of oYs) {
+            for (const m of [movedTop, movedCY, movedBottom]) {
+              const d = ty - m;
+              if (Math.abs(d) <= SNAP && (!bestHy || Math.abs(d) < Math.abs(bestHy.delta))) {
+                bestHy = { delta: d, pos: ty };
+              }
+            }
+          }
+        }
+        if (bestVx) {
+          snapDX = bestVx.delta;
+          // collect all guides matching after snap
+          const finalLeft = movedLeft + snapDX;
+          const finalRight = finalLeft + first.width;
+          const finalCX = finalLeft + first.width / 2;
+          for (const o of others) {
+            for (const tx of [o.x, o.x + o.width / 2, o.x + o.width]) {
+              if (
+                Math.abs(tx - finalLeft) < 0.5 ||
+                Math.abs(tx - finalRight) < 0.5 ||
+                Math.abs(tx - finalCX) < 0.5
+              ) {
+                if (!guides.find((g) => g.orient === "v" && g.pos === tx))
+                  guides.push({ orient: "v", pos: tx });
+              }
+            }
+          }
+        }
+        if (bestHy) {
+          snapDY = bestHy.delta;
+          const finalTop = movedTop + snapDY;
+          const finalBottom = finalTop + first.height;
+          const finalCY = finalTop + first.height / 2;
+          for (const o of others) {
+            for (const ty of [o.y, o.y + o.height / 2, o.y + o.height]) {
+              if (
+                Math.abs(ty - finalTop) < 0.5 ||
+                Math.abs(ty - finalBottom) < 0.5 ||
+                Math.abs(ty - finalCY) < 0.5
+              ) {
+                if (!guides.find((g) => g.orient === "h" && g.pos === ty))
+                  guides.push({ orient: "h", pos: ty });
+              }
+            }
+          }
+        }
+      }
+      setAlignGuides(guides);
+      const adx = dx + snapDX;
+      const ady = dy + snapDY;
       dragging.ids.forEach((id) => {
         const o = dragging.orig[id];
         useDiagramStore.getState().updateShape(docId, page.id, id, {
-          x: snap(o.x + dx),
-          y: snap(o.y + dy),
+          x: snapDX !== 0 ? Math.round(o.x + adx) : snap(o.x + dx),
+          y: snapDY !== 0 ? Math.round(o.y + ady) : snap(o.y + dy),
         });
       });
       return;
@@ -2528,7 +2672,10 @@ function CanvasArea({
       panRef.current = null;
       if (containerRef.current) containerRef.current.style.cursor = spaceDown ? "grab" : "";
     }
-    if (dragging) setDragging(null);
+    if (dragging) {
+      setDragging(null);
+      setAlignGuides([]);
+    }
     if (selBoxStart.current) {
       selBoxStart.current = null;
       setSelBox(null);
@@ -2705,7 +2852,7 @@ function CanvasArea({
             onPointerDown={(e) => {
               e.stopPropagation();
               if (spaceDown) return;
-              const additive = e.shiftKey;
+              const additive = e.shiftKey || e.metaKey || e.ctrlKey;
               const newSel = additive
                 ? selectedIds.includes(s.id)
                   ? selectedIds.filter((i) => i !== s.id)
@@ -2761,6 +2908,35 @@ function CanvasArea({
               height: selBox.h,
             }}
           />
+        )}
+
+        {/* Alignment guides */}
+        {alignGuides.map((g, i) =>
+          g.orient === "v" ? (
+            <div
+              key={`gv${i}`}
+              className="pointer-events-none absolute"
+              style={{
+                left: g.pos,
+                top: -10000,
+                width: 1,
+                height: 20000,
+                background: "#FF4D6D",
+              }}
+            />
+          ) : (
+            <div
+              key={`gh${i}`}
+              className="pointer-events-none absolute"
+              style={{
+                top: g.pos,
+                left: -10000,
+                height: 1,
+                width: 20000,
+                background: "#FF4D6D",
+              }}
+            />
+          ),
         )}
       </div>
 
@@ -2972,7 +3148,7 @@ function ShapeNode({
     height: shape.height,
     minHeight: minH,
     background: shape.fill,
-    border: `${selected ? 2 : shape.borderWeight}px ${shape.borderStyle} ${selected ? "#5B6CF8" : shape.borderColor ?? "#D0D0D0"}`,
+    border: `${shape.borderWeight}px ${shape.borderStyle} ${shape.borderColor ?? "#D0D0D0"}`,
     borderRadius: shape.cornerStyle === "rounded" ? 8 : 0,
     padding: `${basePad}px ${basePad}px ${padBottom}px ${basePad}px`,
     display: "flex",
@@ -3008,14 +3184,14 @@ function ShapeNode({
     style.borderRadius = 0;
   } else if (shape.type === "container") {
     style.background = shape.fill;
-    style.border = `${selected ? 2 : 1}px dashed ${selected ? "#5B6CF8" : "#5B6CF8"}`;
+    style.border = `1px dashed #5B6CF8`;
     style.alignItems = "flex-start";
     style.justifyContent = "flex-start";
   } else if (shape.type === "sticky") {
     style.border = "1px solid #F59E0B";
     style.boxShadow = "0 1px 3px rgba(0,0,0,0.06)";
   } else if (shape.type === "text") {
-    style.border = selected ? "2px dashed #5B6CF8" : "1px dashed transparent";
+    style.border = "1px dashed transparent";
     style.background = "transparent";
   }
 
@@ -3026,6 +3202,47 @@ function ShapeNode({
 
   return (
     <>
+      {selected && (
+        <div
+          className="pointer-events-none absolute"
+          style={{
+            left: shape.x - 2,
+            top: shape.y - 2,
+            width: shape.width + 4,
+            height: shape.height + 4,
+            border: "2px solid #5B6CF8",
+            borderRadius: shape.cornerStyle === "rounded" ? 10 : 0,
+            zIndex: 9999,
+          }}
+        >
+          {(
+            [
+              ["nw", 0, 0],
+              ["n", 0.5, 0],
+              ["ne", 1, 0],
+              ["e", 1, 0.5],
+              ["se", 1, 1],
+              ["s", 0.5, 1],
+              ["sw", 0, 1],
+              ["w", 0, 0.5],
+            ] as const
+          ).map(([k, fx, fy]) => (
+            <div
+              key={k}
+              style={{
+                position: "absolute",
+                left: `${fx * 100}%`,
+                top: `${fy * 100}%`,
+                width: 8,
+                height: 8,
+                background: "white",
+                border: "1px solid #5B6CF8",
+                transform: "translate(-50%, -50%)",
+              }}
+            />
+          ))}
+        </div>
+      )}
       <ContextMenu>
         <ContextMenuTrigger asChild>
           <div
@@ -3118,22 +3335,9 @@ function ShapeNode({
             )}
 
 
-            {/* Selection handles + connector handles */}
+            {/* Connector handles only (selection ring drawn as sibling overlay below) */}
             {selected && (
               <>
-                {(["nw", "ne", "sw", "se"] as const).map((p) => (
-                  <div
-                    key={p}
-                    className="pointer-events-none absolute h-2 w-2 rounded-sm border border-[#5B6CF8] bg-white"
-                    style={{
-                      left: p.includes("w") ? -4 : undefined,
-                      right: p.includes("e") ? -4 : undefined,
-                      top: p.includes("n") ? -4 : undefined,
-                      bottom: p.includes("s") ? -4 : undefined,
-                    }}
-                  />
-                ))}
-                {/* Edge connector handle (right side) */}
                 <div
                   onPointerDown={onStartConnector}
                   className="absolute h-3 w-3 -translate-y-1/2 cursor-crosshair rounded-full border-2 border-[#5B6CF8] bg-white hover:scale-125 transition-transform"
@@ -3334,29 +3538,54 @@ function ShapeNode({
         </div>
       )}
 
-      {lightbox && shape.imageDataUrl && (
-        <div
-          className="flowit-fade-in fixed inset-0 z-[200] flex items-center justify-center bg-black/90"
-          onClick={() => setLightbox(false)}
-        >
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
-              setLightbox(false);
+      {lightbox && shape.imageDataUrl && typeof document !== "undefined" &&
+        createPortal(
+          <div
+            onClick={() => setLightbox(false)}
+            style={{
+              position: "fixed",
+              inset: 0,
+              zIndex: 9999,
+              background: "rgba(0,0,0,0.85)",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              opacity: 1,
+              animation: "flowitLightboxIn 200ms ease-out",
             }}
-            className="absolute right-4 top-4 flex h-10 w-10 items-center justify-center rounded-full bg-white/10 text-white hover:bg-white/20"
-            aria-label="Cerrar"
           >
-            <X className="h-5 w-5" />
-          </button>
-          <img
-            src={shape.imageDataUrl}
-            alt={shape.title}
-            onClick={(e) => e.stopPropagation()}
-            style={{ maxWidth: "90vw", maxHeight: "90vh", objectFit: "contain" }}
-          />
-        </div>
-      )}
+            <span
+              onClick={(e) => {
+                e.stopPropagation();
+                setLightbox(false);
+              }}
+              style={{
+                position: "absolute",
+                top: 20,
+                right: 24,
+                fontSize: 28,
+                color: "white",
+                cursor: "pointer",
+                lineHeight: 1,
+                userSelect: "none",
+              }}
+            >
+              ×
+            </span>
+            <img
+              src={shape.imageDataUrl}
+              alt={shape.title}
+              onClick={(e) => e.stopPropagation()}
+              style={{
+                maxWidth: "90vw",
+                maxHeight: "90vh",
+                objectFit: "contain",
+                borderRadius: 8,
+              }}
+            />
+          </div>,
+          document.body,
+        )}
     </>
   );
 }
