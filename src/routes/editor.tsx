@@ -74,6 +74,7 @@ import type {
   DocType,
   ImprovementCategory,
   MissingDocType,
+  Person,
   Prioridad,
   Shape,
   ShapeType,
@@ -2109,6 +2110,9 @@ function SummaryPanel({
   onJumpToShape: (id: string) => void;
 }) {
   const people = useDiagramStore((s) => s.people);
+  const updateShape = useDiagramStore((s) => s.updateShape);
+  const addShapeDoc = useDiagramStore((s) => s.addShapeDoc);
+  const updateShapeDoc = useDiagramStore((s) => s.updateShapeDoc);
   const entries = page.shapes
     .flatMap((s) =>
       (s.improvementEntries ?? []).map((e) => ({ shape: s, entry: e })),
@@ -2247,10 +2251,21 @@ function SummaryPanel({
   const sectionHeader =
     "mb-2 mt-5 text-[12px] font-semibold uppercase tracking-wider text-[#9CA3AF] first:mt-0";
 
+  const [fullscreen, setFullscreen] = useState(false);
+
   return (
     <div className="flex h-full flex-col">
       <div className="border-b border-[#EBEBEB] px-5 py-4">
-        <h3 className="text-sm font-semibold text-[#111827]">Resumen de cambios</h3>
+        <div className="flex items-center justify-between gap-2">
+          <h3 className="text-sm font-semibold text-[#111827]">Resumen de cambios</h3>
+          <button
+            onClick={() => setFullscreen(true)}
+            title="Ver resumen completo"
+            className="flex h-6 w-6 items-center justify-center rounded text-[#6B7280] hover:bg-[#F3F4F6]"
+          >
+            <Expand className="h-3.5 w-3.5" />
+          </button>
+        </div>
         <p className="mt-1 text-[11px] text-[#6B7280]">
           Todas las mejoras propuestas en el proceso
         </p>
@@ -2412,11 +2427,519 @@ function SummaryPanel({
         </div>
       </div>
 
+
+      {fullscreen && typeof document !== "undefined" &&
+        createPortal(
+          <FullSummaryModal
+            page={page}
+            people={people}
+            alerts={alerts}
+            entries={entries}
+            onClose={() => setFullscreen(false)}
+            onJumpToShape={(id) => {
+              setFullscreen(false);
+              onJumpToShape(id);
+            }}
+            onSetDiag={(sid, d) => updateShape(_docId, page.id, sid, { diagnostico: d })}
+            onSetPrio={(sid, p) => updateShape(_docId, page.id, sid, { prioridad: p })}
+            onCreateDoc={(sid, type) => {
+              addShapeDoc(_docId, page.id, sid);
+              // The new doc has Playbook by default; patch the latest one's type.
+              const s = page.shapes.find((x) => x.id === sid);
+              const after = s?.documents ?? [];
+              // Schedule a microtask to update doc type once store updates settle.
+              setTimeout(() => {
+                const fresh = useDiagramStore.getState()
+                  .documents.find((d) => d.id === _docId)
+                  ?.pages.find((p) => p.id === page.id)
+                  ?.shapes.find((x) => x.id === sid);
+                const last = fresh?.documents?.[fresh.documents.length - 1];
+                if (last) updateShapeDoc(_docId, page.id, sid, last.id, { docType: type as DocType });
+              }, 0);
+              void after;
+            }}
+          />,
+          document.body,
+        )}
     </div>
   );
 }
 
 
+
+
+interface FullSummaryAlert {
+  id: string;
+  icon: string;
+  title: string;
+  explanation: string;
+  shapes: Shape[];
+  tone: "red" | "amber" | "blue";
+}
+
+type SelItem =
+  | { kind: "alert"; id: string }
+  | { kind: "improvement"; id: string }
+  | { kind: "missing"; type: string }
+  | { kind: "nostate"; shapeId: string };
+
+function FullSummaryModal({
+  page,
+  people,
+  alerts,
+  entries,
+  onClose,
+  onJumpToShape,
+  onSetDiag,
+  onSetPrio,
+  onCreateDoc,
+}: {
+  page: { id: string; shapes: Shape[] };
+  people: Person[];
+  alerts: FullSummaryAlert[];
+  entries: { shape: Shape; entry: { id: string; text: string; categories: ImprovementCategory[]; date: number } }[];
+  onClose: () => void;
+  onJumpToShape: (id: string) => void;
+  onSetDiag: (shapeId: string, d: Diagnostico) => void;
+  onSetPrio: (shapeId: string, p: Prioridad) => void;
+  onCreateDoc: (shapeId: string, type: DocType) => void;
+}) {
+  // Build missing-doc groups
+  const missingGroups = new Map<string, Shape[]>();
+  const UNSPEC = "Sin tipo definido";
+  for (const s of page.shapes.filter((x) => x.noStandardDoc)) {
+    const types = s.missingDocTypes ?? [];
+    const keys = types.length > 0 ? types : [UNSPEC];
+    for (const k of keys) {
+      if (!missingGroups.has(k)) missingGroups.set(k, []);
+      missingGroups.get(k)!.push(s);
+    }
+  }
+
+  const noStateShapes = page.shapes.filter(
+    (s) =>
+      s.type !== "text" &&
+      s.type !== "sticky" &&
+      s.type !== "container" &&
+      (!s.diagnostico || s.diagnostico === "sin_definir") &&
+      !s.prioridad,
+  );
+
+  const [sel, setSel] = useState<SelItem | null>(
+    alerts[0]
+      ? { kind: "alert", id: alerts[0].id }
+      : entries[0]
+        ? { kind: "improvement", id: entries[0].entry.id }
+        : null,
+  );
+  const [notes, setNotes] = useState<Record<string, string>>({});
+
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onClose();
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [onClose]);
+
+  const personName = (id: string) => people.find((p) => p.id === id)?.name ?? "?";
+  const personInit = (id: string) =>
+    (people.find((p) => p.id === id)?.name ?? "?").slice(0, 2).toUpperCase();
+
+  const Avatars = ({ ids }: { ids: string[] }) => (
+    <div className="flex -space-x-1.5">
+      {ids.map((id) => (
+        <div
+          key={id}
+          title={personName(id)}
+          className="flex h-6 w-6 items-center justify-center rounded-full border-2 border-white bg-[#5B6CF8] text-[10px] font-semibold text-white"
+        >
+          {personInit(id)}
+        </div>
+      ))}
+    </div>
+  );
+
+  const Row = ({
+    active,
+    onClick,
+    children,
+  }: {
+    active: boolean;
+    onClick: () => void;
+    children: React.ReactNode;
+  }) => (
+    <button
+      onClick={onClick}
+      className="flex w-full items-center gap-2 rounded-md px-3 py-2 text-left text-[12px] text-[#111827] transition-colors hover:bg-[#F9FAFB]"
+      style={
+        active
+          ? { background: "#EEF0FF", borderLeft: "3px solid #5B6CF8", paddingLeft: 9 }
+          : { borderLeft: "3px solid transparent" }
+      }
+    >
+      {children}
+    </button>
+  );
+
+  const groupHdr =
+    "mb-1 mt-4 px-1 text-[11px] font-semibold uppercase tracking-wider text-[#9CA3AF] first:mt-0";
+
+  const selectedAlert =
+    sel?.kind === "alert" ? alerts.find((a) => a.id === sel.id) : null;
+  const selectedEntry =
+    sel?.kind === "improvement"
+      ? entries.find((e) => e.entry.id === sel.id)
+      : null;
+  const selectedMissing =
+    sel?.kind === "missing"
+      ? { type: sel.type, shapes: missingGroups.get(sel.type) ?? [] }
+      : null;
+  const selectedNoState =
+    sel?.kind === "nostate"
+      ? page.shapes.find((s) => s.id === sel.shapeId)
+      : null;
+
+  const selShapeId =
+    selectedEntry?.shape.id ??
+    selectedMissing?.shapes[0]?.id ??
+    selectedNoState?.id ??
+    selectedAlert?.shapes[0]?.id;
+
+  return (
+    <div
+      style={{
+        position: "fixed",
+        inset: 0,
+        zIndex: 9500,
+        background: "white",
+        display: "flex",
+        flexDirection: "column",
+      }}
+    >
+      {/* Header */}
+      <div className="flex h-12 shrink-0 items-center justify-between border-b border-[#EBEBEB] px-5">
+        <div className="text-[14px] font-semibold text-[#111827]">
+          Resumen de cambios
+        </div>
+        <button
+          onClick={onClose}
+          className="flex h-8 w-8 items-center justify-center rounded text-[#6B7280] hover:bg-[#F3F4F6]"
+          title="Cerrar"
+        >
+          <X className="h-4 w-4" />
+        </button>
+      </div>
+
+      <div className="flex min-h-0 flex-1">
+        {/* Left list */}
+        <div
+          className="overflow-y-auto border-r border-[#EBEBEB] p-3"
+          style={{ width: "35%" }}
+        >
+          {alerts.length > 0 && (
+            <>
+              <div className={groupHdr}>Alertas</div>
+              {alerts.map((a) => (
+                <Row
+                  key={a.id}
+                  active={sel?.kind === "alert" && sel.id === a.id}
+                  onClick={() => setSel({ kind: "alert", id: a.id })}
+                >
+                  <span>{a.icon}</span>
+                  <span className="flex-1 truncate">{a.title}</span>
+                  <span className="text-[10px] text-[#9CA3AF]">
+                    {a.shapes.length}
+                  </span>
+                </Row>
+              ))}
+            </>
+          )}
+
+          {entries.length > 0 && (
+            <>
+              <div className={groupHdr}>Oportunidades de mejora</div>
+              {entries.map(({ shape, entry }) => {
+                const dot = DIAGNOSTICO_META[shape.diagnostico ?? "sin_definir"];
+                return (
+                  <Row
+                    key={entry.id}
+                    active={sel?.kind === "improvement" && sel.id === entry.id}
+                    onClick={() => setSel({ kind: "improvement", id: entry.id })}
+                  >
+                    <span
+                      className="h-2 w-2 shrink-0 rounded-full"
+                      style={{ background: dot.bg }}
+                    />
+                    <span className="rounded-full bg-[#EEF0FF] px-1.5 py-0.5 text-[10px] font-medium text-[#5B6CF8]">
+                      {shape.title || shape.text}
+                    </span>
+                    <span className="flex-1 truncate text-[11px] text-[#6B7280]">
+                      {entry.text}
+                    </span>
+                  </Row>
+                );
+              })}
+            </>
+          )}
+
+          {missingGroups.size > 0 && (
+            <>
+              <div className={groupHdr}>Documentación faltante</div>
+              {Array.from(missingGroups.entries()).map(([type, ss]) => (
+                <Row
+                  key={type}
+                  active={sel?.kind === "missing" && sel.type === type}
+                  onClick={() => setSel({ kind: "missing", type })}
+                >
+                  <FileText className="h-3.5 w-3.5 text-[#9CA3AF]" />
+                  <span className="flex-1 truncate">
+                    {type === UNSPEC ? type : `${type} faltante`}
+                  </span>
+                  <span className="text-[10px] text-[#9CA3AF]">{ss.length}</span>
+                </Row>
+              ))}
+            </>
+          )}
+
+          {noStateShapes.length > 0 && (
+            <>
+              <div className={groupHdr}>Sin estado</div>
+              {noStateShapes.map((s) => (
+                <Row
+                  key={s.id}
+                  active={sel?.kind === "nostate" && sel.shapeId === s.id}
+                  onClick={() => setSel({ kind: "nostate", shapeId: s.id })}
+                >
+                  <span>⚫</span>
+                  <span className="flex-1 truncate">
+                    {s.title || s.text || "Sin título"}
+                  </span>
+                </Row>
+              ))}
+            </>
+          )}
+
+          {alerts.length === 0 &&
+            entries.length === 0 &&
+            missingGroups.size === 0 &&
+            noStateShapes.length === 0 && (
+              <div className="p-6 text-center text-[12px] text-[#9CA3AF]">
+                Nada por resumir todavía.
+              </div>
+            )}
+        </div>
+
+        {/* Right detail */}
+        <div className="flex min-w-0 flex-1 flex-col">
+          <div className="min-h-0 flex-1 overflow-y-auto p-8">
+            {!sel && (
+              <div className="text-[12px] text-[#9CA3AF]">
+                Seleccioná un ítem a la izquierda.
+              </div>
+            )}
+
+            {selectedAlert && (
+              <div className="space-y-4">
+                <div className="flex items-center gap-2 text-[18px] font-bold text-[#111827]">
+                  <span className="text-[22px]">{selectedAlert.icon}</span>
+                  {selectedAlert.title}
+                </div>
+                <div className="text-[13px] leading-relaxed text-[#4B5563]">
+                  {selectedAlert.explanation}
+                </div>
+                <div className="space-y-2">
+                  {selectedAlert.shapes.map((s) => {
+                    const d = DIAGNOSTICO_META[s.diagnostico ?? "sin_definir"];
+                    const p = s.prioridad ? PRIORIDAD_META[s.prioridad] : null;
+                    return (
+                      <div
+                        key={s.id}
+                        className="flex items-center gap-3 rounded-md border border-[#EBEBEB] bg-white p-3"
+                      >
+                        <button
+                          onClick={() => onJumpToShape(s.id)}
+                          className="flex-1 truncate text-left text-[13px] font-medium text-[#111827] hover:underline"
+                        >
+                          {s.title || s.text || "Sin título"}
+                        </button>
+                        <span
+                          className="rounded-full px-2 py-0.5 text-[10px] font-medium text-white"
+                          style={{ background: d.bg }}
+                        >
+                          {d.label}
+                        </span>
+                        {p && (
+                          <span
+                            className="rounded-full px-2 py-0.5 text-[10px] font-medium text-white"
+                            style={{ background: p.bg }}
+                          >
+                            {p.label}
+                          </span>
+                        )}
+                        <Avatars ids={s.responsableIds ?? []} />
+                      </div>
+                    );
+                  })}
+                </div>
+                <div>
+                  <div className="mb-1 text-[11px] font-semibold uppercase tracking-wider text-[#6B7280]">
+                    Notas / Plan de acción
+                  </div>
+                  <textarea
+                    value={notes[selectedAlert.id] ?? ""}
+                    onChange={(e) =>
+                      setNotes((n) => ({ ...n, [selectedAlert.id]: e.target.value }))
+                    }
+                    placeholder="Escribí qué se va a hacer…"
+                    className="min-h-[100px] w-full rounded-md border border-[#EBEBEB] bg-white p-3 text-[13px] outline-none focus:border-[#5B6CF8]"
+                  />
+                </div>
+              </div>
+            )}
+
+            {selectedEntry && (
+              <div className="space-y-4">
+                <div className="inline-flex items-center rounded-full bg-[#EEF0FF] px-3 py-1 text-[12px] font-medium text-[#5B6CF8]">
+                  {selectedEntry.shape.title || selectedEntry.shape.text}
+                </div>
+                <div className="text-[16px] leading-relaxed text-[#111827]">
+                  {selectedEntry.entry.text}
+                </div>
+                {selectedEntry.entry.categories.length > 0 && (
+                  <div className="flex flex-wrap gap-1.5">
+                    {selectedEntry.entry.categories.map((c) => {
+                      const m = CATEGORY_META[c];
+                      return (
+                        <span
+                          key={c}
+                          className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-medium"
+                          style={{ background: m.bg, color: m.fg }}
+                        >
+                          <span>{m.icon}</span>
+                          {m.label}
+                        </span>
+                      );
+                    })}
+                  </div>
+                )}
+                <div className="text-[11px] text-[#9CA3AF]">
+                  {formatDate(selectedEntry.entry.date)}
+                </div>
+                {selectedEntry.shape.currentReality && (
+                  <div className="rounded-md bg-[#F9FAFB] p-3 text-[12px] leading-relaxed text-[#6B7280]">
+                    <div className="mb-1 text-[10px] font-semibold uppercase tracking-wider">
+                      Como está hoy
+                    </div>
+                    {selectedEntry.shape.currentReality}
+                  </div>
+                )}
+                {selectedEntry.shape.imageDataUrl && (
+                  <img
+                    src={selectedEntry.shape.imageDataUrl}
+                    alt=""
+                    className="max-h-[200px] rounded-md border border-[#EBEBEB] object-cover"
+                  />
+                )}
+              </div>
+            )}
+
+            {selectedMissing && (
+              <div className="space-y-4">
+                <div className="text-[18px] font-bold text-[#111827]">
+                  {selectedMissing.type === UNSPEC
+                    ? selectedMissing.type
+                    : `${selectedMissing.type} faltante`}
+                </div>
+                <div className="space-y-2">
+                  {selectedMissing.shapes.map((s) => (
+                    <div
+                      key={s.id}
+                      className="flex items-center gap-3 rounded-md border border-[#EBEBEB] bg-white p-3"
+                    >
+                      <button
+                        onClick={() => onJumpToShape(s.id)}
+                        className="flex-1 truncate text-left text-[13px] font-medium text-[#111827] hover:underline"
+                      >
+                        {s.title || s.text || "Sin título"}
+                      </button>
+                      <Avatars ids={s.responsableIds ?? []} />
+                      {selectedMissing.type !== UNSPEC && (
+                        <button
+                          onClick={() => {
+                            onCreateDoc(s.id, selectedMissing.type as DocType);
+                            onJumpToShape(s.id);
+                          }}
+                          className="flex items-center gap-1 rounded-md bg-[#5B6CF8] px-2.5 py-1 text-[11px] font-medium text-white hover:bg-[#4F5DE0]"
+                        >
+                          <Plus className="h-3 w-3" /> Crear {selectedMissing.type}
+                        </button>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {selectedNoState && (
+              <div className="space-y-4">
+                <div className="text-[18px] font-bold text-[#111827]">
+                  {selectedNoState.title || selectedNoState.text || "Sin título"}
+                </div>
+                <div className="flex flex-wrap items-center gap-4">
+                  <label className="flex flex-col gap-1 text-[11px] font-semibold uppercase tracking-wider text-[#6B7280]">
+                    Diagnóstico
+                    <select
+                      value={selectedNoState.diagnostico ?? "sin_definir"}
+                      onChange={(e) =>
+                        onSetDiag(selectedNoState.id, e.target.value as Diagnostico)
+                      }
+                      className="rounded-md border border-[#EBEBEB] bg-white px-2 py-1 text-[13px] font-normal normal-case tracking-normal text-[#111827]"
+                    >
+                      {(Object.keys(DIAGNOSTICO_META) as Diagnostico[]).map((k) => (
+                        <option key={k} value={k}>
+                          {DIAGNOSTICO_META[k].label}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                  <label className="flex flex-col gap-1 text-[11px] font-semibold uppercase tracking-wider text-[#6B7280]">
+                    Prioridad
+                    <select
+                      value={selectedNoState.prioridad ?? ""}
+                      onChange={(e) =>
+                        onSetPrio(selectedNoState.id, e.target.value as Prioridad)
+                      }
+                      className="rounded-md border border-[#EBEBEB] bg-white px-2 py-1 text-[13px] font-normal normal-case tracking-normal text-[#111827]"
+                    >
+                      <option value="">—</option>
+                      {(Object.keys(PRIORIDAD_META) as Prioridad[]).map((k) => (
+                        <option key={k} value={k}>
+                          {PRIORIDAD_META[k].label}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                </div>
+              </div>
+            )}
+          </div>
+
+          {selShapeId && (
+            <div className="flex shrink-0 items-center justify-end border-t border-[#EBEBEB] bg-[#FAFAFA] px-6 py-3">
+              <button
+                onClick={() => onJumpToShape(selShapeId)}
+                className="rounded-md bg-[#5B6CF8] px-3 py-1.5 text-[13px] font-medium text-white hover:bg-[#4F5DE0]"
+              >
+                Ir a la shape →
+              </button>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
 
 /* -------------------- Canvas -------------------- */
 interface CanvasProps {
@@ -3269,29 +3792,39 @@ function ShapeNode({
         const common = { fill, stroke, strokeWidth: sw, strokeDasharray: dash } as const;
         let inner: React.ReactNode = null;
         if (shape.type === "diamond")
-          inner = <polygon points={`${w / 2},0 ${w},${h / 2} ${w / 2},${h} 0,${h / 2}`} {...common} />;
-        else if (shape.type === "parallelogram")
-          inner = <polygon points={`${w * 0.15},0 ${w},0 ${w * 0.85},${h} 0,${h}`} {...common} />;
-        else if (shape.type === "manual")
-          inner = <polygon points={`0,0 ${w},${h * 0.15} ${w},${h} 0,${h}`} {...common} />;
-        else if (shape.type === "cylinder") {
-          const ry = Math.min(h * 0.12, 18);
-          inner = (
-            <>
-              <path
-                d={`M0,${ry} L0,${h - ry} A${w / 2},${ry} 0 0 0 ${w},${h - ry} L${w},${ry}`}
-                {...common}
-              />
-              <ellipse cx={w / 2} cy={ry} rx={w / 2} ry={ry} {...common} />
-            </>
-          );
-        } else if (shape.type === "document") {
           inner = (
             <polygon
-              points={`0,0 ${w},0 ${w},${h * 0.88} ${w * 0.92},${h} ${w * 0.83},${h * 0.88} ${w * 0.75},${h} ${w * 0.67},${h * 0.88} ${w * 0.58},${h} ${w * 0.5},${h * 0.88} ${w * 0.42},${h} ${w * 0.33},${h * 0.88} ${w * 0.25},${h} ${w * 0.17},${h * 0.88} ${w * 0.08},${h} 0,${h * 0.88}`}
+              points={`${w / 2},2 ${w - 2},${h / 2} ${w / 2},${h - 2} 2,${h / 2}`}
               {...common}
             />
           );
+        else if (shape.type === "parallelogram")
+          inner = (
+            <polygon
+              points={`${w * 0.15},2 ${w - 2},2 ${w * 0.85},${h - 2} 2,${h - 2}`}
+              {...common}
+            />
+          );
+        else if (shape.type === "manual")
+          inner = (
+            <polygon
+              points={`2,${h * 0.15} ${w - 2},2 ${w - 2},${h - 2} 2,${h - 2}`}
+              {...common}
+            />
+          );
+        else if (shape.type === "cylinder") {
+          const rx = (w - 4) / 2;
+          const ry = h * 0.12;
+          inner = (
+            <>
+              <rect x={2} y={h * 0.15} width={w - 4} height={h * 0.75} {...common} />
+              <ellipse cx={w / 2} cy={h * 0.9} rx={rx} ry={ry} {...common} />
+              <ellipse cx={w / 2} cy={h * 0.15} rx={rx} ry={ry} {...common} />
+            </>
+          );
+        } else if (shape.type === "document") {
+          const d = `M 2,2 L ${w - 2},2 L ${w - 2},${h * 0.78} C ${w * 0.85},${h * 0.78} ${w * 0.85},${h * 0.95} ${w * 0.75},${h * 0.95} C ${w * 0.65},${h * 0.95} ${w * 0.65},${h * 0.78} ${w * 0.5},${h * 0.78} C ${w * 0.35},${h * 0.78} ${w * 0.35},${h * 0.95} ${w * 0.25},${h * 0.95} C ${w * 0.15},${h * 0.95} ${w * 0.15},${h * 0.78} 2,${h * 0.78} Z`;
+          inner = <path d={d} {...common} />;
         }
         return (
           <svg
@@ -3370,7 +3903,7 @@ function ShapeNode({
             onMouseEnter={() => setHovered(true)}
             onMouseLeave={() => setHovered(false)}
           >
-            {editingText ? (
+            {editingText && !useSvgOutline ? (
               <input
                 autoFocus
                 defaultValue={shape.text}
@@ -3660,6 +4193,40 @@ function ShapeNode({
           )}
         </div>
       )}
+
+      {editingText && useSvgOutline && typeof document !== "undefined" && (() => {
+        const r = nodeRef.current?.getBoundingClientRect();
+        if (!r) return null;
+        return createPortal(
+          <input
+            autoFocus
+            defaultValue={shape.text}
+            onBlur={(e) => onTextCommit((e.target as HTMLInputElement).value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") (e.target as HTMLInputElement).blur();
+            }}
+            style={{
+              position: "fixed",
+              left: r.left,
+              top: r.top,
+              width: r.width,
+              height: r.height,
+              zIndex: 10000,
+              background: "rgba(255,255,255,0.92)",
+              border: "2px solid #5B6CF8",
+              borderRadius: 6,
+              textAlign: "center",
+              fontSize: shape.fontSize,
+              fontFamily: shape.fontFamily,
+              color: shape.textColor,
+              outline: "none",
+              padding: "8px",
+            }}
+          />,
+          document.body,
+        );
+      })()}
+
 
       {lightbox && shape.imageDataUrl && typeof document !== "undefined" &&
         createPortal(
