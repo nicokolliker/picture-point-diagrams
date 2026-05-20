@@ -1092,42 +1092,6 @@ function RightPanel({
   );
 }
 
-/* -------------------- Status selector pill -------------------- */
-function StatusSelector({
-  value,
-  onChange,
-}: {
-  value: Status;
-  onChange: (v: Status) => void;
-}) {
-  const order: Status[] = ["funciona", "riesgo", "roto", "ninguno"];
-  return (
-    <div className="flex flex-wrap gap-1.5">
-      {order.map((s) => {
-        const active = value === s;
-        return (
-          <button
-            key={s}
-            onClick={() => onChange(s)}
-            className={cn(
-              "flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-medium transition-all",
-              active
-                ? "text-white shadow-sm"
-                : "bg-[#F3F4F6] text-[#4B5563] hover:bg-[#E5E7EB]",
-            )}
-            style={active ? { background: STATUS_COLORS[s].bg } : undefined}
-          >
-            <span
-              className="h-1.5 w-1.5 rounded-full"
-              style={{ background: active ? "#ffffff" : STATUS_COLORS[s].bg }}
-            />
-            {STATUS_COLORS[s].label}
-          </button>
-        );
-      })}
-    </div>
-  );
-}
 
 /* -------------------- Diagnóstico selector -------------------- */
 function DiagnosticoSelector({
