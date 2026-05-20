@@ -13,6 +13,7 @@ import {
   ArrowLeft,
   Bold,
   Camera,
+  ChevronRight,
   Download,
   Eye,
   FileText,
@@ -20,11 +21,9 @@ import {
   Image as ImageIcon,
   Italic,
   Layers,
-  
   ListChecks,
   Maximize2,
   GripVertical,
-  
   Pin,
   Plus,
   Search,
@@ -38,6 +37,11 @@ import {
   AlignCenter,
   AlignRight,
 } from "lucide-react";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -953,9 +957,39 @@ function RightPanel({
 }) {
   const fileRef = useRef<HTMLInputElement>(null);
   const [url, setUrl] = useState("");
+  const [panelWidth, setPanelWidth] = useState(320);
+
+  const startResize = useCallback(
+    (e: React.PointerEvent<HTMLDivElement>) => {
+      e.preventDefault();
+      e.stopPropagation();
+      const startX = e.clientX;
+      const startW = panelWidth;
+      const onMove = (ev: PointerEvent) => {
+        const next = Math.max(240, Math.min(520, startW - (ev.clientX - startX)));
+        setPanelWidth(next);
+      };
+      const onUp = () => {
+        window.removeEventListener("pointermove", onMove);
+        window.removeEventListener("pointerup", onUp);
+      };
+      window.addEventListener("pointermove", onMove);
+      window.addEventListener("pointerup", onUp);
+    },
+    [panelWidth],
+  );
 
   return (
-    <div className="flowit-slide-in-right flex h-full w-[300px] shrink-0 flex-col overflow-hidden border-l border-[#EBEBEB] bg-white">
+    <div
+      className="flowit-slide-in-right relative flex h-full shrink-0 flex-col overflow-hidden border-l border-[#EBEBEB] bg-white"
+      style={{ width: panelWidth }}
+    >
+      <div
+        onPointerDown={startResize}
+        className="absolute left-0 top-0 z-10 h-full w-1 cursor-col-resize bg-transparent hover:bg-[#5B6CF8]/30 transition-colors"
+        title="Arrastrá para ajustar el ancho"
+      />
+
       <div className="flex items-center justify-between border-b border-[#EBEBEB] px-4 py-3">
         <h3 className="text-sm font-semibold">Properties</h3>
         <button
@@ -984,20 +1018,13 @@ function RightPanel({
             className="resize-none text-sm"
           />
         </div>
-        <div className="space-y-2">
-          <Label className="text-xs text-[#6B7280]">Diagnóstico</Label>
-          <DiagnosticoSelector
-            value={shape.diagnostico ?? "sin_definir"}
-            onChange={(v) => onChange({ diagnostico: v })}
-          />
-        </div>
-        <div className="space-y-2">
-          <Label className="text-xs text-[#6B7280]">Prioridad de intervención</Label>
-          <PrioridadSelector
-            value={shape.prioridad}
-            onChange={(v) => onChange({ prioridad: v })}
-          />
-        </div>
+        <CompactDiagPrio
+          diagnostico={shape.diagnostico ?? "sin_definir"}
+          prioridad={shape.prioridad}
+          onChangeDiag={(v) => onChange({ diagnostico: v })}
+          onChangePrio={(v) => onChange({ prioridad: v })}
+        />
+
         <div className="space-y-2">
           <Label className="text-xs text-[#6B7280]">Oportunidades de mejora</Label>
           <ImprovementList docId={docId} pageId={pageId} shape={shape} />
@@ -1093,71 +1120,109 @@ function RightPanel({
 }
 
 
-/* -------------------- Diagnóstico selector -------------------- */
-function DiagnosticoSelector({
-  value,
-  onChange,
+/* -------------------- Compact Diagnóstico + Prioridad rows -------------------- */
+function CompactDiagPrio({
+  diagnostico,
+  prioridad,
+  onChangeDiag,
+  onChangePrio,
 }: {
-  value: Diagnostico;
-  onChange: (v: Diagnostico) => void;
+  diagnostico: Diagnostico;
+  prioridad: Prioridad | undefined;
+  onChangeDiag: (v: Diagnostico) => void;
+  onChangePrio: (v: Prioridad) => void;
 }) {
-  const order: Diagnostico[] = ["funciona", "inconsistente", "roto", "sin_definir"];
+  const diagOrder: Diagnostico[] = ["funciona", "inconsistente", "roto", "sin_definir"];
+  const prioOrder: Prioridad[] = ["urgente", "proximo_sprint", "backlog", "ok"];
+  const diagMeta = DIAGNOSTICO_META[diagnostico];
+  const prioMeta = prioridad ? PRIORIDAD_META[prioridad] : null;
+
   return (
-    <div className="flex flex-wrap gap-1.5">
-      {order.map((s) => {
-        const meta = DIAGNOSTICO_META[s];
-        const active = value === s;
-        return (
-          <button
-            key={s}
-            onClick={() => onChange(s)}
-            className={cn(
-              "flex items-center gap-1 rounded-full px-2.5 py-1 text-[11px] font-medium transition-all",
-              active ? "text-white shadow-sm" : "bg-[#F3F4F6] text-[#4B5563] hover:bg-[#E5E7EB]",
-            )}
-            style={active ? { background: meta.bg } : undefined}
-          >
-            <span>{meta.dot}</span>
-            {meta.label}
-          </button>
-        );
-      })}
+    <div className="space-y-2">
+      <div className="flex items-center justify-between gap-2">
+        <span className="text-[11px] font-semibold uppercase tracking-wide text-[#6B7280]">
+          Diagnóstico
+        </span>
+        <Popover>
+          <PopoverTrigger asChild>
+            <button
+              className="inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-medium text-white transition-colors"
+              style={{ background: diagMeta.bg }}
+            >
+              <span>{diagMeta.dot}</span>
+              {diagMeta.label}
+              <ChevronRight className="h-3 w-3 rotate-90 opacity-80" />
+            </button>
+          </PopoverTrigger>
+          <PopoverContent align="end" className="w-44 p-1">
+            {diagOrder.map((d) => {
+              const m = DIAGNOSTICO_META[d];
+              return (
+                <button
+                  key={d}
+                  onClick={() => onChangeDiag(d)}
+                  className={cn(
+                    "flex w-full items-center gap-2 rounded px-2 py-1.5 text-left text-[12px] hover:bg-[#F3F4F6]",
+                    diagnostico === d && "bg-[#F3F4F6] font-medium",
+                  )}
+                >
+                  <span
+                    className="h-2.5 w-2.5 rounded-full"
+                    style={{ background: m.bg }}
+                  />
+                  {m.label}
+                </button>
+              );
+            })}
+          </PopoverContent>
+        </Popover>
+      </div>
+      <div className="flex items-center justify-between gap-2">
+        <span className="text-[11px] font-semibold uppercase tracking-wide text-[#6B7280]">
+          Prioridad
+        </span>
+        <Popover>
+          <PopoverTrigger asChild>
+            <button
+              className="inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-medium transition-colors"
+              style={
+                prioMeta
+                  ? { background: prioMeta.bg, color: "#fff" }
+                  : { background: "#F3F4F6", color: "#6B7280" }
+              }
+            >
+              <span>{prioMeta?.dot ?? "—"}</span>
+              {prioMeta?.label ?? "Sin definir"}
+              <ChevronRight className="h-3 w-3 rotate-90 opacity-80" />
+            </button>
+          </PopoverTrigger>
+          <PopoverContent align="end" className="w-44 p-1">
+            {prioOrder.map((p) => {
+              const m = PRIORIDAD_META[p];
+              return (
+                <button
+                  key={p}
+                  onClick={() => onChangePrio(p)}
+                  className={cn(
+                    "flex w-full items-center gap-2 rounded px-2 py-1.5 text-left text-[12px] hover:bg-[#F3F4F6]",
+                    prioridad === p && "bg-[#F3F4F6] font-medium",
+                  )}
+                >
+                  <span
+                    className="h-2.5 w-2.5 rounded-full"
+                    style={{ background: m.bg }}
+                  />
+                  {m.label}
+                </button>
+              );
+            })}
+          </PopoverContent>
+        </Popover>
+      </div>
     </div>
   );
 }
 
-/* -------------------- Prioridad selector -------------------- */
-function PrioridadSelector({
-  value,
-  onChange,
-}: {
-  value: Prioridad | undefined;
-  onChange: (v: Prioridad) => void;
-}) {
-  const order: Prioridad[] = ["urgente", "proximo_sprint", "backlog", "ok"];
-  return (
-    <div className="flex flex-wrap gap-1.5">
-      {order.map((s) => {
-        const meta = PRIORIDAD_META[s];
-        const active = value === s;
-        return (
-          <button
-            key={s}
-            onClick={() => onChange(s)}
-            className={cn(
-              "flex items-center gap-1 rounded-full px-2.5 py-1 text-[11px] font-medium transition-all",
-              active ? "text-white shadow-sm" : "bg-[#F3F4F6] text-[#4B5563] hover:bg-[#E5E7EB]",
-            )}
-            style={active ? { background: meta.bg } : undefined}
-          >
-            <span>{meta.dot}</span>
-            {meta.label}
-          </button>
-        );
-      })}
-    </div>
-  );
-}
 
 /* -------------------- Improvement list (multi-category) -------------------- */
 function CategoryToggle({
@@ -1209,7 +1274,7 @@ function ImprovementList({
   const [text, setText] = useState("");
   const [draftCats, setDraftCats] = useState<ImprovementCategory[]>([]);
   const addImprovement = useDiagramStore((s) => s.addImprovement);
-  const updateImprovement = useDiagramStore((s) => s.updateImprovement);
+  // updateImprovement removed — saved entries are no longer editable inline
   const deleteImprovement = useDiagramStore((s) => s.deleteImprovement);
   const entries = shape.improvementEntries ?? [];
 
@@ -1266,14 +1331,28 @@ function ImprovementList({
           {entries
             .slice()
             .sort((a, b) => b.date - a.date)
-            .map((e) => (
-              <li
-                key={e.id}
-                className="flowit-entry group space-y-1 rounded-md border border-[#EBEBEB] bg-white px-2 py-1.5"
-              >
-                <div className="flex items-start gap-2">
-                  <div className="min-w-0 flex-1 break-words text-[12px] leading-snug text-[#111827]">
-                    {e.text}
+            .map((e) => {
+              const dominant = e.categories[0];
+              const dotMeta = dominant ? CATEGORY_META[dominant] : null;
+              const tooltip =
+                e.categories.length > 0
+                  ? e.categories.map((c) => CATEGORY_META[c].label).join(", ")
+                  : "Sin categoría";
+              return (
+                <li
+                  key={e.id}
+                  className="flowit-entry group flex items-start gap-2 rounded-md border border-[#EBEBEB] bg-white px-2 py-1.5"
+                  title={tooltip}
+                >
+                  <span
+                    className="mt-1 h-2 w-2 shrink-0 rounded-full"
+                    style={{ background: dotMeta?.fg ?? "#D1D5DB" }}
+                  />
+                  <div className="min-w-0 flex-1">
+                    <div className="break-words text-[12px] leading-snug text-[#111827]">
+                      {e.text}
+                    </div>
+                    <div className="text-[10px] text-[#9CA3AF]">{formatDate(e.date)}</div>
                   </div>
                   <button
                     onClick={() => deleteImprovement(docId, pageId, shape.id, e.id)}
@@ -1282,27 +1361,10 @@ function ImprovementList({
                   >
                     <Trash2 className="h-3.5 w-3.5 text-[#DC2626]" />
                   </button>
-                </div>
-                <div className="flex flex-wrap gap-1">
-                  {ALL_CATEGORIES.map((c) => (
-                    <CategoryToggle
-                      key={c}
-                      cat={c}
-                      active={e.categories.includes(c)}
-                      onClick={() => {
-                        const next = e.categories.includes(c)
-                          ? e.categories.filter((x) => x !== c)
-                          : [...e.categories, c];
-                        updateImprovement(docId, pageId, shape.id, e.id, {
-                          categories: next,
-                        });
-                      }}
-                    />
-                  ))}
-                </div>
-                <div className="text-[10px] text-[#9CA3AF]">{formatDate(e.date)}</div>
-              </li>
-            ))}
+                </li>
+              );
+            })}
+
         </ul>
       )}
     </div>
@@ -2465,26 +2527,75 @@ function ShapeNode({
     [dragPos, popupPos],
   );
 
+  const [popupSize, setPopupSize] = useState<{ w: number; h: number } | null>(null);
+
   const computePos = useCallback(() => {
     const rect = nodeRef.current?.getBoundingClientRect();
     if (!rect) return;
-    const POP_W = 320;
-    const POP_H = 420;
-    const MARGIN = 40;
-    // Choose horizontal/vertical side with the most available empty space.
-    const spaceLeft = rect.left;
-    const spaceRight = window.innerWidth - rect.right;
-    const spaceTop = rect.top;
-    const spaceBottom = window.innerHeight - rect.bottom;
-    const placeRight = spaceRight >= spaceLeft;
-    const placeBottom = spaceBottom >= spaceTop;
-    let left = placeRight ? rect.right + MARGIN : rect.left - POP_W - MARGIN;
-    let top = placeBottom ? rect.bottom + MARGIN : rect.top - POP_H - MARGIN;
-    // Clamp to viewport with 8px padding.
-    left = Math.max(8, Math.min(left, window.innerWidth - POP_W - 8));
-    top = Math.max(8, Math.min(top, window.innerHeight - POP_H - 8));
+    const POP_W = popupSize?.w ?? 320;
+    const POP_H = popupSize?.h ?? 380;
+    const MARGIN = 24;
+    const MAX_GAP = 120;
+    const pad = 8;
+    const candidates: { left: number; top: number; ok: boolean }[] = [];
+    // Right
+    {
+      const left = rect.right + MARGIN;
+      const top = Math.max(pad, Math.min(rect.top, window.innerHeight - POP_H - pad));
+      candidates.push({ left, top, ok: left + POP_W + pad <= window.innerWidth });
+    }
+    // Left
+    {
+      const left = rect.left - POP_W - MARGIN;
+      const top = Math.max(pad, Math.min(rect.top, window.innerHeight - POP_H - pad));
+      candidates.push({ left, top, ok: left >= pad });
+    }
+    // Bottom
+    {
+      const top = rect.bottom + MARGIN;
+      const left = Math.max(pad, Math.min(rect.left, window.innerWidth - POP_W - pad));
+      candidates.push({ left, top, ok: top + POP_H + pad <= window.innerHeight });
+    }
+    // Top
+    {
+      const top = rect.top - POP_H - MARGIN;
+      const left = Math.max(pad, Math.min(rect.left, window.innerWidth - POP_W - pad));
+      candidates.push({ left, top, ok: top >= pad });
+    }
+    const pick = candidates.find((c) => c.ok) ?? candidates[0];
+    let { left, top } = pick;
+    // Enforce max 120px gap from nearest shape edge.
+    if (left > rect.right + MAX_GAP) left = rect.right + MAX_GAP;
+    if (left + POP_W < rect.left - MAX_GAP) left = rect.left - MAX_GAP - POP_W;
+    if (top > rect.bottom + MAX_GAP) top = rect.bottom + MAX_GAP;
+    if (top + POP_H < rect.top - MAX_GAP) top = rect.top - MAX_GAP - POP_H;
+    top = Math.max(pad, Math.min(top, window.innerHeight - 80));
     setPopupPos({ left, top });
-  }, []);
+  }, [popupSize]);
+
+  const onResizePopupDown = useCallback(
+    (e: React.PointerEvent<HTMLDivElement>) => {
+      e.stopPropagation();
+      e.preventDefault();
+      const startX = e.clientX;
+      const startY = e.clientY;
+      const startW = popupSize?.w ?? 320;
+      const startH = popupSize?.h ?? 380;
+      const onMove = (ev: PointerEvent) => {
+        const w = Math.max(260, Math.min(600, startW + (ev.clientX - startX)));
+        const h = Math.max(180, Math.min(800, startH + (ev.clientY - startY)));
+        setPopupSize({ w, h });
+      };
+      const onUp = () => {
+        window.removeEventListener("pointermove", onMove);
+        window.removeEventListener("pointerup", onUp);
+      };
+      window.addEventListener("pointermove", onMove);
+      window.addEventListener("pointerup", onUp);
+    },
+    [popupSize],
+  );
+
 
   // Pinned popup is always shown. Don't auto-reposition if user has dragged.
   useEffect(() => {
@@ -2740,7 +2851,7 @@ function ShapeNode({
         <div
           data-pinned-popup-for={pinned ? shape.id : undefined}
           className={cn(
-            "fixed z-50 w-[280px] overflow-hidden rounded-[10px] border border-[#EBEBEB] bg-white",
+            "fixed z-50 flex flex-col overflow-hidden rounded-[10px] border border-[#EBEBEB] bg-white",
             pinned ? "flowit-pin-in" : "flowit-popup",
             dragging
               ? "shadow-[0_12px_40px_rgba(0,0,0,0.25)]"
@@ -2749,6 +2860,8 @@ function ShapeNode({
           style={{
             left: (dragPos ?? popupPos).left,
             top: (dragPos ?? popupPos).top,
+            width: pinned ? popupSize?.w ?? 320 : 280,
+            height: pinned ? popupSize?.h ?? 380 : undefined,
             transition: dragging ? "none" : "box-shadow 150ms ease-out",
           }}
           onMouseEnter={() => setPopupHovered(true)}
@@ -2761,7 +2874,7 @@ function ShapeNode({
           {pinned && (
             <div
               onPointerDown={onDragHandleDown}
-              className="flex h-7 cursor-grab items-center justify-between border-b border-[#EBEBEB] bg-[#FAFAFA] px-2 active:cursor-grabbing"
+              className="flex h-7 shrink-0 cursor-grab items-center justify-between border-b border-[#EBEBEB] bg-[#FAFAFA] px-2 active:cursor-grabbing"
               title="Drag to move"
             >
               <GripVertical className="h-3.5 w-3.5 text-[#9CA3AF]" />
@@ -2778,12 +2891,13 @@ function ShapeNode({
               </button>
             </div>
           )}
-          <div className="relative">
+          <div className="relative shrink-0">
             {shape.imageDataUrl ? (
               <img
                 src={shape.imageDataUrl}
                 alt={shape.title}
-                className="h-[160px] w-full object-cover"
+                className="block w-full object-cover"
+                style={{ height: pinned ? Math.min(240, ((popupSize?.w ?? 320) * 9) / 16) : 160 }}
                 draggable={false}
                 onError={(e) => {
                   (e.currentTarget as HTMLImageElement).style.display = "none";
@@ -2805,17 +2919,18 @@ function ShapeNode({
               </button>
             )}
           </div>
-          <div className="space-y-2 p-3">
+          <div className="min-h-0 flex-1 space-y-2 overflow-y-auto p-3">
             {!pinned && (
               <div className="text-[14px] font-bold text-[#111827]">
                 {shape.title || shape.text || "Sin título"}
               </div>
             )}
-            <div className="flex flex-col gap-1.5">
+            <div className="flex flex-wrap items-center gap-1.5">
               {diag && (
                 <div
-                  className="inline-flex w-fit items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-medium text-white"
+                  className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-medium text-white"
                   style={{ background: diag.bg, transition: "background-color 150ms ease-out" }}
+                  title={`Diagnóstico: ${diag.label}`}
                 >
                   <span>{diag.dot}</span>
                   {diag.label}
@@ -2823,8 +2938,9 @@ function ShapeNode({
               )}
               {prio && (
                 <div
-                  className="inline-flex w-fit items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-medium text-white"
+                  className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-medium text-white"
                   style={{ background: prio.bg, transition: "background-color 150ms ease-out" }}
+                  title={`Prioridad: ${prio.label}`}
                 >
                   <span>{prio.dot}</span>
                   {prio.label}
@@ -2843,40 +2959,47 @@ function ShapeNode({
                   {(shape.improvementEntries ?? [])
                     .slice()
                     .sort((a, b) => b.date - a.date)
-                    .map((e) => (
-                      <li
-                        key={e.id}
-                        className="flowit-entry rounded-md border border-[#EBEBEB] bg-white px-2 py-1.5"
-                      >
-                        {e.categories.length > 0 && (
-                          <div className="mb-1 flex flex-wrap gap-1">
-                            {e.categories.map((c) => {
-                              const m = CATEGORY_META[c];
-                              return (
-                                <span
-                                  key={c}
-                                  className="inline-flex items-center gap-0.5 rounded-full px-1.5 py-0.5 text-[9px] font-medium"
-                                  style={{ background: m.bg, color: m.fg }}
-                                >
-                                  <span>{m.icon}</span>
-                                  {m.label}
-                                </span>
-                              );
-                            })}
+                    .map((e) => {
+                      const dominant = e.categories[0];
+                      const dotMeta = dominant ? CATEGORY_META[dominant] : null;
+                      const tooltip =
+                        e.categories.length > 0
+                          ? e.categories.map((c) => CATEGORY_META[c].label).join(", ")
+                          : "Sin categoría";
+                      return (
+                        <li
+                          key={e.id}
+                          className="flowit-entry flex items-start gap-2 rounded-md border border-[#EBEBEB] bg-white px-2 py-1.5"
+                          title={tooltip}
+                        >
+                          <span
+                            className="mt-1 h-2 w-2 shrink-0 rounded-full"
+                            style={{ background: dotMeta?.fg ?? "#D1D5DB" }}
+                          />
+                          <div className="min-w-0 flex-1 break-words text-[12px] leading-snug text-[#111827]">
+                            {e.text}
                           </div>
-                        )}
-                        <div className="break-words text-[12px] leading-snug text-[#111827]">
-                          {e.text}
-                        </div>
-                      </li>
-                    ))}
+                        </li>
+                      );
+                    })}
                 </ul>
               </div>
             )}
-
           </div>
+          {pinned && (
+            <div
+              onPointerDown={onResizePopupDown}
+              className="absolute bottom-0 right-0 z-10 h-4 w-4 cursor-se-resize"
+              title="Redimensionar"
+              style={{
+                background:
+                  "linear-gradient(135deg, transparent 0 50%, #9CA3AF 50% 60%, transparent 60% 70%, #9CA3AF 70% 80%, transparent 80%)",
+              }}
+            />
+          )}
         </div>
       )}
+
     </>
   );
 }
