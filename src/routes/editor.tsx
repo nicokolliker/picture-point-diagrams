@@ -3655,6 +3655,8 @@ function ShapeNode({
   docId,
   pageId,
   zoom,
+  pan,
+  allShapes,
   pinned,
   onPin,
   onUnpin,
