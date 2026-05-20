@@ -18,6 +18,7 @@ import {
   Layers,
   ListChecks,
   Maximize2,
+  GripVertical,
   Pin,
   PinOff,
   Plus,
