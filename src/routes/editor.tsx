@@ -4189,6 +4189,35 @@ function ShapeNode({
         </ContextMenuContent>
       </ContextMenu>
 
+      {/* Pin button on shape (top-right corner) */}
+      {(showPopup || pinned) && shape.type !== "text" && (
+        <button
+          onPointerDown={(e) => e.stopPropagation()}
+          onClick={(e) => {
+            e.stopPropagation();
+            if (pinned) onUnpin();
+            else onPin();
+          }}
+          onMouseEnter={() => setHovered(true)}
+          className={cn(
+            "flowit-fade-in absolute flex items-center justify-center rounded-full border shadow-sm transition-all hover:scale-110",
+            pinned
+              ? "border-[#5B6CF8] bg-[#5B6CF8] text-white"
+              : "border-[#EBEBEB] bg-white text-[#6B7280] hover:text-[#111827]",
+          )}
+          style={{
+            left: shape.x + shape.width - 12,
+            top: shape.y - 10,
+            width: 22,
+            height: 22,
+            zIndex: 9999,
+          }}
+          title={pinned ? "Desanclar" : "Anclar"}
+        >
+          <Pin className="h-3 w-3" style={pinned ? { fill: "currentColor" } : undefined} />
+        </button>
+      )}
+
       {/* Quick-add (+) button on edge nearest mouse */}
       {showQuickAdd && shape.type !== "text" && (() => {
         const SIZE = 24;
