@@ -1244,7 +1244,7 @@ function ImprovementList({
   const [text, setText] = useState("");
   const [draftCats, setDraftCats] = useState<ImprovementCategory[]>([]);
   const addImprovement = useDiagramStore((s) => s.addImprovement);
-  const updateImprovement = useDiagramStore((s) => s.updateImprovement);
+  // updateImprovement removed — saved entries are no longer editable inline
   const deleteImprovement = useDiagramStore((s) => s.deleteImprovement);
   const entries = shape.improvementEntries ?? [];
 
