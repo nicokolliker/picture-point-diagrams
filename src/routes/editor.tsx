@@ -158,16 +158,43 @@ function EditorPage() {
 
   const page = doc?.pages.find((p) => p.id === currentPageId) ?? doc?.pages[0];
 
-  // Parent shape lookup: if current page is a sub-process of some shape, find it.
-  const parentLink = useMemo(() => {
-    if (!doc || !page) return null;
-    for (const p of doc.pages) {
-      for (const s of p.shapes) {
-        if (s.subProcessPageId === page.id) return { page: p, shape: s };
+  // Floating sub-process panels (one per shape with an open panel).
+  const [subPanels, setSubPanels] = useState<
+    Array<{ shapeId: string; pageId: string; sourcePageId: string; minimized: boolean }>
+  >([]);
+  const openSubProcessPanel = useCallback(
+    (shape: Shape, sourcePageId: string) => {
+      let pid = shape.subProcessPageId;
+      if (!pid) {
+        pid = useDiagramStore
+          .getState()
+          .createSubProcess(doc!.id, sourcePageId, shape.id);
       }
-    }
-    return null;
-  }, [doc, page]);
+      setSubPanels((prev) => {
+        const existing = prev.find((p) => p.shapeId === shape.id);
+        if (existing) {
+          return prev.map((p) =>
+            p.shapeId === shape.id ? { ...p, minimized: false } : p,
+          );
+        }
+        return [...prev, { shapeId: shape.id, pageId: pid!, sourcePageId, minimized: false }];
+      });
+    },
+    [doc],
+  );
+  const closeSubProcessPanel = useCallback((shapeId: string) => {
+    setSubPanels((prev) => prev.filter((p) => p.shapeId !== shapeId));
+  }, []);
+  const toggleMinimizeSubPanel = useCallback((shapeId: string) => {
+    setSubPanels((prev) =>
+      prev.map((p) => (p.shapeId === shapeId ? { ...p, minimized: !p.minimized } : p)),
+    );
+  }, []);
+  const subPanelStates = useMemo(() => {
+    const m: Record<string, "open" | "minimized"> = {};
+    for (const p of subPanels) m[p.shapeId] = p.minimized ? "minimized" : "open";
+    return m;
+  }, [subPanels]);
 
   // Apply a pending shape selection after a page-change navigation.
   const pendingSelectRef = useRef<string | null>(null);
@@ -458,24 +485,8 @@ function EditorPage() {
           pinnedIds={pinnedIds}
           pinShape={pinShape}
           unpinShape={unpinShape}
-          onOpenSubProcess={(pid) => goToPage(pid)}
-          breadcrumb={
-            parentLink ? (
-              <div className="pointer-events-auto absolute left-3 top-3 z-30 flex items-center gap-1.5 rounded-md border border-[#EBEBEB] bg-white/95 px-2.5 py-1.5 text-[12px] text-[#4B5563] shadow-sm">
-                <button
-                  onClick={() => goToPage(parentLink.page.id, parentLink.shape.id)}
-                  className="flex items-center gap-1 rounded text-[#5B6CF8] hover:underline"
-                >
-                  <ArrowLeft className="h-3.5 w-3.5" />
-                  <span>{doc.name}</span>
-                </button>
-                <span className="text-[#9CA3AF]">/</span>
-                <span className="text-[#111827]">
-                  Sub-proceso: {parentLink.shape.title || parentLink.shape.text || "Sin título"}
-                </span>
-              </div>
-            ) : null
-          }
+          onSubProcessIconClick={(shape) => openSubProcessPanel(shape, page.id)}
+          subPanelStates={subPanelStates}
         />
 
         {/* Right panel */}
@@ -490,12 +501,39 @@ function EditorPage() {
                 .updateShape(doc.id, page.id, selectedShape.id, patch)
             }
             onClose={() => setSelectedIds([])}
-            onOpenSubProcess={(pid) => goToPage(pid)}
           />
         )}
       </div>
 
       <PinnedConnectorsOverlay pinnedIds={pinnedIds} />
+
+      {/* Floating sub-process panels */}
+      {subPanels.map((panel, idx) => {
+        const srcPage = doc.pages.find((p) => p.id === panel.sourcePageId);
+        const srcShape = srcPage?.shapes.find((s) => s.id === panel.shapeId);
+        const subPage = doc.pages.find((p) => p.id === panel.pageId);
+        if (!subPage) return null;
+        const minimizedIndex = subPanels
+          .filter((p) => p.minimized)
+          .findIndex((p) => p.shapeId === panel.shapeId);
+        return (
+          <SubProcessPanel
+            key={panel.shapeId}
+            docId={doc.id}
+            page={subPage}
+            shapeTitle={srcShape?.title || srcShape?.text || "Sub-proceso"}
+            minimized={panel.minimized}
+            minimizedStackIndex={minimizedIndex}
+            onClose={() => closeSubProcessPanel(panel.shapeId)}
+            onToggleMinimize={() => toggleMinimizeSubPanel(panel.shapeId)}
+            onSubProcessIconClick={(shape) =>
+              openSubProcessPanel(shape, panel.pageId)
+            }
+            subPanelStates={subPanelStates}
+            zIndexBase={8000 + idx}
+          />
+        );
+      })}
 
       <Link to="/editor" className="hidden" aria-hidden />
     </div>
@@ -1161,14 +1199,12 @@ function RightPanel({
   shape,
   onChange,
   onClose,
-  onOpenSubProcess,
 }: {
   docId: string;
   pageId: string;
   shape: Shape;
   onChange: (patch: Partial<Shape>) => void;
   onClose: () => void;
-  onOpenSubProcess: (pageId: string) => void;
 }) {
   const fileRef = useRef<HTMLInputElement>(null);
   const [url, setUrl] = useState("");
@@ -1270,53 +1306,6 @@ function RightPanel({
           <DocumentsSection docId={docId} pageId={pageId} shape={shape} onChange={onChange} />
         </div>
 
-        <div className="space-y-2">
-          <Label className="text-xs text-[#6B7280]">Sub-proceso</Label>
-          {shape.subProcessPageId ? (
-            <div className="flex flex-col gap-1.5">
-              <Button
-                variant="outline"
-                size="sm"
-                className="w-full justify-between text-[#5B6CF8]"
-                onClick={() => onOpenSubProcess(shape.subProcessPageId!)}
-              >
-                <span>Ver sub-proceso</span>
-                <span>→</span>
-              </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                className="w-full text-[#DC2626]"
-                onClick={() => {
-                  if (
-                    typeof window !== "undefined" &&
-                    !window.confirm(
-                      "¿Eliminar el sub-proceso? Se borrará la página y todo su contenido.",
-                    )
-                  )
-                    return;
-                  useDiagramStore.getState().deleteSubProcess(docId, pageId, shape.id);
-                }}
-              >
-                <Trash2 className="h-3.5 w-3.5" /> Eliminar sub-proceso
-              </Button>
-            </div>
-          ) : (
-            <Button
-              variant="outline"
-              size="sm"
-              className="w-full"
-              onClick={() => {
-                const newPageId = useDiagramStore
-                  .getState()
-                  .createSubProcess(docId, pageId, shape.id);
-                onOpenSubProcess(newPageId);
-              }}
-            >
-              <Plus className="h-3.5 w-3.5" /> Crear sub-proceso
-            </Button>
-          )}
-        </div>
 
 
 
@@ -3053,8 +3042,8 @@ interface CanvasProps {
   pinnedIds: string[];
   pinShape: (id: string) => void;
   unpinShape: (id: string) => void;
-  onOpenSubProcess: (pageId: string) => void;
-  breadcrumb?: React.ReactNode;
+  onSubProcessIconClick: (shape: Shape) => void;
+  subPanelStates: Record<string, "open" | "minimized">;
 }
 
 function CanvasArea({
@@ -3069,8 +3058,8 @@ function CanvasArea({
   pinnedIds,
   pinShape,
   unpinShape,
-  onOpenSubProcess,
-  breadcrumb,
+  onSubProcessIconClick,
+  subPanelStates,
 }: CanvasProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const [spaceDown, setSpaceDown] = useState(false);
@@ -3575,7 +3564,8 @@ function CanvasArea({
                 useDiagramStore.getState().addShape(docId, page.id, copy);
               }
             }}
-            onOpenSubProcess={onOpenSubProcess}
+            onSubProcessIconClick={() => onSubProcessIconClick(s)}
+            subPanelState={subPanelStates[s.id]}
           />
         ))}
 
@@ -3724,7 +3714,7 @@ function CanvasArea({
         )}
       </div>
 
-      {breadcrumb}
+
 
       {/* Hint */}
       <div className="pointer-events-none absolute bottom-3 left-3 rounded-md bg-white/90 px-2 py-1 text-[11px] text-[#6B7280] shadow-sm">
@@ -3757,7 +3747,8 @@ interface ShapeNodeProps {
   onContextAction: (
     a: "editText" | "delete" | "front" | "back" | "duplicate" | "assignImage",
   ) => void;
-  onOpenSubProcess?: (pageId: string) => void;
+  onSubProcessIconClick: () => void;
+  subPanelState?: "open" | "minimized";
 }
 
 
@@ -3781,7 +3772,8 @@ function ShapeNode({
   onQuickAdd,
   onQuickAddHover,
   onContextAction,
-  onOpenSubProcess,
+  onSubProcessIconClick,
+  subPanelState,
 }: ShapeNodeProps) {
 
   const [hovered, setHovered] = useState(false);
@@ -4285,17 +4277,9 @@ function ShapeNode({
               </div>
             )}
 
-            {/* Bottom-right badges: sub-process, docs, image */}
-            {shape.type !== "text" && (shape.subProcessPageId || hasDocs || missingDocs || shape.imageDataUrl) && (
+            {/* Bottom-right badges: docs, image */}
+            {shape.type !== "text" && (hasDocs || missingDocs || shape.imageDataUrl) && (
               <div className="pointer-events-none absolute bottom-1.5 right-1.5 flex items-center gap-1">
-                {shape.subProcessPageId && (
-                  <div
-                    className="flex h-5 w-5 items-center justify-center rounded-full bg-[#5B6CF8] text-white text-[11px] font-semibold leading-none"
-                    title="Contiene un sub-proceso"
-                  >
-                    ⊞
-                  </div>
-                )}
                 {missingDocs && (
                   <div
                     className="flex h-5 w-5 items-center justify-center rounded-full bg-[#9CA3AF] text-white"
@@ -4369,28 +4353,43 @@ function ShapeNode({
         </button>
       )}
 
-      {/* Expand to sub-process button (below pin) */}
-      {(showPopup || pinned || hovered) && shape.subProcessPageId && shape.type !== "text" && onOpenSubProcess && (
-        <button
-          onPointerDown={(e) => e.stopPropagation()}
-          onClick={(e) => {
-            e.stopPropagation();
-            onOpenSubProcess(shape.subProcessPageId!);
-          }}
-          onMouseEnter={() => setHovered(true)}
-          onMouseLeave={() => setHovered(false)}
-          className="flowit-fade-in absolute flex items-center gap-1 rounded-full border border-[#5B6CF8] bg-white px-2 py-0.5 text-[10px] font-medium text-[#5B6CF8] shadow-sm transition-all hover:bg-[#EEF0FF]"
-          style={{
-            left: shape.x + shape.width - 60,
-            top: shape.y + 18,
-            height: 20,
-            zIndex: 9999,
-          }}
-          title="Abrir sub-proceso"
-        >
-          Expand ↗
-        </button>
-      )}
+      {/* Sub-process trigger (top-left corner) */}
+      {shape.type !== "text" && (() => {
+        const hasSub = !!shape.subProcessPageId;
+        const state = subPanelState;
+        const isOpen = state === "open";
+        const isMin = state === "minimized";
+        const classes = cn(
+          "absolute flex items-center justify-center rounded-full border text-[12px] font-semibold leading-none shadow-sm transition-all hover:scale-110",
+          isOpen && "border-[#5B6CF8] bg-[#5B6CF8] text-white",
+          isMin && "border-[#F59E0B] bg-[#F59E0B] text-white",
+          !isOpen && !isMin && hasSub && "border-[#5B6CF8] bg-white text-[#5B6CF8]",
+          !isOpen && !isMin && !hasSub && "border-[#D1D5DB] bg-white text-[#D1D5DB] hover:border-[#5B6CF8] hover:text-[#5B6CF8]",
+        );
+        return (
+          <button
+            onPointerDown={(e) => e.stopPropagation()}
+            onClick={(e) => {
+              e.stopPropagation();
+              onSubProcessIconClick();
+            }}
+            onMouseEnter={() => setHovered(true)}
+            onMouseLeave={() => setHovered(false)}
+            className={classes}
+            style={{
+              left: shape.x - 10,
+              top: shape.y - 10,
+              width: 22,
+              height: 22,
+              zIndex: 9999,
+            }}
+            title={hasSub ? "Abrir sub-proceso" : "Crear sub-proceso"}
+          >
+            ⊞
+          </button>
+        );
+      })()}
+
 
       {/* Quick-add (+) button on edge nearest mouse */}
       {showQuickAdd && shape.type !== "text" && (() => {
@@ -4664,3 +4663,159 @@ function ShapeNode({
     </>
   );
 }
+
+/* -------------------- Floating sub-process panel -------------------- */
+interface SubProcessPanelProps {
+  docId: string;
+  page: { id: string; name: string; shapes: Shape[]; connectors: Connector[] };
+  shapeTitle: string;
+  minimized: boolean;
+  minimizedStackIndex: number;
+  onClose: () => void;
+  onToggleMinimize: () => void;
+  onSubProcessIconClick: (shape: Shape) => void;
+  subPanelStates: Record<string, "open" | "minimized">;
+  zIndexBase: number;
+}
+
+function SubProcessPanel({
+  docId,
+  page,
+  shapeTitle,
+  minimized,
+  minimizedStackIndex,
+  onClose,
+  onToggleMinimize,
+  onSubProcessIconClick,
+  subPanelStates,
+  zIndexBase,
+}: SubProcessPanelProps) {
+  const [pan, setPan] = useState({ x: 80, y: 40 });
+  const [zoom, setZoom] = useState(1);
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const [pinnedIds, setPinnedIds] = useState<string[]>([]);
+  const [nameVal, setNameVal] = useState(page.name);
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => {
+    const id = requestAnimationFrame(() => setMounted(true));
+    return () => cancelAnimationFrame(id);
+  }, []);
+  useEffect(() => {
+    setNameVal(page.name);
+  }, [page.name]);
+
+  const pinShape = useCallback(
+    (id: string) => setPinnedIds((p) => (p.includes(id) ? p : [...p, id])),
+    [],
+  );
+  const unpinShape = useCallback(
+    (id: string) => setPinnedIds((p) => p.filter((x) => x !== id)),
+    [],
+  );
+
+  const commitName = () => {
+    const v = nameVal.trim() || "Sub-proceso";
+    if (v !== page.name) {
+      useDiagramStore.getState().renamePage(docId, page.id, v);
+    }
+  };
+
+  if (typeof document === "undefined") return null;
+
+  const headerBar = (
+    <div className="flex h-10 shrink-0 items-center gap-2 border-b border-[#EBEBEB] bg-white px-3">
+      <div className="flex h-5 w-5 items-center justify-center rounded-full bg-[#5B6CF8] text-[11px] font-semibold leading-none text-white">
+        ⊞
+      </div>
+      <Input
+        value={nameVal}
+        onChange={(e) => setNameVal(e.target.value)}
+        onBlur={commitName}
+        onKeyDown={(e) => {
+          if (e.key === "Enter") (e.target as HTMLInputElement).blur();
+        }}
+        className="h-7 flex-1 border-transparent bg-transparent px-1 text-[13px] font-medium focus-visible:border-[#EBEBEB]"
+        title={shapeTitle}
+      />
+      <button
+        onClick={onToggleMinimize}
+        className="flex h-7 w-7 items-center justify-center rounded text-[#6B7280] hover:bg-[#F3F4F6] hover:text-[#111827]"
+        title={minimized ? "Restaurar" : "Minimizar"}
+      >
+        {minimized ? "□" : "−"}
+      </button>
+      <button
+        onClick={onClose}
+        className="flex h-7 w-7 items-center justify-center rounded text-[#6B7280] hover:bg-[#F3F4F6] hover:text-[#DC2626]"
+        title="Cerrar"
+      >
+        <X className="h-4 w-4" />
+      </button>
+    </div>
+  );
+
+  const baseStyle: CSSProperties = minimized
+    ? {
+        position: "fixed",
+        left: 20 + minimizedStackIndex * 280,
+        bottom: 20,
+        width: 260,
+        height: 40,
+        background: "white",
+        borderRadius: 12,
+        boxShadow:
+          "0 12px 40px rgba(0,0,0,0.18), 0 0 0 1px rgba(0,0,0,0.06)",
+        zIndex: zIndexBase,
+        overflow: "hidden",
+        display: "flex",
+        flexDirection: "column",
+        opacity: mounted ? 1 : 0,
+        transform: mounted ? "scale(1)" : "scale(0.95)",
+        transition: "opacity 200ms ease-out, transform 200ms ease-out",
+      }
+    : {
+        position: "fixed",
+        width: "65vw",
+        height: "70vh",
+        top: "12vh",
+        left: "50%",
+        background: "white",
+        borderRadius: 16,
+        boxShadow:
+          "0 24px 80px rgba(0,0,0,0.18), 0 0 0 1px rgba(0,0,0,0.06)",
+        zIndex: zIndexBase,
+        overflow: "hidden",
+        display: "flex",
+        flexDirection: "column",
+        opacity: mounted ? 1 : 0,
+        transform: mounted ? "translateX(-50%) scale(1)" : "translateX(-50%) scale(0.95)",
+        transition: "opacity 200ms ease-out, transform 200ms ease-out",
+      };
+
+  return createPortal(
+    <div style={baseStyle}>
+      {headerBar}
+      {!minimized && (
+        <div className="relative flex-1 overflow-hidden">
+          <CanvasArea
+            docId={docId}
+            page={page}
+            pan={pan}
+            setPan={setPan}
+            zoom={zoom}
+            setZoom={setZoom}
+            selectedIds={selectedIds}
+            setSelectedIds={setSelectedIds}
+            pinnedIds={pinnedIds}
+            pinShape={pinShape}
+            unpinShape={unpinShape}
+            onSubProcessIconClick={onSubProcessIconClick}
+            subPanelStates={subPanelStates}
+          />
+        </div>
+      )}
+    </div>,
+    document.body,
+  );
+}
+

@@ -45,6 +45,7 @@ interface State {
   updateConnector: (docId: string, pageId: string, id: string, patch: Partial<Connector>) => void;
   deleteConnectors: (docId: string, pageId: string, ids: string[]) => void;
   addPage: (docId: string) => void;
+  renamePage: (docId: string, pageId: string, name: string) => void;
   addUpload: (dataUrl: string) => void;
   removeUpload: (dataUrl: string) => void;
   addChange: (docId: string, pageId: string, shapeId: string, text: string) => void;
@@ -272,6 +273,12 @@ export const useDiagramStore = create<State>()(
               shapes: [],
               connectors: [],
             });
+          })
+        ),
+      renamePage: (docId, pageId, name) =>
+        commit(
+          mutPage(get().documents, docId, pageId, (p) => {
+            p.name = name;
           })
         ),
       addUpload: (dataUrl) => set({ uploads: [dataUrl, ...get().uploads] }),
