@@ -1129,7 +1129,326 @@ function StatusSelector({
   );
 }
 
-/* -------------------- Changes list -------------------- */
+/* -------------------- Diagnóstico selector -------------------- */
+function DiagnosticoSelector({
+  value,
+  onChange,
+}: {
+  value: Diagnostico;
+  onChange: (v: Diagnostico) => void;
+}) {
+  const order: Diagnostico[] = ["funciona", "inconsistente", "roto", "sin_definir"];
+  return (
+    <div className="flex flex-wrap gap-1.5">
+      {order.map((s) => {
+        const meta = DIAGNOSTICO_META[s];
+        const active = value === s;
+        return (
+          <button
+            key={s}
+            onClick={() => onChange(s)}
+            className={cn(
+              "flex items-center gap-1 rounded-full px-2.5 py-1 text-[11px] font-medium transition-all",
+              active ? "text-white shadow-sm" : "bg-[#F3F4F6] text-[#4B5563] hover:bg-[#E5E7EB]",
+            )}
+            style={active ? { background: meta.bg } : undefined}
+          >
+            <span>{meta.dot}</span>
+            {meta.label}
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
+/* -------------------- Prioridad selector -------------------- */
+function PrioridadSelector({
+  value,
+  onChange,
+}: {
+  value: Prioridad | undefined;
+  onChange: (v: Prioridad) => void;
+}) {
+  const order: Prioridad[] = ["urgente", "proximo_sprint", "backlog", "ok"];
+  return (
+    <div className="flex flex-wrap gap-1.5">
+      {order.map((s) => {
+        const meta = PRIORIDAD_META[s];
+        const active = value === s;
+        return (
+          <button
+            key={s}
+            onClick={() => onChange(s)}
+            className={cn(
+              "flex items-center gap-1 rounded-full px-2.5 py-1 text-[11px] font-medium transition-all",
+              active ? "text-white shadow-sm" : "bg-[#F3F4F6] text-[#4B5563] hover:bg-[#E5E7EB]",
+            )}
+            style={active ? { background: meta.bg } : undefined}
+          >
+            <span>{meta.dot}</span>
+            {meta.label}
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
+/* -------------------- Improvement list (multi-category) -------------------- */
+function CategoryToggle({
+  cat,
+  active,
+  onClick,
+}: {
+  cat: ImprovementCategory;
+  active: boolean;
+  onClick: () => void;
+}) {
+  const meta = CATEGORY_META[cat];
+  return (
+    <button
+      onClick={(e) => {
+        e.stopPropagation();
+        onClick();
+      }}
+      className={cn(
+        "inline-flex items-center gap-1 rounded-full border px-1.5 py-0.5 text-[10px] font-medium transition-all",
+        active ? "border-transparent" : "border-[#E5E7EB] bg-white text-[#9CA3AF] hover:border-[#D1D5DB]",
+      )}
+      style={active ? { background: meta.bg, color: meta.fg } : undefined}
+      title={meta.label}
+    >
+      <span>{meta.icon}</span>
+      {meta.label}
+    </button>
+  );
+}
+
+const ALL_CATEGORIES: ImprovementCategory[] = [
+  "proceso",
+  "personas",
+  "herramienta",
+  "documentacion",
+  "probar",
+];
+
+function ImprovementList({
+  docId,
+  pageId,
+  shape,
+}: {
+  docId: string;
+  pageId: string;
+  shape: Shape;
+}) {
+  const [text, setText] = useState("");
+  const [draftCats, setDraftCats] = useState<ImprovementCategory[]>([]);
+  const addImprovement = useDiagramStore((s) => s.addImprovement);
+  const updateImprovement = useDiagramStore((s) => s.updateImprovement);
+  const deleteImprovement = useDiagramStore((s) => s.deleteImprovement);
+  const entries = shape.improvementEntries ?? [];
+
+  const toggleDraft = (c: ImprovementCategory) =>
+    setDraftCats((prev) =>
+      prev.includes(c) ? prev.filter((x) => x !== c) : [...prev, c],
+    );
+
+  const submit = () => {
+    const v = text.trim();
+    if (!v) return;
+    addImprovement(docId, pageId, shape.id, v, draftCats);
+    setText("");
+    setDraftCats([]);
+  };
+
+  return (
+    <div className="space-y-2">
+      <div className="space-y-1.5 rounded-md border border-[#EBEBEB] bg-[#FAFAFA] p-2">
+        <div className="flex gap-1">
+          <Input
+            value={text}
+            onChange={(e) => setText(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") {
+                e.preventDefault();
+                submit();
+              }
+            }}
+            placeholder="Nueva oportunidad…"
+            className="h-8 text-xs"
+          />
+          <Button size="sm" onClick={submit} disabled={!text.trim()}>
+            <Plus className="h-3.5 w-3.5" />
+          </Button>
+        </div>
+        <div className="flex flex-wrap gap-1">
+          {ALL_CATEGORIES.map((c) => (
+            <CategoryToggle
+              key={c}
+              cat={c}
+              active={draftCats.includes(c)}
+              onClick={() => toggleDraft(c)}
+            />
+          ))}
+        </div>
+      </div>
+      {entries.length === 0 ? (
+        <div className="rounded-md border border-dashed border-[#E5E7EB] p-2 text-center text-[11px] text-[#9CA3AF]">
+          Sin oportunidades
+        </div>
+      ) : (
+        <ul className="space-y-1.5">
+          {entries
+            .slice()
+            .sort((a, b) => b.date - a.date)
+            .map((e) => (
+              <li
+                key={e.id}
+                className="flowit-entry group space-y-1 rounded-md border border-[#EBEBEB] bg-white px-2 py-1.5"
+              >
+                <div className="flex items-start gap-2">
+                  <div className="min-w-0 flex-1 break-words text-[12px] leading-snug text-[#111827]">
+                    {e.text}
+                  </div>
+                  <button
+                    onClick={() => deleteImprovement(docId, pageId, shape.id, e.id)}
+                    className="opacity-0 transition-opacity group-hover:opacity-100"
+                    title="Eliminar"
+                  >
+                    <Trash2 className="h-3.5 w-3.5 text-[#DC2626]" />
+                  </button>
+                </div>
+                <div className="flex flex-wrap gap-1">
+                  {ALL_CATEGORIES.map((c) => (
+                    <CategoryToggle
+                      key={c}
+                      cat={c}
+                      active={e.categories.includes(c)}
+                      onClick={() => {
+                        const next = e.categories.includes(c)
+                          ? e.categories.filter((x) => x !== c)
+                          : [...e.categories, c];
+                        updateImprovement(docId, pageId, shape.id, e.id, {
+                          categories: next,
+                        });
+                      }}
+                    />
+                  ))}
+                </div>
+                <div className="text-[10px] text-[#9CA3AF]">{formatDate(e.date)}</div>
+              </li>
+            ))}
+        </ul>
+      )}
+    </div>
+  );
+}
+
+/* -------------------- Documents section -------------------- */
+function DocumentsSection({
+  docId,
+  pageId,
+  shape,
+  onChange,
+}: {
+  docId: string;
+  pageId: string;
+  shape: Shape;
+  onChange: (patch: Partial<Shape>) => void;
+}) {
+  const addShapeDoc = useDiagramStore((s) => s.addShapeDoc);
+  const updateShapeDoc = useDiagramStore((s) => s.updateShapeDoc);
+  const deleteShapeDoc = useDiagramStore((s) => s.deleteShapeDoc);
+  const docs = shape.documents ?? [];
+  const disabled = !!shape.noStandardDoc;
+
+  return (
+    <div className="space-y-2">
+      <label className="flex cursor-pointer items-center gap-2 rounded-md border border-[#EBEBEB] bg-[#FAFAFA] px-2 py-1.5 text-[12px] text-[#374151]">
+        <input
+          type="checkbox"
+          checked={disabled}
+          onChange={(e) => onChange({ noStandardDoc: e.target.checked })}
+          className="h-3.5 w-3.5"
+        />
+        <FileWarning className="h-3.5 w-3.5 text-[#F59E0B]" />
+        <span>Sin documentación estandarizada</span>
+      </label>
+      <div className={cn("space-y-1.5", disabled && "pointer-events-none opacity-50")}>
+        {docs.length === 0 ? (
+          <div className="rounded-md border border-dashed border-[#E5E7EB] p-2 text-center text-[11px] text-[#9CA3AF]">
+            Sin documentos
+          </div>
+        ) : (
+          <ul className="space-y-1.5">
+            {docs.map((d) => (
+              <li
+                key={d.id}
+                className="group space-y-1 rounded-md border border-[#EBEBEB] bg-white p-1.5"
+              >
+                <div className="flex items-center gap-1">
+                  <Input
+                    value={d.name}
+                    onChange={(e) =>
+                      updateShapeDoc(docId, pageId, shape.id, d.id, { name: e.target.value })
+                    }
+                    placeholder="Nombre del documento"
+                    className="h-7 text-xs"
+                  />
+                  <button
+                    onClick={() => deleteShapeDoc(docId, pageId, shape.id, d.id)}
+                    className="opacity-0 transition-opacity group-hover:opacity-100"
+                    title="Eliminar"
+                  >
+                    <Trash2 className="h-3.5 w-3.5 text-[#DC2626]" />
+                  </button>
+                </div>
+                <div className="flex gap-1">
+                  <Select
+                    value={d.docType}
+                    onValueChange={(v) =>
+                      updateShapeDoc(docId, pageId, shape.id, d.id, { docType: v as DocType })
+                    }
+                  >
+                    <SelectTrigger className="h-7 w-[100px] text-xs">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {DOC_TYPES.map((t) => (
+                        <SelectItem key={t} value={t}>
+                          {t}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <Input
+                    value={d.url}
+                    onChange={(e) =>
+                      updateShapeDoc(docId, pageId, shape.id, d.id, { url: e.target.value })
+                    }
+                    placeholder="https://…"
+                    className="h-7 flex-1 text-xs"
+                  />
+                </div>
+              </li>
+            ))}
+          </ul>
+        )}
+        <Button
+          variant="outline"
+          size="sm"
+          className="w-full"
+          onClick={() => addShapeDoc(docId, pageId, shape.id)}
+          disabled={disabled}
+        >
+          <Plus className="h-3.5 w-3.5" /> Agregar documento
+        </Button>
+      </div>
+    </div>
+  );
+}
+
 function ChangesList({
   docId,
   pageId,
