@@ -341,6 +341,8 @@ function EditorPage() {
         {/* Right panel */}
         {selectedShape && (
           <RightPanel
+            docId={doc.id}
+            pageId={page.id}
             shape={selectedShape}
             onChange={(patch) =>
               useDiagramStore
