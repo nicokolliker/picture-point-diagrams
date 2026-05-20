@@ -2426,6 +2426,40 @@ function SummaryPanel({
         </div>
       </div>
 
+
+      {fullscreen && typeof document !== "undefined" &&
+        createPortal(
+          <FullSummaryModal
+            page={page}
+            people={people}
+            alerts={alerts}
+            entries={entries}
+            onClose={() => setFullscreen(false)}
+            onJumpToShape={(id) => {
+              setFullscreen(false);
+              onJumpToShape(id);
+            }}
+            onSetDiag={(sid, d) => updateShape(_docId, page.id, sid, { diagnostico: d })}
+            onSetPrio={(sid, p) => updateShape(_docId, page.id, sid, { prioridad: p })}
+            onCreateDoc={(sid, type) => {
+              addShapeDoc(_docId, page.id, sid);
+              // The new doc has Playbook by default; patch the latest one's type.
+              const s = page.shapes.find((x) => x.id === sid);
+              const after = s?.documents ?? [];
+              // Schedule a microtask to update doc type once store updates settle.
+              setTimeout(() => {
+                const fresh = useDiagramStore.getState()
+                  .documents.find((d) => d.id === _docId)
+                  ?.pages.find((p) => p.id === page.id)
+                  ?.shapes.find((x) => x.id === sid);
+                const last = fresh?.documents?.[fresh.documents.length - 1];
+                if (last) updateShapeDoc(_docId, page.id, sid, last.id, { docType: type as DocType });
+              }, 0);
+              void after;
+            }}
+          />,
+          document.body,
+        )}
     </div>
   );
 }
