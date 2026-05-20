@@ -2193,7 +2193,10 @@ function ShapeNode({
     style.background = "transparent";
   }
 
-  const status = STATUS_COLORS[shape.status];
+  const diag = shape.diagnostico && shape.diagnostico !== "sin_definir" ? DIAGNOSTICO_META[shape.diagnostico] : null;
+  const prio = shape.prioridad ? PRIORIDAD_META[shape.prioridad] : null;
+  const hasDocs = (shape.documents ?? []).length > 0;
+  const missingDocs = !!shape.noStandardDoc;
 
   return (
     <>
