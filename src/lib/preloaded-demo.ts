@@ -47,12 +47,12 @@ const baseShape = (
 
 export function createDemoDocument(): DiagramDocument {
   const shapes: Shape[] = [
-    baseShape("s1", 60, "Entrada de leads", "WhatsApp + Forms", "funciona"),
-    baseShape("s2", 200, "Calificación SQL", "7% conversión actual", "roto"),
-    baseShape("s3", 340, "Follow-up SDR", "Cadencia 2 semanas", "roto"),
-    baseShape("s4", 480, "Segmentación", "3 flujos mezclados", "riesgo"),
-    baseShape("s5", 620, "Propuesta y cierre", "ERP duplica datos", "riesgo"),
-    baseShape("s6", 760, "Medición", "Atribución rota", "roto"),
+    baseShape("s1", 60, "Entrada de leads", "WhatsApp + Forms", "funciona", "ok"),
+    baseShape("s2", 200, "Calificación SQL", "7% conversión actual", "roto", "urgente"),
+    baseShape("s3", 340, "Follow-up SDR", "Cadencia 2 semanas", "roto", "urgente"),
+    baseShape("s4", 480, "Segmentación", "3 flujos mezclados", "riesgo", "proximo_sprint"),
+    baseShape("s5", 620, "Propuesta y cierre", "ERP duplica datos", "riesgo", "backlog"),
+    baseShape("s6", 760, "Medición", "Atribución rota", "roto", "urgente"),
   ];
   const connectors: Connector[] = [];
   for (let i = 0; i < shapes.length - 1; i++) {
