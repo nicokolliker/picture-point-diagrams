@@ -1072,19 +1072,23 @@ function CanvasArea({
     };
   }, [docId, page.id, selectedIds, setSelectedIds]);
 
-  // Wheel zoom (zoom toward cursor)
+  // Wheel: ctrl/cmd+wheel → zoom (toward cursor); otherwise trackpad two-finger pan
   const handleWheel = (e: ReactWheelEvent<HTMLDivElement>) => {
     e.preventDefault();
     const rect = containerRef.current?.getBoundingClientRect();
     if (!rect) return;
-    const factor = e.deltaY < 0 ? 1.08 : 1 / 1.08;
-    const newZoom = Math.max(0.25, Math.min(4, zoom * factor));
-    const mx = e.clientX - rect.left;
-    const my = e.clientY - rect.top;
-    const wx = (mx - pan.x) / zoom;
-    const wy = (my - pan.y) / zoom;
-    setPan({ x: mx - wx * newZoom, y: my - wy * newZoom });
-    setZoom(newZoom);
+    if (e.ctrlKey || e.metaKey) {
+      const factor = e.deltaY < 0 ? 1.08 : 1 / 1.08;
+      const newZoom = Math.max(0.25, Math.min(4, zoom * factor));
+      const mx = e.clientX - rect.left;
+      const my = e.clientY - rect.top;
+      const wx = (mx - pan.x) / zoom;
+      const wy = (my - pan.y) / zoom;
+      setPan({ x: mx - wx * newZoom, y: my - wy * newZoom });
+      setZoom(newZoom);
+    } else {
+      setPan({ x: pan.x - e.deltaX, y: pan.y - e.deltaY });
+    }
   };
 
   // Pan / selection box
