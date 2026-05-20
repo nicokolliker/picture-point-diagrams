@@ -4663,3 +4663,159 @@ function ShapeNode({
     </>
   );
 }
+
+/* -------------------- Floating sub-process panel -------------------- */
+interface SubProcessPanelProps {
+  docId: string;
+  page: { id: string; name: string; shapes: Shape[]; connectors: Connector[] };
+  shapeTitle: string;
+  minimized: boolean;
+  minimizedStackIndex: number;
+  onClose: () => void;
+  onToggleMinimize: () => void;
+  onSubProcessIconClick: (shape: Shape) => void;
+  subPanelStates: Record<string, "open" | "minimized">;
+  zIndexBase: number;
+}
+
+function SubProcessPanel({
+  docId,
+  page,
+  shapeTitle,
+  minimized,
+  minimizedStackIndex,
+  onClose,
+  onToggleMinimize,
+  onSubProcessIconClick,
+  subPanelStates,
+  zIndexBase,
+}: SubProcessPanelProps) {
+  const [pan, setPan] = useState({ x: 80, y: 40 });
+  const [zoom, setZoom] = useState(1);
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const [pinnedIds, setPinnedIds] = useState<string[]>([]);
+  const [nameVal, setNameVal] = useState(page.name);
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => {
+    const id = requestAnimationFrame(() => setMounted(true));
+    return () => cancelAnimationFrame(id);
+  }, []);
+  useEffect(() => {
+    setNameVal(page.name);
+  }, [page.name]);
+
+  const pinShape = useCallback(
+    (id: string) => setPinnedIds((p) => (p.includes(id) ? p : [...p, id])),
+    [],
+  );
+  const unpinShape = useCallback(
+    (id: string) => setPinnedIds((p) => p.filter((x) => x !== id)),
+    [],
+  );
+
+  const commitName = () => {
+    const v = nameVal.trim() || "Sub-proceso";
+    if (v !== page.name) {
+      useDiagramStore.getState().renamePage(docId, page.id, v);
+    }
+  };
+
+  if (typeof document === "undefined") return null;
+
+  const headerBar = (
+    <div className="flex h-10 shrink-0 items-center gap-2 border-b border-[#EBEBEB] bg-white px-3">
+      <div className="flex h-5 w-5 items-center justify-center rounded-full bg-[#5B6CF8] text-[11px] font-semibold leading-none text-white">
+        ⊞
+      </div>
+      <Input
+        value={nameVal}
+        onChange={(e) => setNameVal(e.target.value)}
+        onBlur={commitName}
+        onKeyDown={(e) => {
+          if (e.key === "Enter") (e.target as HTMLInputElement).blur();
+        }}
+        className="h-7 flex-1 border-transparent bg-transparent px-1 text-[13px] font-medium focus-visible:border-[#EBEBEB]"
+        title={shapeTitle}
+      />
+      <button
+        onClick={onToggleMinimize}
+        className="flex h-7 w-7 items-center justify-center rounded text-[#6B7280] hover:bg-[#F3F4F6] hover:text-[#111827]"
+        title={minimized ? "Restaurar" : "Minimizar"}
+      >
+        {minimized ? "□" : "−"}
+      </button>
+      <button
+        onClick={onClose}
+        className="flex h-7 w-7 items-center justify-center rounded text-[#6B7280] hover:bg-[#F3F4F6] hover:text-[#DC2626]"
+        title="Cerrar"
+      >
+        <X className="h-4 w-4" />
+      </button>
+    </div>
+  );
+
+  const baseStyle: CSSProperties = minimized
+    ? {
+        position: "fixed",
+        left: 20 + minimizedStackIndex * 280,
+        bottom: 20,
+        width: 260,
+        height: 40,
+        background: "white",
+        borderRadius: 12,
+        boxShadow:
+          "0 12px 40px rgba(0,0,0,0.18), 0 0 0 1px rgba(0,0,0,0.06)",
+        zIndex: zIndexBase,
+        overflow: "hidden",
+        display: "flex",
+        flexDirection: "column",
+        opacity: mounted ? 1 : 0,
+        transform: mounted ? "scale(1)" : "scale(0.95)",
+        transition: "opacity 200ms ease-out, transform 200ms ease-out",
+      }
+    : {
+        position: "fixed",
+        width: "65vw",
+        height: "70vh",
+        top: "12vh",
+        left: "50%",
+        background: "white",
+        borderRadius: 16,
+        boxShadow:
+          "0 24px 80px rgba(0,0,0,0.18), 0 0 0 1px rgba(0,0,0,0.06)",
+        zIndex: zIndexBase,
+        overflow: "hidden",
+        display: "flex",
+        flexDirection: "column",
+        opacity: mounted ? 1 : 0,
+        transform: mounted ? "translateX(-50%) scale(1)" : "translateX(-50%) scale(0.95)",
+        transition: "opacity 200ms ease-out, transform 200ms ease-out",
+      };
+
+  return createPortal(
+    <div style={baseStyle}>
+      {headerBar}
+      {!minimized && (
+        <div className="relative flex-1 overflow-hidden">
+          <CanvasArea
+            docId={docId}
+            page={page}
+            pan={pan}
+            setPan={setPan}
+            zoom={zoom}
+            setZoom={setZoom}
+            selectedIds={selectedIds}
+            setSelectedIds={setSelectedIds}
+            pinnedIds={pinnedIds}
+            pinShape={pinShape}
+            unpinShape={unpinShape}
+            onSubProcessIconClick={onSubProcessIconClick}
+            subPanelStates={subPanelStates}
+          />
+        </div>
+      )}
+    </div>,
+    document.body,
+  );
+}
+
