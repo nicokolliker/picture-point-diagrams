@@ -2672,7 +2672,10 @@ function CanvasArea({
       panRef.current = null;
       if (containerRef.current) containerRef.current.style.cursor = spaceDown ? "grab" : "";
     }
-    if (dragging) setDragging(null);
+    if (dragging) {
+      setDragging(null);
+      setAlignGuides([]);
+    }
     if (selBoxStart.current) {
       selBoxStart.current = null;
       setSelBox(null);
