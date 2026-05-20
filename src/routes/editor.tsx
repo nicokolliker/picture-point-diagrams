@@ -1010,10 +1010,7 @@ function RightPanel({
           />
         </div>
 
-        <div className="space-y-2">
-          <Label className="text-xs text-[#6B7280]">Cambios sugeridos</Label>
-          <ChangesList docId={docId} pageId={pageId} shape={shape} />
-        </div>
+
 
         <div className="space-y-2">
           <Label className="text-xs text-[#6B7280]">Documentos</Label>
