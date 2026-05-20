@@ -1323,6 +1323,13 @@ function CanvasArea({
           <ShapeNode
             key={s.id}
             shape={s}
+            docId={docId}
+            pageId={page.id}
+            pinned={pinnedShapeId === s.id}
+            onPin={() => setPinnedShapeId(s.id)}
+            onUnpin={() => setPinnedShapeId(null)}
+            selected={selectedIds.includes(s.id)}
+            editingText={editingTextId === s.id}
             selected={selectedIds.includes(s.id)}
             editingText={editingTextId === s.id}
             onPointerDown={(e) => {
