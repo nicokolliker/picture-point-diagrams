@@ -1224,23 +1224,24 @@ function CategoryToggle({
 }) {
   const meta = CATEGORY_META[cat];
   return (
-    <button
-      onClick={(e) => {
-        e.stopPropagation();
-        onClick();
-      }}
-      className={cn(
-        "inline-flex h-6 w-6 items-center justify-center rounded-full border text-[12px] transition-all",
-        active
-          ? "border-transparent shadow-sm"
-          : "border-[#E5E7EB] bg-white opacity-50 hover:opacity-100",
-      )}
-      style={active ? { background: meta.bg, color: meta.fg } : undefined}
-      title={meta.label}
-      aria-label={meta.label}
-    >
-      <span>{meta.icon}</span>
-    </button>
+    <IconTip label={meta.label}>
+      <button
+        onClick={(e) => {
+          e.stopPropagation();
+          onClick();
+        }}
+        className={cn(
+          "inline-flex h-6 w-6 items-center justify-center rounded-full border text-[12px] transition-all",
+          active
+            ? "border-transparent shadow-sm"
+            : "border-[#E5E7EB] bg-white opacity-50 hover:opacity-100",
+        )}
+        style={active ? { background: meta.bg, color: meta.fg } : undefined}
+        aria-label={meta.label}
+      >
+        <span>{meta.icon}</span>
+      </button>
+    </IconTip>
   );
 }
 
