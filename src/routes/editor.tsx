@@ -2986,6 +2986,8 @@ function CanvasArea({
   } | null>(null);
   const [editingTextId, setEditingTextId] = useState<string | null>(null);
   const [editingConnectorId, setEditingConnectorId] = useState<string | null>(null);
+  const [quickGhost, setQuickGhost] = useState<{ shapeId: string; edge: "top" | "bottom" | "left" | "right" } | null>(null);
+
   const [alignGuides, setAlignGuides] = useState<
     { orient: "h" | "v"; pos: number }[]
   >([]);
