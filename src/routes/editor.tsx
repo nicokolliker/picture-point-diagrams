@@ -9,6 +9,7 @@ import {
   type PointerEvent as ReactPointerEvent,
   type WheelEvent as ReactWheelEvent,
 } from "react";
+import { createPortal } from "react-dom";
 import {
   ArrowLeft,
   Bold,
@@ -31,12 +32,15 @@ import {
   Shapes as ShapesIcon,
   Trash2,
   Underline,
+  Undo2,
+  Redo2,
   Upload,
   X,
   ZoomIn,
   AlignLeft,
   AlignCenter,
   AlignRight,
+  Expand,
 } from "lucide-react";
 import {
   Popover,
