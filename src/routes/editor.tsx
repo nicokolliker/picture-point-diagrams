@@ -181,6 +181,13 @@ function EditorPage() {
   );
 
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  useEffect(() => {
+    if (pendingSelectRef.current && page) {
+      const id = pendingSelectRef.current;
+      pendingSelectRef.current = null;
+      if (page.shapes.some((s) => s.id === id)) setSelectedIds([id]);
+    }
+  }, [page]);
   const [activeTab, setActiveTab] = useState<"shapes" | "images" | "pages" | "summary">("shapes");
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [zoom, setZoom] = useState(1);
