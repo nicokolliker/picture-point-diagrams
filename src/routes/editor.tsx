@@ -13,6 +13,8 @@ import {
   ArrowLeft,
   Bold,
   Camera,
+  FileText,
+  FileWarning,
   Image as ImageIcon,
   Italic,
   Layers,
@@ -52,8 +54,23 @@ import {
 } from "@/components/ui/select";
 import { useDiagramStore, makeDefaultShape } from "@/lib/diagram-store";
 import { edgePoint, GRID, shapeCenter, snap } from "@/lib/geometry";
-import type { Connector, Shape, ShapeType, Status } from "@/lib/shape-types";
-import { STATUS_COLORS } from "@/lib/shape-types";
+import type {
+  Connector,
+  Diagnostico,
+  DocType,
+  ImprovementCategory,
+  Prioridad,
+  Shape,
+  ShapeType,
+  Status,
+} from "@/lib/shape-types";
+import {
+  CATEGORY_META,
+  DIAGNOSTICO_META,
+  DOC_TYPES,
+  PRIORIDAD_META,
+  STATUS_COLORS,
+} from "@/lib/shape-types";
 import { cn } from "@/lib/utils";
 
 interface EditorSearch {
