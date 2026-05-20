@@ -910,7 +910,7 @@ function RightPanel({
   const [url, setUrl] = useState("");
 
   return (
-    <div className="flex w-[300px] shrink-0 flex-col border-l border-[#EBEBEB] bg-white">
+    <div className="flowit-slide-in-right flex h-full w-[300px] shrink-0 flex-col overflow-hidden border-l border-[#EBEBEB] bg-white">
       <div className="flex items-center justify-between border-b border-[#EBEBEB] px-4 py-3">
         <h3 className="text-sm font-semibold">Properties</h3>
         <button
