@@ -2817,6 +2817,15 @@ function ShapeNode({
   const [popupPos, setPopupPos] = useState<{ left: number; top: number } | null>(null);
   const [dragPos, setDragPos] = useState<{ left: number; top: number } | null>(null);
   const [dragging, setDragging] = useState(false);
+  const [lightbox, setLightbox] = useState(false);
+  useEffect(() => {
+    if (!lightbox) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setLightbox(false);
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [lightbox]);
 
   // Reset drag position when unpinned
   useEffect(() => {
