@@ -275,6 +275,12 @@ export const useDiagramStore = create<State>()(
             });
           })
         ),
+      renamePage: (docId, pageId, name) =>
+        commit(
+          mutPage(get().documents, docId, pageId, (p) => {
+            p.name = name;
+          })
+        ),
       addUpload: (dataUrl) => set({ uploads: [dataUrl, ...get().uploads] }),
       removeUpload: (dataUrl) =>
         set({ uploads: get().uploads.filter((u) => u !== dataUrl) }),
