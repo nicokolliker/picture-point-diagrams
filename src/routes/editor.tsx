@@ -3667,7 +3667,7 @@ function ShapeNode({
 }: ShapeNodeProps) {
 
   const [hovered, setHovered] = useState(false);
-  const [popupHovered, setPopupHovered] = useState(false);
+  
   const [showPopup, setShowPopup] = useState(false);
   const hoverTimer = useRef<number | null>(null);
   const hideTimer = useRef<number | null>(null);
