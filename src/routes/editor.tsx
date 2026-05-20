@@ -1883,6 +1883,19 @@ function DocPreviewModal({ doc, onClose }: { doc: DocEntry; onClose: () => void 
             </div>
           )}
         </div>
+        {downloadHref && (
+          <div className="flex justify-end border-t border-[#EBEBEB] bg-white px-4 py-2.5">
+            <a
+              href={downloadHref}
+              download={downloadName}
+              target={doc.fileDataUrl ? undefined : "_blank"}
+              rel="noreferrer"
+              className="inline-flex items-center gap-1.5 rounded-md border border-[#EBEBEB] px-3 py-1.5 text-xs font-medium text-[#374151] hover:bg-[#F3F4F6]"
+            >
+              <Download className="h-3.5 w-3.5" /> {doc.fileDataUrl ? "Descargar" : "Abrir"}
+            </a>
+          </div>
+        )}
       </div>
     </div>
   );
