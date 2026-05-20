@@ -24,6 +24,8 @@ interface State {
   addPage: (docId: string) => void;
   addUpload: (dataUrl: string) => void;
   removeUpload: (dataUrl: string) => void;
+  addChange: (docId: string, pageId: string, shapeId: string, text: string) => void;
+  deleteChange: (docId: string, pageId: string, shapeId: string, changeId: string) => void;
 }
 
 function mutDoc(
