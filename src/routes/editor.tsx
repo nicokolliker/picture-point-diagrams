@@ -254,6 +254,7 @@ function EditorPage() {
             { id: "shapes" as const, icon: ShapesIcon, label: "Shapes" },
             { id: "images" as const, icon: ImageIcon, label: "Images" },
             { id: "pages" as const, icon: Layers, label: "Pages" },
+            { id: "summary" as const, icon: ListChecks, label: "Resumen de cambios" },
           ].map((t) => (
             <button
               key={t.id}
@@ -311,6 +312,13 @@ function EditorPage() {
                 pages={doc.pages}
                 currentPageId={page.id}
                 onSelect={setCurrentPageId}
+              />
+            )}
+            {activeTab === "summary" && (
+              <SummaryPanel
+                docId={doc.id}
+                page={page}
+                onJumpToShape={(id) => setSelectedIds([id])}
               />
             )}
           </div>
