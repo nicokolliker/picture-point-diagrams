@@ -3427,6 +3427,9 @@ function CanvasArea({
                 noStandardDoc: false,
                 missingDocTypes: [],
                 imageDataUrl: undefined,
+                responsable: "",
+                responsableIds: [],
+
               };
               useDiagramStore.getState().addShape(docId, page.id, ns);
               // For "top", arrow goes from new -> original; otherwise original -> new
