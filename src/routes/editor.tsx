@@ -1924,11 +1924,146 @@ function SummaryPanel({
   page: { id: string; shapes: Shape[] };
   onJumpToShape: (id: string) => void;
 }) {
+  const people = useDiagramStore((s) => s.people);
   const entries = page.shapes
     .flatMap((s) =>
       (s.improvementEntries ?? []).map((e) => ({ shape: s, entry: e })),
     )
     .sort((a, b) => b.entry.date - a.entry.date);
+
+  // ----- Smart alerts -----
+  type Alert = {
+    id: string;
+    icon: string;
+    title: string;
+    explanation: string;
+    shapes: Shape[];
+    tone: "red" | "amber" | "blue";
+  };
+  const alerts: Alert[] = [];
+  const shapes = page.shapes.filter((s) => s.type !== "text" && s.type !== "sticky" && s.type !== "container");
+  const personName = (id: string) => people.find((p) => p.id === id)?.name ?? "Sin nombre";
+
+  // 🔴 Proceso huérfano
+  const orphan = shapes.filter((s) => (s.responsableIds ?? []).length === 0 && !s.responsable);
+  if (orphan.length > 0)
+    alerts.push({
+      id: "orphan",
+      icon: "🔴",
+      title: "Proceso huérfano",
+      explanation: "Etapas sin responsable asignado.",
+      shapes: orphan,
+      tone: "red",
+    });
+
+  // ⚠️ Cuello de botella — persona en 3+ etapas
+  const ownerCount = new Map<string, Shape[]>();
+  for (const s of shapes) {
+    for (const id of s.responsableIds ?? []) {
+      if (!ownerCount.has(id)) ownerCount.set(id, []);
+      ownerCount.get(id)!.push(s);
+    }
+  }
+  const bottleneck = Array.from(ownerCount.entries()).filter(([, ss]) => ss.length >= 3);
+  if (bottleneck.length > 0) {
+    const set = new Set<Shape>();
+    bottleneck.forEach(([, ss]) => ss.forEach((s) => set.add(s)));
+    alerts.push({
+      id: "bottleneck",
+      icon: "⚠️",
+      title: "Cuello de botella",
+      explanation:
+        bottleneck.map(([id, ss]) => `${personName(id)} (${ss.length})`).join(", "),
+      shapes: Array.from(set),
+      tone: "amber",
+    });
+  }
+
+  // 📋 Urgente sin documentar
+  const urgentNoDoc = shapes.filter(
+    (s) =>
+      s.prioridad === "urgente" &&
+      s.noStandardDoc &&
+      (s.documents ?? []).length === 0,
+  );
+  if (urgentNoDoc.length > 0)
+    alerts.push({
+      id: "urgent-nodoc",
+      icon: "📋",
+      title: "Urgente sin documentar",
+      explanation: "Prioridad urgente sin documentos cargados.",
+      shapes: urgentNoDoc,
+      tone: "red",
+    });
+
+  // 🔗 Cadena rota — etapas consecutivas (por X) con diagnostico roto
+  const ordered = [...shapes].sort((a, b) => a.x - b.x);
+  const chain: Shape[] = [];
+  for (let i = 0; i < ordered.length - 1; i++) {
+    if (ordered[i].diagnostico === "roto" && ordered[i + 1].diagnostico === "roto") {
+      if (!chain.includes(ordered[i])) chain.push(ordered[i]);
+      if (!chain.includes(ordered[i + 1])) chain.push(ordered[i + 1]);
+    }
+  }
+  if (chain.length > 0)
+    alerts.push({
+      id: "chain",
+      icon: "🔗",
+      title: "Cadena rota",
+      explanation: "Etapas consecutivas con diagnóstico Roto.",
+      shapes: chain,
+      tone: "red",
+    });
+
+  // 👤 Single point of failure
+  const spof = shapes.filter(
+    (s) =>
+      (s.responsableIds ?? []).length === 1 &&
+      (s.documents ?? []).length === 0 &&
+      (s.diagnostico === "roto" || s.diagnostico === "sin_definir" || !s.diagnostico),
+  );
+  if (spof.length > 0)
+    alerts.push({
+      id: "spof",
+      icon: "👤",
+      title: "Single point of failure",
+      explanation: "Una sola persona, sin documentación y diagnóstico inestable.",
+      shapes: spof,
+      tone: "red",
+    });
+
+  // 👤 Sobrecarga con gaps — persona dueña de 2+ etapas con doc faltante
+  const overloadMap = new Map<string, Shape[]>();
+  for (const s of shapes) {
+    if (!s.noStandardDoc) continue;
+    for (const id of s.responsableIds ?? []) {
+      if (!overloadMap.has(id)) overloadMap.set(id, []);
+      overloadMap.get(id)!.push(s);
+    }
+  }
+  const overload = Array.from(overloadMap.entries()).filter(([, ss]) => ss.length >= 2);
+  if (overload.length > 0) {
+    const set = new Set<Shape>();
+    overload.forEach(([, ss]) => ss.forEach((s) => set.add(s)));
+    alerts.push({
+      id: "overload",
+      icon: "👤",
+      title: "Sobrecarga con gaps",
+      explanation: overload
+        .map(([id, ss]) => `${personName(id)} (${ss.length})`)
+        .join(", "),
+      shapes: Array.from(set),
+      tone: "amber",
+    });
+  }
+
+  const toneStyle = (tone: Alert["tone"]) =>
+    tone === "red"
+      ? "border-[#FECACA] bg-[#FEF2F2]"
+      : tone === "amber"
+        ? "border-[#FDE68A] bg-[#FFFBEB]"
+        : "border-[#BFDBFE] bg-[#EFF6FF]";
+
   return (
     <div className="flex h-full flex-col">
       <div className="border-b border-[#EBEBEB] p-3">
@@ -1938,6 +2073,46 @@ function SummaryPanel({
         </p>
       </div>
       <div className="flex-1 space-y-4 overflow-y-auto p-3">
+        {/* Alertas */}
+        <div>
+          <div className="mb-1.5 text-[11px] font-semibold uppercase tracking-wide text-[#6B7280]">
+            ⚠️ Alertas
+          </div>
+          {alerts.length === 0 ? (
+            <div className="rounded-md border border-[#BBF7D0] bg-[#F0FDF4] p-3 text-center text-xs text-[#166534]">
+              ✅ Sin alertas detectadas
+            </div>
+          ) : (
+            <ul className="space-y-2">
+              {alerts.map((a) => (
+                <li
+                  key={a.id}
+                  className={cn("rounded-md border p-2.5", toneStyle(a.tone))}
+                >
+                  <div className="mb-0.5 flex items-center gap-1.5 text-[12px] font-semibold text-[#111827]">
+                    <span>{a.icon}</span>
+                    <span>{a.title}</span>
+                  </div>
+                  <div className="mb-1.5 text-[11px] text-[#4B5563]">
+                    {a.explanation}
+                  </div>
+                  <div className="flex flex-wrap gap-1">
+                    {a.shapes.map((s) => (
+                      <button
+                        key={s.id}
+                        onClick={() => onJumpToShape(s.id)}
+                        className="inline-flex items-center rounded-full bg-white/80 px-2 py-0.5 text-[10px] font-medium text-[#374151] ring-1 ring-[#E5E7EB] hover:bg-white"
+                      >
+                        {s.title || s.text || "Sin título"}
+                      </button>
+                    ))}
+                  </div>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+
         <div>
           <div className="mb-1.5 text-[11px] font-semibold uppercase tracking-wide text-[#6B7280]">
             Oportunidades de mejora
@@ -1993,9 +2168,10 @@ function SummaryPanel({
           )}
         </div>
 
+        {/* Documentación faltante */}
         <div>
-          <div className="mb-1.5 flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wide text-[#6B7280]">
-            <FileWarning className="h-3.5 w-3.5 text-[#F59E0B]" />
+          <div className="mb-2 flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wide text-[#6B7280]">
+            <FileText className="h-3.5 w-3.5" />
             Documentación faltante
           </div>
           {(() => {
@@ -2008,7 +2184,7 @@ function SummaryPanel({
               );
             }
             const groups = new Map<string, Shape[]>();
-            const UNSPEC = "Sin especificar";
+            const UNSPEC = "Sin tipo definido";
             for (const s of missing) {
               const types = s.missingDocTypes ?? [];
               const keys = types.length > 0 ? types : [UNSPEC];
@@ -2018,20 +2194,25 @@ function SummaryPanel({
               }
             }
             return (
-              <div className="space-y-3">
+              <div className="space-y-4">
                 {Array.from(groups.entries()).map(([type, shapes]) => (
                   <div key={type}>
-                    <div className="mb-1 text-[10px] font-bold uppercase tracking-wide text-[#92400E]">
-                      {type} faltante
+                    <div className="mb-2 flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wide text-[#4B5563]">
+                      <span>
+                        {type === "Sin tipo definido" ? type : `${type} faltante`}
+                      </span>
+                      <span className="inline-flex h-4 min-w-[16px] items-center justify-center rounded-full bg-[#F3F4F6] px-1 text-[10px] font-semibold text-[#6B7280]">
+                        {shapes.length}
+                      </span>
                     </div>
-                    <ul className="space-y-1">
+                    <ul className="space-y-2">
                       {shapes.map((s) => (
                         <li key={s.id}>
                           <button
                             onClick={() => onJumpToShape(s.id)}
-                            className="flex w-full items-center gap-2 rounded-md border border-[#EBEBEB] bg-white px-2 py-1.5 text-left text-[12px] hover:border-[#F59E0B] hover:bg-[#FFFBEB]"
+                            className="flex w-full items-center gap-2 rounded-md border border-[#EBEBEB] bg-white px-2 py-1.5 text-left text-[12px] text-[#111827] hover:border-[#9CA3AF]"
                           >
-                            <FileWarning className="h-3.5 w-3.5 shrink-0 text-[#F59E0B]" />
+                            <FileText className="h-3.5 w-3.5 shrink-0 text-[#9CA3AF]" />
                             <span className="truncate">
                               {s.title || s.text || "Sin título"}
                             </span>
