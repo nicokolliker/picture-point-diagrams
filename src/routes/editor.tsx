@@ -3002,6 +3002,8 @@ interface CanvasProps {
   pinnedIds: string[];
   pinShape: (id: string) => void;
   unpinShape: (id: string) => void;
+  onOpenSubProcess: (pageId: string) => void;
+  breadcrumb?: React.ReactNode;
 }
 
 function CanvasArea({
@@ -3016,6 +3018,8 @@ function CanvasArea({
   pinnedIds,
   pinShape,
   unpinShape,
+  onOpenSubProcess,
+  breadcrumb,
 }: CanvasProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const [spaceDown, setSpaceDown] = useState(false);
