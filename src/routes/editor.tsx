@@ -3714,7 +3714,7 @@ function CanvasArea({
         )}
       </div>
 
-      {breadcrumb}
+
 
       {/* Hint */}
       <div className="pointer-events-none absolute bottom-3 left-3 rounded-md bg-white/90 px-2 py-1 text-[11px] text-[#6B7280] shadow-sm">
