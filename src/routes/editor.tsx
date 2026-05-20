@@ -2088,16 +2088,29 @@ function ShapeNode({
 
 
 
+  const diagPre =
+    shape.diagnostico && shape.diagnostico !== "sin_definir"
+      ? DIAGNOSTICO_META[shape.diagnostico]
+      : null;
+  const prioPre = shape.prioridad ? PRIORIDAD_META[shape.prioridad] : null;
+  const pillsCount = (diagPre ? 1 : 0) + (prioPre ? 1 : 0);
+  // Each pill ≈ 18px tall + 4px gap, plus 8px breathing room above
+  const pillsArea = pillsCount > 0 ? pillsCount * 18 + (pillsCount - 1) * 4 + 8 : 0;
+  const basePad = 16;
+  const padBottom = shape.type === "text" ? basePad : basePad + pillsArea;
+  const minH = shape.type === "text" ? undefined : 56 + pillsArea;
+
   const style: CSSProperties = {
     position: "absolute",
     left: shape.x,
     top: shape.y,
     width: shape.width,
     height: shape.height,
+    minHeight: minH,
     background: shape.fill,
     border: `${selected ? 2 : shape.borderWeight}px ${shape.borderStyle} ${selected ? "#5B6CF8" : "#D0D0D0"}`,
     borderRadius: shape.cornerStyle === "rounded" ? 8 : 0,
-    padding: 16,
+    padding: `${basePad}px ${basePad}px ${padBottom}px ${basePad}px`,
     display: "flex",
     alignItems: "center",
     justifyContent:
