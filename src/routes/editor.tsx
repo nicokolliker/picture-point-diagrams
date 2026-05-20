@@ -2109,6 +2109,9 @@ function SummaryPanel({
   onJumpToShape: (id: string) => void;
 }) {
   const people = useDiagramStore((s) => s.people);
+  const updateShape = useDiagramStore((s) => s.updateShape);
+  const addShapeDoc = useDiagramStore((s) => s.addShapeDoc);
+  const updateShapeDoc = useDiagramStore((s) => s.updateShapeDoc);
   const entries = page.shapes
     .flatMap((s) =>
       (s.improvementEntries ?? []).map((e) => ({ shape: s, entry: e })),
