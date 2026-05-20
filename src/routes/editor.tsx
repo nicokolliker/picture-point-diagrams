@@ -158,16 +158,43 @@ function EditorPage() {
 
   const page = doc?.pages.find((p) => p.id === currentPageId) ?? doc?.pages[0];
 
-  // Parent shape lookup: if current page is a sub-process of some shape, find it.
-  const parentLink = useMemo(() => {
-    if (!doc || !page) return null;
-    for (const p of doc.pages) {
-      for (const s of p.shapes) {
-        if (s.subProcessPageId === page.id) return { page: p, shape: s };
+  // Floating sub-process panels (one per shape with an open panel).
+  const [subPanels, setSubPanels] = useState<
+    Array<{ shapeId: string; pageId: string; sourcePageId: string; minimized: boolean }>
+  >([]);
+  const openSubProcessPanel = useCallback(
+    (shape: Shape, sourcePageId: string) => {
+      let pid = shape.subProcessPageId;
+      if (!pid) {
+        pid = useDiagramStore
+          .getState()
+          .createSubProcess(doc!.id, sourcePageId, shape.id);
       }
-    }
-    return null;
-  }, [doc, page]);
+      setSubPanels((prev) => {
+        const existing = prev.find((p) => p.shapeId === shape.id);
+        if (existing) {
+          return prev.map((p) =>
+            p.shapeId === shape.id ? { ...p, minimized: false } : p,
+          );
+        }
+        return [...prev, { shapeId: shape.id, pageId: pid!, sourcePageId, minimized: false }];
+      });
+    },
+    [doc],
+  );
+  const closeSubProcessPanel = useCallback((shapeId: string) => {
+    setSubPanels((prev) => prev.filter((p) => p.shapeId !== shapeId));
+  }, []);
+  const toggleMinimizeSubPanel = useCallback((shapeId: string) => {
+    setSubPanels((prev) =>
+      prev.map((p) => (p.shapeId === shapeId ? { ...p, minimized: !p.minimized } : p)),
+    );
+  }, []);
+  const subPanelStates = useMemo(() => {
+    const m: Record<string, "open" | "minimized"> = {};
+    for (const p of subPanels) m[p.shapeId] = p.minimized ? "minimized" : "open";
+    return m;
+  }, [subPanels]);
 
   // Apply a pending shape selection after a page-change navigation.
   const pendingSelectRef = useRef<string | null>(null);
