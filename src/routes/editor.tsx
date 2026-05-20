@@ -947,7 +947,11 @@ function RightPanel({
 }) {
   const fileRef = useRef<HTMLInputElement>(null);
   const [url, setUrl] = useState("");
-  const [panelWidth, setPanelWidth] = useState(320);
+  const [panelWidth, setPanelWidth] = useState<number>(() => {
+    if (typeof window === "undefined") return 320;
+    const v = Number(window.localStorage.getItem("flowitPanelWidth"));
+    return Number.isFinite(v) && v >= 240 && v <= 520 ? v : 320;
+  });
 
   const startResize = useCallback(
     (e: React.PointerEvent<HTMLDivElement>) => {
@@ -955,13 +959,20 @@ function RightPanel({
       e.stopPropagation();
       const startX = e.clientX;
       const startW = panelWidth;
+      let lastW = startW;
       const onMove = (ev: PointerEvent) => {
         const next = Math.max(240, Math.min(520, startW - (ev.clientX - startX)));
+        lastW = next;
         setPanelWidth(next);
       };
       const onUp = () => {
         window.removeEventListener("pointermove", onMove);
         window.removeEventListener("pointerup", onUp);
+        try {
+          window.localStorage.setItem("flowitPanelWidth", String(lastW));
+        } catch {
+          /* ignore */
+        }
       };
       window.addEventListener("pointermove", onMove);
       window.addEventListener("pointerup", onUp);
