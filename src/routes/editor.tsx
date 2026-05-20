@@ -2406,50 +2406,55 @@ function ShapeNode({
                 {shape.title || shape.text || "Sin título"}
               </div>
             )}
-            {pinned ? (
-              <>
+            <div className="flex flex-col gap-1.5">
+              {diag && (
                 <div
-                  className="inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-medium text-white"
-                  style={{
-                    background: STATUS_COLORS[shape.status].bg,
-                    transition: "background-color 150ms ease-out",
-                  }}
+                  className="inline-flex w-fit items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-medium text-white"
+                  style={{ background: diag.bg, transition: "background-color 150ms ease-out" }}
                 >
-                  <span className="h-1.5 w-1.5 rounded-full bg-white" />
-                  {STATUS_COLORS[shape.status].label}
+                  <span>{diag.dot}</span>
+                  {diag.label}
                 </div>
-                {(shape.changes ?? []).length > 0 && (
-                  <div className="space-y-1.5 pt-1">
-                    <div className="text-[10px] font-semibold uppercase tracking-wide text-[#6B7280]">
-                      Cambios sugeridos
-                    </div>
-                    <ul className="space-y-1">
-                      {(shape.changes ?? [])
-                        .slice()
-                        .sort((a, b) => b.date - a.date)
-                        .map((c) => (
-                          <li
-                            key={c.id}
-                            className="flowit-entry rounded-md border border-[#EBEBEB] bg-white px-2 py-1.5"
-                          >
-                            <div className="break-words text-[12px] leading-snug text-[#111827]">
-                              {c.text}
-                            </div>
-                            <div className="mt-0.5 text-[10px] text-[#9CA3AF]">
-                              {formatDate(c.date)}
-                            </div>
-                          </li>
-                        ))}
-                    </ul>
-                  </div>
-                )}
-              </>
-            ) : (
-              <StatusSelector
-                value={shape.status}
-                onChange={(v) => updateThis({ status: v })}
-              />
+              )}
+              {prio && (
+                <div
+                  className="inline-flex w-fit items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-medium text-white"
+                  style={{ background: prio.bg, transition: "background-color 150ms ease-out" }}
+                >
+                  <span>{prio.dot}</span>
+                  {prio.label}
+                </div>
+              )}
+              {!diag && !prio && (
+                <div className="text-[11px] text-[#9CA3AF]">Sin diagnóstico</div>
+              )}
+            </div>
+            {pinned && (shape.changes ?? []).length > 0 && (
+              <div className="space-y-1.5 pt-1">
+                <div className="text-[10px] font-semibold uppercase tracking-wide text-[#6B7280]">
+                  Cambios sugeridos
+                </div>
+                <ul className="space-y-1">
+                  {(shape.changes ?? [])
+                    .slice()
+                    .sort((a, b) => b.date - a.date)
+                    .map((c) => (
+                      <li
+                        key={c.id}
+                        className="flowit-entry rounded-md border border-[#EBEBEB] bg-white px-2 py-1.5"
+                      >
+                        <div className="break-words text-[12px] leading-snug text-[#111827]">
+                          {c.text}
+                        </div>
+                        <div className="mt-0.5 text-[10px] text-[#9CA3AF]">
+                          {formatDate(c.date)}
+                        </div>
+                      </li>
+                    ))}
+                </ul>
+              </div>
             )}
+
           </div>
         </div>
       )}
