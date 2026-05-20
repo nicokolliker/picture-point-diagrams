@@ -485,24 +485,8 @@ function EditorPage() {
           pinnedIds={pinnedIds}
           pinShape={pinShape}
           unpinShape={unpinShape}
-          onOpenSubProcess={(pid) => goToPage(pid)}
-          breadcrumb={
-            parentLink ? (
-              <div className="pointer-events-auto absolute left-3 top-3 z-30 flex items-center gap-1.5 rounded-md border border-[#EBEBEB] bg-white/95 px-2.5 py-1.5 text-[12px] text-[#4B5563] shadow-sm">
-                <button
-                  onClick={() => goToPage(parentLink.page.id, parentLink.shape.id)}
-                  className="flex items-center gap-1 rounded text-[#5B6CF8] hover:underline"
-                >
-                  <ArrowLeft className="h-3.5 w-3.5" />
-                  <span>{doc.name}</span>
-                </button>
-                <span className="text-[#9CA3AF]">/</span>
-                <span className="text-[#111827]">
-                  Sub-proceso: {parentLink.shape.title || parentLink.shape.text || "Sin título"}
-                </span>
-              </div>
-            ) : null
-          }
+          onSubProcessIconClick={(shape) => openSubProcessPanel(shape, page.id)}
+          subPanelStates={subPanelStates}
         />
 
         {/* Right panel */}
@@ -517,12 +501,39 @@ function EditorPage() {
                 .updateShape(doc.id, page.id, selectedShape.id, patch)
             }
             onClose={() => setSelectedIds([])}
-            onOpenSubProcess={(pid) => goToPage(pid)}
           />
         )}
       </div>
 
       <PinnedConnectorsOverlay pinnedIds={pinnedIds} />
+
+      {/* Floating sub-process panels */}
+      {subPanels.map((panel, idx) => {
+        const srcPage = doc.pages.find((p) => p.id === panel.sourcePageId);
+        const srcShape = srcPage?.shapes.find((s) => s.id === panel.shapeId);
+        const subPage = doc.pages.find((p) => p.id === panel.pageId);
+        if (!subPage) return null;
+        const minimizedIndex = subPanels
+          .filter((p) => p.minimized)
+          .findIndex((p) => p.shapeId === panel.shapeId);
+        return (
+          <SubProcessPanel
+            key={panel.shapeId}
+            docId={doc.id}
+            page={subPage}
+            shapeTitle={srcShape?.title || srcShape?.text || "Sub-proceso"}
+            minimized={panel.minimized}
+            minimizedStackIndex={minimizedIndex}
+            onClose={() => closeSubProcessPanel(panel.shapeId)}
+            onToggleMinimize={() => toggleMinimizeSubPanel(panel.shapeId)}
+            onSubProcessIconClick={(shape) =>
+              openSubProcessPanel(shape, panel.pageId)
+            }
+            subPanelStates={subPanelStates}
+            zIndexBase={8000 + idx}
+          />
+        );
+      })}
 
       <Link to="/editor" className="hidden" aria-hidden />
     </div>
