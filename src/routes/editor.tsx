@@ -3227,6 +3227,50 @@ function ShapeNode({
 
   return (
     <>
+      {useSvgOutline && (() => {
+        const w = shape.width;
+        const h = shape.height;
+        const stroke = shape.borderColor ?? "#D0D0D0";
+        const sw = shape.borderWeight;
+        const fill = shape.fill;
+        const dash =
+          shape.borderStyle === "dashed" ? "8,4" : shape.borderStyle === "dotted" ? "2,3" : undefined;
+        const common = { fill, stroke, strokeWidth: sw, strokeDasharray: dash } as const;
+        let inner: React.ReactNode = null;
+        if (shape.type === "diamond")
+          inner = <polygon points={`${w / 2},0 ${w},${h / 2} ${w / 2},${h} 0,${h / 2}`} {...common} />;
+        else if (shape.type === "parallelogram")
+          inner = <polygon points={`${w * 0.15},0 ${w},0 ${w * 0.85},${h} 0,${h}`} {...common} />;
+        else if (shape.type === "manual")
+          inner = <polygon points={`0,0 ${w},${h * 0.15} ${w},${h} 0,${h}`} {...common} />;
+        else if (shape.type === "cylinder") {
+          const ry = Math.min(h * 0.12, 18);
+          inner = (
+            <>
+              <path
+                d={`M0,${ry} L0,${h - ry} A${w / 2},${ry} 0 0 0 ${w},${h - ry} L${w},${ry}`}
+                {...common}
+              />
+              <ellipse cx={w / 2} cy={ry} rx={w / 2} ry={ry} {...common} />
+            </>
+          );
+        } else if (shape.type === "document") {
+          inner = (
+            <polygon
+              points={`0,0 ${w},0 ${w},${h * 0.88} ${w * 0.92},${h} ${w * 0.83},${h * 0.88} ${w * 0.75},${h} ${w * 0.67},${h * 0.88} ${w * 0.58},${h} ${w * 0.5},${h * 0.88} ${w * 0.42},${h} ${w * 0.33},${h * 0.88} ${w * 0.25},${h} ${w * 0.17},${h * 0.88} ${w * 0.08},${h} 0,${h * 0.88}`}
+              {...common}
+            />
+          );
+        }
+        return (
+          <svg
+            className="pointer-events-none absolute"
+            style={{ left: shape.x, top: shape.y, width: w, height: h, overflow: "visible", zIndex: shape.z }}
+          >
+            {inner}
+          </svg>
+        );
+      })()}
       {selected && (
         <div
           className="pointer-events-none absolute"
@@ -3251,21 +3295,29 @@ function ShapeNode({
               ["sw", 0, 1],
               ["w", 0, 0.5],
             ] as const
-          ).map(([k, fx, fy]) => (
-            <div
-              key={k}
-              style={{
-                position: "absolute",
-                left: `${fx * 100}%`,
-                top: `${fy * 100}%`,
-                width: 8,
-                height: 8,
-                background: "white",
-                border: "1px solid #5B6CF8",
-                transform: "translate(-50%, -50%)",
-              }}
-            />
-          ))}
+          ).map(([k, fx, fy]) => {
+            const isConn = k === "e" || k === "s";
+            return (
+              <div
+                key={k}
+                onPointerDown={isConn ? (ev) => onStartConnector(ev) : undefined}
+                style={{
+                  position: "absolute",
+                  left: `${fx * 100}%`,
+                  top: `${fy * 100}%`,
+                  width: 10,
+                  height: 10,
+                  background: "white",
+                  border: "1px solid #5B6CF8",
+                  transform: "translate(-50%, -50%)",
+                  pointerEvents: isConn ? "auto" : "none",
+                  cursor: isConn ? "crosshair" : "default",
+                  borderRadius: isConn ? 9999 : 0,
+                }}
+                title={isConn ? "Drag to connect" : undefined}
+              />
+            );
+          })}
         </div>
       )}
       <ContextMenu>
