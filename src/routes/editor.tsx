@@ -3575,6 +3575,7 @@ function CanvasArea({
                 useDiagramStore.getState().addShape(docId, page.id, copy);
               }
             }}
+            onOpenSubProcess={onOpenSubProcess}
           />
         ))}
 
