@@ -3294,22 +3294,9 @@ function ShapeNode({
             )}
 
 
-            {/* Selection handles + connector handles */}
+            {/* Connector handles only (selection ring drawn as sibling overlay below) */}
             {selected && (
               <>
-                {(["nw", "ne", "sw", "se"] as const).map((p) => (
-                  <div
-                    key={p}
-                    className="pointer-events-none absolute h-2 w-2 rounded-sm border border-[#5B6CF8] bg-white"
-                    style={{
-                      left: p.includes("w") ? -4 : undefined,
-                      right: p.includes("e") ? -4 : undefined,
-                      top: p.includes("n") ? -4 : undefined,
-                      bottom: p.includes("s") ? -4 : undefined,
-                    }}
-                  />
-                ))}
-                {/* Edge connector handle (right side) */}
                 <div
                   onPointerDown={onStartConnector}
                   className="absolute h-3 w-3 -translate-y-1/2 cursor-crosshair rounded-full border-2 border-[#5B6CF8] bg-white hover:scale-125 transition-transform"
