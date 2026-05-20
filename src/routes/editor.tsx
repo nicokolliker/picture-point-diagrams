@@ -3168,21 +3168,16 @@ function ShapeNode({
     transition: "border-color 100ms ease-out, box-shadow 150ms ease-out",
   };
 
-  // Diamond / oval / parallelogram / cylinder / document use clip-path
-  if (shape.type === "diamond") {
-    style.clipPath = "polygon(50% 0, 100% 50%, 50% 100%, 0 50%)";
+  // Shapes rendered with an SVG outline sibling (so absolute children — pills,
+  // badges — are never clipped). Their content div is transparent w/ no border.
+  const CLIP_TYPES: ShapeType[] = ["diamond", "parallelogram", "cylinder", "document", "manual"];
+  const useSvgOutline = CLIP_TYPES.includes(shape.type);
+  if (useSvgOutline) {
+    style.background = "transparent";
+    style.border = "none";
     style.borderRadius = 0;
   } else if (shape.type === "oval") {
     style.borderRadius = 9999;
-  } else if (shape.type === "parallelogram") {
-    style.clipPath = "polygon(15% 0, 100% 0, 85% 100%, 0 100%)";
-    style.borderRadius = 0;
-  } else if (shape.type === "cylinder") {
-    style.borderRadius = "50% / 18%";
-  } else if (shape.type === "document") {
-    style.clipPath =
-      "polygon(0 0, 100% 0, 100% 88%, 92% 100%, 83% 88%, 75% 100%, 67% 88%, 58% 100%, 50% 88%, 42% 100%, 33% 88%, 25% 100%, 17% 88%, 8% 100%, 0 88%)";
-    style.borderRadius = 0;
   } else if (shape.type === "container") {
     style.background = shape.fill;
     style.border = `1px dashed #5B6CF8`;
