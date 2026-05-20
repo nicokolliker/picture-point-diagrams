@@ -3826,9 +3826,10 @@ function ShapeNode({
     }
   }, [pinned, computePos, dragPos]);
 
-  // Hover-show with 600ms delay; popup hover zone also includes the + button.
+  // Hover-show with 400ms delay; popup itself does not extend its lifetime.
+  // When the mouse leaves the shape, hide after a 150ms grace period.
   useEffect(() => {
-    const active = hovered || popupHovered || qaHover;
+    const active = hovered;
     if (active) {
       if (hideTimer.current) {
         clearTimeout(hideTimer.current);
@@ -3838,7 +3839,7 @@ function ShapeNode({
         hoverTimer.current = window.setTimeout(() => {
           computePos();
           setShowPopup(true);
-        }, 600);
+        }, 400);
       }
     } else {
       if (hoverTimer.current) {
@@ -3846,13 +3847,13 @@ function ShapeNode({
         hoverTimer.current = null;
       }
       if (!pinned) {
-        hideTimer.current = window.setTimeout(() => setShowPopup(false), 120);
+        hideTimer.current = window.setTimeout(() => setShowPopup(false), 150);
       }
     }
     return () => {
       if (hoverTimer.current) clearTimeout(hoverTimer.current);
     };
-  }, [hovered, popupHovered, qaHover, pinned, showPopup, computePos]);
+  }, [hovered, pinned, showPopup, computePos]);
 
 
 
