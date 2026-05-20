@@ -2199,16 +2199,19 @@ function ShapeNode({
     if (!rect) return;
     const POP_W = 320;
     const POP_H = 420;
-    const margin = 12;
-    let left = rect.right + margin;
-    let top = rect.top;
-    if (left + POP_W > window.innerWidth - 8) {
-      left = rect.left - POP_W - margin;
-    }
-    if (left < 8) left = 8;
-    if (top + POP_H > window.innerHeight - 8) {
-      top = Math.max(8, window.innerHeight - POP_H - 8);
-    }
+    const MARGIN = 40;
+    // Choose horizontal/vertical side with the most available empty space.
+    const spaceLeft = rect.left;
+    const spaceRight = window.innerWidth - rect.right;
+    const spaceTop = rect.top;
+    const spaceBottom = window.innerHeight - rect.bottom;
+    const placeRight = spaceRight >= spaceLeft;
+    const placeBottom = spaceBottom >= spaceTop;
+    let left = placeRight ? rect.right + MARGIN : rect.left - POP_W - MARGIN;
+    let top = placeBottom ? rect.bottom + MARGIN : rect.top - POP_H - MARGIN;
+    // Clamp to viewport with 8px padding.
+    left = Math.max(8, Math.min(left, window.innerWidth - POP_W - 8));
+    top = Math.max(8, Math.min(top, window.innerHeight - POP_H - 8));
     setPopupPos({ left, top });
   }, []);
 
