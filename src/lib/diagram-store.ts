@@ -20,6 +20,12 @@ interface State {
   documents: DiagramDocument[];
   uploads: string[];
   people: Person[];
+  past: DiagramDocument[][];
+  future: DiagramDocument[][];
+  undo: () => void;
+  redo: () => void;
+  canUndo: () => boolean;
+  canRedo: () => boolean;
   addPerson: (name: string, role?: string) => Person;
   updatePerson: (id: string, patch: Partial<Person>) => void;
   deletePerson: (id: string) => void;
