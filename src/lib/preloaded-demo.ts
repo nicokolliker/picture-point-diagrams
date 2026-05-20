@@ -1,4 +1,11 @@
-import type { DiagramDocument, Shape, Connector, Status } from "./shape-types";
+import type { DiagramDocument, Shape, Connector, Diagnostico, Prioridad, Status } from "./shape-types";
+
+const statusToDiag: Record<Status, Diagnostico> = {
+  funciona: "funciona",
+  riesgo: "inconsistente",
+  roto: "roto",
+  ninguno: "sin_definir",
+};
 
 const baseShape = (
   id: string,
@@ -6,6 +13,7 @@ const baseShape = (
   title: string,
   description: string,
   status: Status,
+  prioridad?: Prioridad,
 ): Shape => ({
   id,
   type: "rectangle",
@@ -18,6 +26,11 @@ const baseShape = (
   description,
   responsable: "Equipo Comercial",
   status,
+  diagnostico: statusToDiag[status],
+  prioridad,
+  improvementEntries: [],
+  documents: [],
+  noStandardDoc: false,
   fontFamily: "Inter",
   fontSize: 14,
   bold: true,
