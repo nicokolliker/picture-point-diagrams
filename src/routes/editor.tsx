@@ -1868,18 +1868,57 @@ function ShapeNode({
       {/* HOVER POPUP */}
       {showPopup && popupPos && (
         <div
-          className="flowit-popup fixed z-50 w-[320px] overflow-hidden rounded-[10px] border border-[#EBEBEB] bg-white shadow-[0_4px_20px_rgba(0,0,0,0.12)]"
-          style={{ left: popupPos.left, top: popupPos.top }}
+          className={cn(
+            "flowit-popup fixed z-50 w-[280px] overflow-hidden rounded-[10px] border border-[#EBEBEB] bg-white",
+            dragging
+              ? "shadow-[0_12px_40px_rgba(0,0,0,0.25)]"
+              : "shadow-[0_4px_20px_rgba(0,0,0,0.12)]",
+          )}
+          style={{
+            left: (dragPos ?? popupPos).left,
+            top: (dragPos ?? popupPos).top,
+          }}
           onMouseEnter={() => setPopupHovered(true)}
           onMouseLeave={() => setPopupHovered(false)}
           onPointerDown={(e) => e.stopPropagation()}
         >
+          {pinned && (
+            <div
+              onPointerDown={onDragHandleDown}
+              className="flex h-7 cursor-grab items-center justify-between border-b border-[#EBEBEB] bg-[#FAFAFA] px-2 active:cursor-grabbing"
+              title="Drag to move"
+            >
+              <GripVertical className="h-3.5 w-3.5 text-[#9CA3AF]" />
+              <div className="truncate text-[11px] font-medium text-[#6B7280]">
+                {shape.title || shape.text || "Sin título"}
+              </div>
+              <div className="flex gap-1">
+                <button
+                  onClick={onUnpin}
+                  title="Desanclar"
+                  onPointerDown={(e) => e.stopPropagation()}
+                  className="flex h-5 w-5 items-center justify-center rounded text-[#5B6CF8] hover:bg-white"
+                >
+                  <PinOff className="h-3 w-3" />
+                </button>
+                <button
+                  onClick={onUnpin}
+                  title="Cerrar"
+                  onPointerDown={(e) => e.stopPropagation()}
+                  className="flex h-5 w-5 items-center justify-center rounded text-[#6B7280] hover:bg-white"
+                >
+                  <X className="h-3 w-3" />
+                </button>
+              </div>
+            </div>
+          )}
           <div className="relative">
             {shape.imageDataUrl ? (
               <img
                 src={shape.imageDataUrl}
                 alt={shape.title}
                 className="h-[160px] w-full object-cover"
+                draggable={false}
               />
             ) : (
               <div className="flex h-[110px] w-full flex-col items-center justify-center gap-2 border-b border-dashed border-[#D0D0D0] bg-[#FAFAFA] text-[#9CA3AF]">
@@ -1887,87 +1926,26 @@ function ShapeNode({
                 <span className="text-xs">Right-click → Assign image</span>
               </div>
             )}
-            <div className="absolute right-2 top-2 flex gap-1">
+            {!pinned && (
               <button
-                onClick={() => (pinned ? onUnpin() : onPin())}
-                title={pinned ? "Desanclar" : "Anclar"}
-                className={cn(
-                  "flex h-7 w-7 items-center justify-center rounded-full border border-[#EBEBEB] bg-white/95 shadow-sm hover:bg-white",
-                  pinned && "bg-[#5B6CF8] text-white border-[#5B6CF8] hover:bg-[#4856E0]",
-                )}
+                onClick={onPin}
+                title="Anclar"
+                className="absolute right-2 top-2 flex h-7 w-7 items-center justify-center rounded-full border border-[#EBEBEB] bg-white/95 shadow-sm hover:bg-white"
               >
-                {pinned ? <PinOff className="h-3.5 w-3.5" /> : <Pin className="h-3.5 w-3.5" />}
+                <Pin className="h-3.5 w-3.5" />
               </button>
-              {pinned && (
-                <button
-                  onClick={onUnpin}
-                  title="Cerrar"
-                  className="flex h-7 w-7 items-center justify-center rounded-full border border-[#EBEBEB] bg-white/95 shadow-sm hover:bg-white"
-                >
-                  <X className="h-3.5 w-3.5" />
-                </button>
-              )}
-            </div>
+            )}
           </div>
-          <div className="max-h-[420px] space-y-2.5 overflow-y-auto p-3">
-            <div className="text-[14px] font-bold text-[#111827]">
-              {shape.title || shape.text || "Sin título"}
-            </div>
-
-            <div>
-              <div className="mb-1 text-[10px] font-semibold uppercase tracking-wide text-[#6B7280]">
-                Como está hoy
+          <div className="space-y-2 p-3">
+            {!pinned && (
+              <div className="text-[14px] font-bold text-[#111827]">
+                {shape.title || shape.text || "Sin título"}
               </div>
-              <Textarea
-                value={shape.currentReality ?? ""}
-                onChange={(e) => updateThis({ currentReality: e.target.value })}
-                placeholder="Realidad actual de esta etapa"
-                rows={2}
-                className="resize-none text-[12px]"
-              />
-            </div>
-
-            <div>
-              <div className="mb-1 text-[10px] font-semibold uppercase tracking-wide text-[#6B7280]">
-                Estado
-              </div>
-              <StatusSelector
-                value={shape.status}
-                onChange={(v) => updateThis({ status: v })}
-              />
-            </div>
-
-            <div>
-              <div className="mb-1 text-[10px] font-semibold uppercase tracking-wide text-[#6B7280]">
-                Oportunidades de mejora
-              </div>
-              <Textarea
-                value={shape.improvements ?? ""}
-                onChange={(e) => updateThis({ improvements: e.target.value })}
-                placeholder="Ideas para mejorar"
-                rows={2}
-                className="resize-none text-[12px]"
-              />
-            </div>
-
-            <div>
-              <div className="mb-1 text-[10px] font-semibold uppercase tracking-wide text-[#6B7280]">
-                Responsable
-              </div>
-              <Input
-                value={shape.responsable}
-                onChange={(e) => updateThis({ responsable: e.target.value })}
-                placeholder="—"
-                className="h-7 text-[12px]"
-              />
-            </div>
-
-            <div className="border-t border-[#EBEBEB] pt-2.5">
-              <div className="mb-1 text-[10px] font-semibold uppercase tracking-wide text-[#6B7280]">
-                Cambios sugeridos
-              </div>
-              <ChangesList docId={docId} pageId={pageId} shape={shape} />
-            </div>
+            )}
+            <StatusSelector
+              value={shape.status}
+              onChange={(v) => updateThis({ status: v })}
+            />
           </div>
         </div>
       )}
