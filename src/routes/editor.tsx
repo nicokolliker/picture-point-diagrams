@@ -24,7 +24,7 @@ import {
   ListChecks,
   Maximize2,
   GripVertical,
-  Paperclip,
+  
   Pin,
   Plus,
   Search,
