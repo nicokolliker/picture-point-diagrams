@@ -1767,8 +1767,6 @@ function DocPreviewModal({ doc, onClose }: { doc: DocEntry; onClose: () => void 
 
   const downloadHref = doc.fileDataUrl ?? doc.url;
   const downloadName = doc.fileName || doc.name || "documento";
-  // Source the iframe can render: prefer the uploaded file blob, fall back to the external URL.
-  const pdfSrc = pdfBlobUrl ?? (doc.url || null);
 
   return (
     <div
