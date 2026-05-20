@@ -1937,6 +1937,5 @@ function ShapeNode({
         </div>
       )}
     </>
-    </>
   );
 }
