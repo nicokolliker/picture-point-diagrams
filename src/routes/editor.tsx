@@ -4095,8 +4095,9 @@ function ShapeNode({
               e.stopPropagation();
               onQuickAdd(qaEdge);
             }}
-            onMouseEnter={() => setQaHover(true)}
-            onMouseLeave={() => setQaHover(false)}
+            onMouseEnter={() => { setQaHover(true); onQuickAddHover(qaEdge); }}
+            onMouseLeave={() => { setQaHover(false); onQuickAddHover(null); }}
+
             className="flowit-fade-in absolute flex items-center justify-center rounded-full border-2 border-[#5B6CF8] bg-white text-[#5B6CF8] hover:bg-[#EEF0FF]"
             style={{ left, top, width: SIZE, height: SIZE, zIndex: 9998 }}
             title="Add connected shape"
