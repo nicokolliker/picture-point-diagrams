@@ -137,8 +137,26 @@
     border-color: var(--color-border);
   }
 
+  html, body, #root {
+    height: 100%;
+  }
+
   body {
     background-color: var(--color-background);
     color: var(--color-foreground);
+    font-family: "Inter", ui-sans-serif, system-ui, sans-serif;
+    -webkit-font-smoothing: antialiased;
   }
+}
+
+@keyframes flowit-popup-in {
+  from { opacity: 0; transform: translateY(2px) scale(0.98); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+.flowit-popup { animation: flowit-popup-in 150ms ease-out; }
+
+.flowit-canvas-bg {
+  background-color: #FAFAFA;
+  background-image: radial-gradient(circle, #E0E0E0 0.5px, transparent 0.5px);
+  background-size: 20px 20px;
 }
