@@ -982,18 +982,22 @@ function RightPanel({
           />
         </div>
         <div className="space-y-2">
-          <Label className="text-xs text-[#6B7280]">Estado</Label>
-          <StatusSelector value={shape.status} onChange={(v) => onChange({ status: v })} />
-        </div>
-        <div className="space-y-1.5">
-          <Label className="text-xs text-[#6B7280]">Oportunidades de mejora</Label>
-          <Textarea
-            value={shape.improvements ?? ""}
-            onChange={(e) => onChange({ improvements: e.target.value })}
-            placeholder="Ideas para mejorar esta etapa"
-            rows={3}
-            className="resize-none text-sm"
+          <Label className="text-xs text-[#6B7280]">Diagnóstico</Label>
+          <DiagnosticoSelector
+            value={shape.diagnostico ?? "sin_definir"}
+            onChange={(v) => onChange({ diagnostico: v })}
           />
+        </div>
+        <div className="space-y-2">
+          <Label className="text-xs text-[#6B7280]">Prioridad de intervención</Label>
+          <PrioridadSelector
+            value={shape.prioridad}
+            onChange={(v) => onChange({ prioridad: v })}
+          />
+        </div>
+        <div className="space-y-2">
+          <Label className="text-xs text-[#6B7280]">Oportunidades de mejora</Label>
+          <ImprovementList docId={docId} pageId={pageId} shape={shape} />
         </div>
         <div className="space-y-1.5">
           <Label className="text-xs text-[#6B7280]">Responsable</Label>
@@ -1008,6 +1012,12 @@ function RightPanel({
           <Label className="text-xs text-[#6B7280]">Cambios sugeridos</Label>
           <ChangesList docId={docId} pageId={pageId} shape={shape} />
         </div>
+
+        <div className="space-y-2">
+          <Label className="text-xs text-[#6B7280]">Documentos</Label>
+          <DocumentsSection docId={docId} pageId={pageId} shape={shape} onChange={onChange} />
+        </div>
+
 
         <div className="space-y-2">
           <Label className="text-xs text-[#6B7280]">Image</Label>
