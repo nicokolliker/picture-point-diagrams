@@ -2984,6 +2984,7 @@ function ShapeNode({
   onTextCommit,
   onStartConnector,
   onSelectShape,
+  onQuickAdd,
   onContextAction,
 }: ShapeNodeProps) {
   const [hovered, setHovered] = useState(false);
