@@ -1,6 +1,6 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
-import type { Connector, DiagramDocument, Page, Shape, ShapeType, Status } from "./shape-types";
+import type { ChangeEntry, Connector, DiagramDocument, Page, Shape, ShapeType, Status } from "./shape-types";
 import { createDemoDocument } from "./preloaded-demo";
 
 interface State {
