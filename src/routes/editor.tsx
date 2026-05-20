@@ -328,7 +328,10 @@ function EditorPage() {
 
         {/* Left panel */}
         {sidebarOpen && (
-          <div className="w-[260px] shrink-0 border-r border-[#EBEBEB] bg-white">
+          <div
+            className="relative shrink-0 border-r border-[#EBEBEB] bg-white"
+            style={{ width: activeTab === "summary" ? summaryWidth : 260 }}
+          >
             {activeTab === "shapes" && (
               <ShapesPanel
                 onAddShape={(type) => {
