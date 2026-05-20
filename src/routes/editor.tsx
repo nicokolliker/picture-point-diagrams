@@ -2178,53 +2178,51 @@ function SummaryPanel({
     });
   }
 
-  const toneStyle = (tone: Alert["tone"]) =>
-    tone === "red"
-      ? "border-[#FECACA] bg-[#FEF2F2]"
-      : tone === "amber"
-        ? "border-[#FDE68A] bg-[#FFFBEB]"
-        : "border-[#BFDBFE] bg-[#EFF6FF]";
+  const toneAccent = (tone: Alert["tone"]) =>
+    tone === "red" ? "#DC2626" : tone === "amber" ? "#F59E0B" : "#3B82F6";
+
+  const sectionHeader =
+    "mb-2 mt-5 text-[12px] font-semibold uppercase tracking-wider text-[#9CA3AF] first:mt-0";
 
   return (
     <div className="flex h-full flex-col">
-      <div className="border-b border-[#EBEBEB] p-3">
+      <div className="border-b border-[#EBEBEB] px-5 py-4">
         <h3 className="text-sm font-semibold text-[#111827]">Resumen de cambios</h3>
-        <p className="mt-0.5 text-[11px] text-[#6B7280]">
+        <p className="mt-1 text-[11px] text-[#6B7280]">
           Todas las mejoras propuestas en el proceso
         </p>
       </div>
-      <div className="flex-1 space-y-4 overflow-y-auto p-3">
+      <div className="flex-1 overflow-y-auto px-5 py-4">
         {/* Alertas */}
         <div>
-          <div className="mb-1.5 text-[11px] font-semibold uppercase tracking-wide text-[#6B7280]">
-            ⚠️ Alertas
-          </div>
+          <div className={sectionHeader}>⚠️ Alertas</div>
           {alerts.length === 0 ? (
-            <div className="rounded-md border border-[#BBF7D0] bg-[#F0FDF4] p-3 text-center text-xs text-[#166534]">
+            <div className="rounded-md border border-[#BBF7D0] bg-[#F0FDF4] p-4 text-center text-xs text-[#166534]">
               ✅ Sin alertas detectadas
             </div>
           ) : (
-            <ul className="space-y-2">
+            <ul className="flex flex-col gap-3">
               {alerts.map((a) => (
                 <li
                   key={a.id}
-                  className={cn("rounded-md border p-2.5", toneStyle(a.tone))}
+                  className="rounded-md border border-[#EBEBEB] bg-white p-4 shadow-sm"
+                  style={{ borderLeft: `3px solid ${toneAccent(a.tone)}` }}
                 >
-                  <div className="mb-0.5 flex items-center gap-1.5 text-[12px] font-semibold text-[#111827]">
+                  <div className="mb-1 flex items-center gap-1.5 text-[13px] font-semibold text-[#111827]">
                     <span>{a.icon}</span>
                     <span>{a.title}</span>
                   </div>
-                  <div className="mb-1.5 text-[11px] text-[#4B5563]">
+                  <div className="mb-2 text-[12px] leading-relaxed text-[#4B5563]">
                     {a.explanation}
                   </div>
-                  <div className="flex flex-wrap gap-1">
+                  <div className="flex flex-wrap gap-1.5">
                     {a.shapes.map((s) => (
                       <button
                         key={s.id}
                         onClick={() => onJumpToShape(s.id)}
-                        className="inline-flex items-center rounded-full bg-white/80 px-2 py-0.5 text-[10px] font-medium text-[#374151] ring-1 ring-[#E5E7EB] hover:bg-white"
+                        className="inline-flex max-w-full items-center rounded-full bg-[#F3F4F6] px-2 py-0.5 text-[11px] font-medium text-[#374151] hover:bg-[#E5E7EB]"
                       >
-                        {s.title || s.text || "Sin título"}
+                        <span className="truncate">{s.title || s.text || "Sin título"}</span>
                       </button>
                     ))}
                   </div>
@@ -2234,24 +2232,24 @@ function SummaryPanel({
           )}
         </div>
 
+        <div className="mt-5 h-px bg-[#EBEBEB]" />
+
         <div>
-          <div className="mb-1.5 text-[11px] font-semibold uppercase tracking-wide text-[#6B7280]">
-            Oportunidades de mejora
-          </div>
+          <div className={sectionHeader}>Oportunidades de mejora</div>
           {entries.length === 0 ? (
             <div className="rounded-md border border-dashed border-[#E5E7EB] p-4 text-center text-xs text-[#9CA3AF]">
               Aún no hay oportunidades de mejora.
             </div>
           ) : (
-            <ul className="space-y-2">
+            <ul className="flex flex-col gap-2.5">
               {entries.map(({ shape, entry }) => (
                 <li
                   key={entry.id}
-                  className="rounded-md border border-[#EBEBEB] bg-white p-2.5 hover:border-[#5B6CF8]"
+                  className="rounded-lg border border-[#EBEBEB] bg-white p-4 transition-colors hover:border-[#5B6CF8]"
                 >
                   <button
                     onClick={() => onJumpToShape(shape.id)}
-                    className="mb-1.5 inline-flex max-w-full items-center gap-1 rounded-full bg-[#EEF0FF] px-2 py-0.5 text-[10px] font-medium text-[#5B6CF8] hover:bg-[#DDE2FF]"
+                    className="mb-2 inline-flex max-w-full items-center gap-1 rounded-full bg-[#EEF0FF] px-2 py-0.5 text-[10px] font-medium text-[#5B6CF8] hover:bg-[#DDE2FF]"
                   >
                     <span
                       className="h-1.5 w-1.5 shrink-0 rounded-full"
@@ -2262,11 +2260,11 @@ function SummaryPanel({
                     />
                     <span className="truncate">{shape.title || shape.text}</span>
                   </button>
-                  <div className="break-words text-[12px] leading-snug text-[#111827]">
+                  <div className="break-words text-[12px] leading-relaxed text-[#111827]">
                     {entry.text}
                   </div>
                   {entry.categories.length > 0 && (
-                    <div className="mt-1 flex flex-wrap gap-1">
+                    <div className="mt-2 flex flex-wrap gap-1">
                       {entry.categories.map((c) => {
                         const m = CATEGORY_META[c];
                         return (
@@ -2282,24 +2280,26 @@ function SummaryPanel({
                       })}
                     </div>
                   )}
-                  <div className="mt-1 text-[10px] text-[#9CA3AF]">{formatDate(entry.date)}</div>
+                  <div className="mt-2 text-[10px] text-[#9CA3AF]">{formatDate(entry.date)}</div>
                 </li>
               ))}
             </ul>
           )}
         </div>
 
+        <div className="mt-5 h-px bg-[#EBEBEB]" />
+
         {/* Documentación faltante */}
         <div>
-          <div className="mb-2 flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wide text-[#6B7280]">
+          <div className={cn(sectionHeader, "flex items-center gap-1.5")}>
             <FileText className="h-3.5 w-3.5" />
-            Documentación faltante
+            <span>Documentación faltante</span>
           </div>
           {(() => {
             const missing = page.shapes.filter((s) => s.noStandardDoc);
             if (missing.length === 0) {
               return (
-                <div className="rounded-md border border-dashed border-[#E5E7EB] p-3 text-center text-xs text-[#9CA3AF]">
+                <div className="rounded-md border border-dashed border-[#E5E7EB] p-4 text-center text-xs text-[#9CA3AF]">
                   Todas las etapas tienen documentación.
                 </div>
               );
@@ -2315,10 +2315,10 @@ function SummaryPanel({
               }
             }
             return (
-              <div className="space-y-4">
+              <div className="flex flex-col gap-4">
                 {Array.from(groups.entries()).map(([type, shapes]) => (
                   <div key={type}>
-                    <div className="mb-2 flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wide text-[#4B5563]">
+                    <div className="mb-2 flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wider text-[#9CA3AF]">
                       <span>
                         {type === "Sin tipo definido" ? type : `${type} faltante`}
                       </span>
@@ -2326,12 +2326,12 @@ function SummaryPanel({
                         {shapes.length}
                       </span>
                     </div>
-                    <ul className="space-y-2">
+                    <ul className="flex flex-col gap-2">
                       {shapes.map((s) => (
                         <li key={s.id}>
                           <button
                             onClick={() => onJumpToShape(s.id)}
-                            className="flex w-full items-center gap-2 rounded-md border border-[#EBEBEB] bg-white px-2 py-1.5 text-left text-[12px] text-[#111827] hover:border-[#9CA3AF]"
+                            className="flex w-full items-center gap-2 rounded-md border border-[#EBEBEB] bg-white px-3 py-2 text-left text-[12px] text-[#111827] hover:border-[#9CA3AF]"
                           >
                             <FileText className="h-3.5 w-3.5 shrink-0 text-[#9CA3AF]" />
                             <span className="truncate">
