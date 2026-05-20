@@ -45,6 +45,7 @@ interface State {
   updateConnector: (docId: string, pageId: string, id: string, patch: Partial<Connector>) => void;
   deleteConnectors: (docId: string, pageId: string, ids: string[]) => void;
   addPage: (docId: string) => void;
+  renamePage: (docId: string, pageId: string, name: string) => void;
   addUpload: (dataUrl: string) => void;
   removeUpload: (dataUrl: string) => void;
   addChange: (docId: string, pageId: string, shapeId: string, text: string) => void;
