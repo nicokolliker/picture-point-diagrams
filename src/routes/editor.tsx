@@ -3540,6 +3540,7 @@ function ShapeNode({
   shape,
   docId,
   pageId,
+  zoom,
   pinned,
   onPin,
   onUnpin,
@@ -3551,8 +3552,10 @@ function ShapeNode({
   onStartConnector,
   onSelectShape,
   onQuickAdd,
+  onQuickAddHover,
   onContextAction,
 }: ShapeNodeProps) {
+
   const [hovered, setHovered] = useState(false);
   const [popupHovered, setPopupHovered] = useState(false);
   const [showPopup, setShowPopup] = useState(false);
