@@ -3202,6 +3202,47 @@ function ShapeNode({
 
   return (
     <>
+      {selected && (
+        <div
+          className="pointer-events-none absolute"
+          style={{
+            left: shape.x - 2,
+            top: shape.y - 2,
+            width: shape.width + 4,
+            height: shape.height + 4,
+            border: "2px solid #5B6CF8",
+            borderRadius: shape.cornerStyle === "rounded" ? 10 : 0,
+            zIndex: 9999,
+          }}
+        >
+          {(
+            [
+              ["nw", 0, 0],
+              ["n", 0.5, 0],
+              ["ne", 1, 0],
+              ["e", 1, 0.5],
+              ["se", 1, 1],
+              ["s", 0.5, 1],
+              ["sw", 0, 1],
+              ["w", 0, 0.5],
+            ] as const
+          ).map(([k, fx, fy]) => (
+            <div
+              key={k}
+              style={{
+                position: "absolute",
+                left: `${fx * 100}%`,
+                top: `${fy * 100}%`,
+                width: 8,
+                height: 8,
+                background: "white",
+                border: "1px solid #5B6CF8",
+                transform: "translate(-50%, -50%)",
+              }}
+            />
+          ))}
+        </div>
+      )}
       <ContextMenu>
         <ContextMenuTrigger asChild>
           <div
