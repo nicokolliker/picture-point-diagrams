@@ -3483,9 +3483,24 @@ function CanvasArea({
           const stroke = "#5B6CF8";
           const fillRgba = src.fill;
           const isSvg = ["diamond", "parallelogram", "cylinder", "document", "manual"].includes(src.type);
-          // Connector line endpoints (centers)
-          const sc = { x: src.x + src.width / 2, y: src.y + src.height / 2 };
-          const gc = { x: nx + w / 2, y: ny + h / 2 };
+          // Line starts from + button position, ends at near edge of ghost
+          const OFFSET = 8;
+          let sc = { x: src.x + src.width / 2, y: src.y + src.height / 2 };
+          let gc = { x: nx + w / 2, y: ny + h / 2 };
+          if (quickGhost.edge === "bottom") {
+            sc = { x: src.x + src.width / 2, y: src.y + src.height + OFFSET };
+            gc = { x: nx + w / 2, y: ny };
+          } else if (quickGhost.edge === "top") {
+            sc = { x: src.x + src.width / 2, y: src.y - OFFSET };
+            gc = { x: nx + w / 2, y: ny + h };
+          } else if (quickGhost.edge === "right") {
+            sc = { x: src.x + src.width + OFFSET, y: src.y + src.height / 2 };
+            gc = { x: nx, y: ny + h / 2 };
+          } else if (quickGhost.edge === "left") {
+            sc = { x: src.x - OFFSET, y: src.y + src.height / 2 };
+            gc = { x: nx + w, y: ny + h / 2 };
+          }
+
           return (
             <>
               <svg
