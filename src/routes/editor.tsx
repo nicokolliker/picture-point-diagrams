@@ -957,9 +957,39 @@ function RightPanel({
 }) {
   const fileRef = useRef<HTMLInputElement>(null);
   const [url, setUrl] = useState("");
+  const [panelWidth, setPanelWidth] = useState(320);
+
+  const startResize = useCallback(
+    (e: React.PointerEvent<HTMLDivElement>) => {
+      e.preventDefault();
+      e.stopPropagation();
+      const startX = e.clientX;
+      const startW = panelWidth;
+      const onMove = (ev: PointerEvent) => {
+        const next = Math.max(240, Math.min(520, startW - (ev.clientX - startX)));
+        setPanelWidth(next);
+      };
+      const onUp = () => {
+        window.removeEventListener("pointermove", onMove);
+        window.removeEventListener("pointerup", onUp);
+      };
+      window.addEventListener("pointermove", onMove);
+      window.addEventListener("pointerup", onUp);
+    },
+    [panelWidth],
+  );
 
   return (
-    <div className="flowit-slide-in-right flex h-full w-[300px] shrink-0 flex-col overflow-hidden border-l border-[#EBEBEB] bg-white">
+    <div
+      className="flowit-slide-in-right relative flex h-full shrink-0 flex-col overflow-hidden border-l border-[#EBEBEB] bg-white"
+      style={{ width: panelWidth }}
+    >
+      <div
+        onPointerDown={startResize}
+        className="absolute left-0 top-0 z-10 h-full w-1 cursor-col-resize bg-transparent hover:bg-[#5B6CF8]/30 transition-colors"
+        title="Arrastrá para ajustar el ancho"
+      />
+
       <div className="flex items-center justify-between border-b border-[#EBEBEB] px-4 py-3">
         <h3 className="text-sm font-semibold">Properties</h3>
         <button
