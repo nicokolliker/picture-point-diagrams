@@ -2527,26 +2527,75 @@ function ShapeNode({
     [dragPos, popupPos],
   );
 
+  const [popupSize, setPopupSize] = useState<{ w: number; h: number } | null>(null);
+
   const computePos = useCallback(() => {
     const rect = nodeRef.current?.getBoundingClientRect();
     if (!rect) return;
-    const POP_W = 320;
-    const POP_H = 420;
-    const MARGIN = 40;
-    // Choose horizontal/vertical side with the most available empty space.
-    const spaceLeft = rect.left;
-    const spaceRight = window.innerWidth - rect.right;
-    const spaceTop = rect.top;
-    const spaceBottom = window.innerHeight - rect.bottom;
-    const placeRight = spaceRight >= spaceLeft;
-    const placeBottom = spaceBottom >= spaceTop;
-    let left = placeRight ? rect.right + MARGIN : rect.left - POP_W - MARGIN;
-    let top = placeBottom ? rect.bottom + MARGIN : rect.top - POP_H - MARGIN;
-    // Clamp to viewport with 8px padding.
-    left = Math.max(8, Math.min(left, window.innerWidth - POP_W - 8));
-    top = Math.max(8, Math.min(top, window.innerHeight - POP_H - 8));
+    const POP_W = popupSize?.w ?? 320;
+    const POP_H = popupSize?.h ?? 380;
+    const MARGIN = 24;
+    const MAX_GAP = 120;
+    const pad = 8;
+    const candidates: { left: number; top: number; ok: boolean }[] = [];
+    // Right
+    {
+      const left = rect.right + MARGIN;
+      const top = Math.max(pad, Math.min(rect.top, window.innerHeight - POP_H - pad));
+      candidates.push({ left, top, ok: left + POP_W + pad <= window.innerWidth });
+    }
+    // Left
+    {
+      const left = rect.left - POP_W - MARGIN;
+      const top = Math.max(pad, Math.min(rect.top, window.innerHeight - POP_H - pad));
+      candidates.push({ left, top, ok: left >= pad });
+    }
+    // Bottom
+    {
+      const top = rect.bottom + MARGIN;
+      const left = Math.max(pad, Math.min(rect.left, window.innerWidth - POP_W - pad));
+      candidates.push({ left, top, ok: top + POP_H + pad <= window.innerHeight });
+    }
+    // Top
+    {
+      const top = rect.top - POP_H - MARGIN;
+      const left = Math.max(pad, Math.min(rect.left, window.innerWidth - POP_W - pad));
+      candidates.push({ left, top, ok: top >= pad });
+    }
+    const pick = candidates.find((c) => c.ok) ?? candidates[0];
+    let { left, top } = pick;
+    // Enforce max 120px gap from nearest shape edge.
+    if (left > rect.right + MAX_GAP) left = rect.right + MAX_GAP;
+    if (left + POP_W < rect.left - MAX_GAP) left = rect.left - MAX_GAP - POP_W;
+    if (top > rect.bottom + MAX_GAP) top = rect.bottom + MAX_GAP;
+    if (top + POP_H < rect.top - MAX_GAP) top = rect.top - MAX_GAP - POP_H;
+    top = Math.max(pad, Math.min(top, window.innerHeight - 80));
     setPopupPos({ left, top });
-  }, []);
+  }, [popupSize]);
+
+  const onResizePopupDown = useCallback(
+    (e: React.PointerEvent<HTMLDivElement>) => {
+      e.stopPropagation();
+      e.preventDefault();
+      const startX = e.clientX;
+      const startY = e.clientY;
+      const startW = popupSize?.w ?? 320;
+      const startH = popupSize?.h ?? 380;
+      const onMove = (ev: PointerEvent) => {
+        const w = Math.max(260, Math.min(600, startW + (ev.clientX - startX)));
+        const h = Math.max(180, Math.min(800, startH + (ev.clientY - startY)));
+        setPopupSize({ w, h });
+      };
+      const onUp = () => {
+        window.removeEventListener("pointermove", onMove);
+        window.removeEventListener("pointerup", onUp);
+      };
+      window.addEventListener("pointermove", onMove);
+      window.addEventListener("pointerup", onUp);
+    },
+    [popupSize],
+  );
+
 
   // Pinned popup is always shown. Don't auto-reposition if user has dragged.
   useEffect(() => {
