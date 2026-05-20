@@ -4294,15 +4294,6 @@ function ShapeNode({
                 <span className="text-xs">Right-click → Assign image</span>
               </div>
             )}
-            {!pinned && (
-              <button
-                onClick={onPin}
-                title="Anclar"
-                className="absolute right-2 top-2 flex h-7 w-7 items-center justify-center rounded-full border border-[#EBEBEB] bg-white/95 shadow-sm transition-all hover:bg-white hover:scale-105"
-              >
-                <Pin className="h-3.5 w-3.5" />
-              </button>
-            )}
           </div>
           <div className="min-h-0 flex-1 space-y-2 overflow-y-auto p-3">
             {!pinned && (
