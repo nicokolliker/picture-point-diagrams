@@ -83,6 +83,8 @@ import {
 import { cn } from "@/lib/utils";
 import { PdfCanvasViewer } from "@/components/pdf-canvas-viewer";
 import { PeoplePicker } from "@/components/people-picker";
+import { IconTip } from "@/components/icon-tooltip";
+import { PersonAvatar } from "@/components/person-avatar";
 
 interface EditorSearch {
   doc?: string;
