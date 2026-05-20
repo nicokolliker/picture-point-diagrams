@@ -120,12 +120,13 @@ function EditorPage() {
   const page = doc?.pages.find((p) => p.id === currentPageId) ?? doc?.pages[0];
 
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
-  const [activeTab, setActiveTab] = useState<"shapes" | "images" | "pages">("shapes");
+  const [activeTab, setActiveTab] = useState<"shapes" | "images" | "pages" | "summary">("shapes");
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [zoom, setZoom] = useState(1);
   const [pan, setPan] = useState({ x: 80, y: 40 });
   const [renaming, setRenaming] = useState(false);
   const [renameVal, setRenameVal] = useState("");
+  const [pinnedShapeId, setPinnedShapeId] = useState<string | null>(null);
 
   const selectedShape =
     selectedIds.length === 1 ? page?.shapes.find((s) => s.id === selectedIds[0]) : undefined;
