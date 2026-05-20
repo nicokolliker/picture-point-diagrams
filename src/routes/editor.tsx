@@ -1548,37 +1548,78 @@ function SummaryPanel({
           Todas las mejoras propuestas en el proceso
         </p>
       </div>
-      <div className="flex-1 overflow-y-auto p-3">
-        {entries.length === 0 ? (
-          <div className="rounded-md border border-dashed border-[#E5E7EB] p-6 text-center text-xs text-[#9CA3AF]">
-            Aún no hay cambios sugeridos. Añade uno desde cualquier forma.
+      <div className="flex-1 space-y-4 overflow-y-auto p-3">
+        <div>
+          <div className="mb-1.5 text-[11px] font-semibold uppercase tracking-wide text-[#6B7280]">
+            Cambios sugeridos
           </div>
-        ) : (
-          <ul className="space-y-2">
-            {entries.map(({ shape, change }) => (
-              <li
-                key={change.id}
-                className="rounded-md border border-[#EBEBEB] bg-white p-2.5 hover:border-[#5B6CF8]"
-              >
-                <button
-                  onClick={() => onJumpToShape(shape.id)}
-                  className="mb-1.5 inline-flex max-w-full items-center gap-1 rounded-full bg-[#EEF0FF] px-2 py-0.5 text-[10px] font-medium text-[#5B6CF8] hover:bg-[#DDE2FF]"
+          {entries.length === 0 ? (
+            <div className="rounded-md border border-dashed border-[#E5E7EB] p-4 text-center text-xs text-[#9CA3AF]">
+              Aún no hay cambios sugeridos.
+            </div>
+          ) : (
+            <ul className="space-y-2">
+              {entries.map(({ shape, change }) => (
+                <li
+                  key={change.id}
+                  className="rounded-md border border-[#EBEBEB] bg-white p-2.5 hover:border-[#5B6CF8]"
                 >
-                  <span
-                    className="h-1.5 w-1.5 shrink-0 rounded-full"
-                    style={{ background: STATUS_COLORS[shape.status].bg }}
-                  />
-                  <span className="truncate">{shape.title || shape.text}</span>
-                </button>
-                <div className="break-words text-[12px] leading-snug text-[#111827]">
-                  {change.text}
+                  <button
+                    onClick={() => onJumpToShape(shape.id)}
+                    className="mb-1.5 inline-flex max-w-full items-center gap-1 rounded-full bg-[#EEF0FF] px-2 py-0.5 text-[10px] font-medium text-[#5B6CF8] hover:bg-[#DDE2FF]"
+                  >
+                    <span
+                      className="h-1.5 w-1.5 shrink-0 rounded-full"
+                      style={{
+                        background:
+                          DIAGNOSTICO_META[shape.diagnostico ?? "sin_definir"].bg,
+                      }}
+                    />
+                    <span className="truncate">{shape.title || shape.text}</span>
+                  </button>
+                  <div className="break-words text-[12px] leading-snug text-[#111827]">
+                    {change.text}
+                  </div>
+                  <div className="mt-1 text-[10px] text-[#9CA3AF]">{formatDate(change.date)}</div>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+
+        <div>
+          <div className="mb-1.5 flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wide text-[#6B7280]">
+            <FileWarning className="h-3.5 w-3.5 text-[#F59E0B]" />
+            Documentación faltante
+          </div>
+          {(() => {
+            const missing = page.shapes.filter((s) => s.noStandardDoc);
+            if (missing.length === 0) {
+              return (
+                <div className="rounded-md border border-dashed border-[#E5E7EB] p-3 text-center text-xs text-[#9CA3AF]">
+                  Todas las etapas tienen documentación.
                 </div>
-                <div className="mt-1 text-[10px] text-[#9CA3AF]">{formatDate(change.date)}</div>
-              </li>
-            ))}
-          </ul>
-        )}
+              );
+            }
+            return (
+              <ul className="space-y-1">
+                {missing.map((s) => (
+                  <li key={s.id}>
+                    <button
+                      onClick={() => onJumpToShape(s.id)}
+                      className="flex w-full items-center gap-2 rounded-md border border-[#EBEBEB] bg-white px-2 py-1.5 text-left text-[12px] hover:border-[#F59E0B] hover:bg-[#FFFBEB]"
+                    >
+                      <FileWarning className="h-3.5 w-3.5 shrink-0 text-[#F59E0B]" />
+                      <span className="truncate">{s.title || s.text || "Sin título"}</span>
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            );
+          })()}
+        </div>
       </div>
+
     </div>
   );
 }
