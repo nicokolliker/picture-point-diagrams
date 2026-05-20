@@ -2515,43 +2515,37 @@ function ShapeNode({
     if (!rect) return;
     const POP_W = popupSize?.w ?? 320;
     const POP_H = popupSize?.h ?? 380;
-    const MARGIN = 24;
-    const MAX_GAP = 120;
+    const GAP = 16;
     const pad = 8;
-    const candidates: { left: number; top: number; ok: boolean }[] = [];
-    // Right
-    {
-      const left = rect.right + MARGIN;
-      const top = Math.max(pad, Math.min(rect.top, window.innerHeight - POP_H - pad));
-      candidates.push({ left, top, ok: left + POP_W + pad <= window.innerWidth });
-    }
-    // Left
-    {
-      const left = rect.left - POP_W - MARGIN;
-      const top = Math.max(pad, Math.min(rect.top, window.innerHeight - POP_H - pad));
-      candidates.push({ left, top, ok: left >= pad });
-    }
-    // Bottom
-    {
-      const top = rect.bottom + MARGIN;
-      const left = Math.max(pad, Math.min(rect.left, window.innerWidth - POP_W - pad));
-      candidates.push({ left, top, ok: top + POP_H + pad <= window.innerHeight });
-    }
-    // Top
-    {
-      const top = rect.top - POP_H - MARGIN;
-      const left = Math.max(pad, Math.min(rect.left, window.innerWidth - POP_W - pad));
-      candidates.push({ left, top, ok: top >= pad });
-    }
+    const clampTop = (t: number) =>
+      Math.max(pad, Math.min(t, window.innerHeight - POP_H - pad));
+    const clampLeft = (l: number) =>
+      Math.max(pad, Math.min(l, window.innerWidth - POP_W - pad));
+    // Try right, left, bottom, top — pick first that fits inside viewport with the 16px gap.
+    const candidates = [
+      {
+        left: rect.right + GAP,
+        top: clampTop(rect.top),
+        ok: rect.right + GAP + POP_W + pad <= window.innerWidth,
+      },
+      {
+        left: rect.left - POP_W - GAP,
+        top: clampTop(rect.top),
+        ok: rect.left - POP_W - GAP >= pad,
+      },
+      {
+        left: clampLeft(rect.left),
+        top: rect.bottom + GAP,
+        ok: rect.bottom + GAP + POP_H + pad <= window.innerHeight,
+      },
+      {
+        left: clampLeft(rect.left),
+        top: rect.top - POP_H - GAP,
+        ok: rect.top - POP_H - GAP >= pad,
+      },
+    ];
     const pick = candidates.find((c) => c.ok) ?? candidates[0];
-    let { left, top } = pick;
-    // Enforce max 120px gap from nearest shape edge.
-    if (left > rect.right + MAX_GAP) left = rect.right + MAX_GAP;
-    if (left + POP_W < rect.left - MAX_GAP) left = rect.left - MAX_GAP - POP_W;
-    if (top > rect.bottom + MAX_GAP) top = rect.bottom + MAX_GAP;
-    if (top + POP_H < rect.top - MAX_GAP) top = rect.top - MAX_GAP - POP_H;
-    top = Math.max(pad, Math.min(top, window.innerHeight - 80));
-    setPopupPos({ left, top });
+    setPopupPos({ left: pick.left, top: pick.top });
   }, [popupSize]);
 
   const onResizePopupDown = useCallback(
