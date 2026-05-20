@@ -3380,7 +3380,7 @@ function ShapeNode({
             onMouseEnter={() => setHovered(true)}
             onMouseLeave={() => setHovered(false)}
           >
-            {editingText ? (
+            {editingText && !useSvgOutline ? (
               <input
                 autoFocus
                 defaultValue={shape.text}
