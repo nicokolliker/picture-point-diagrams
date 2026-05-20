@@ -104,11 +104,7 @@ function HomePage() {
             className="h-9 pl-9"
           />
         </div>
-        <div className="flex items-center gap-3">
-          <div className="flex h-8 w-8 items-center justify-center rounded-full bg-[#E0E7FF] text-[#5B6CF8] text-sm font-medium">
-            LV
-          </div>
-        </div>
+        <div className="flex items-center gap-3" />
       </header>
 
       <div className="flex flex-1 overflow-hidden">
