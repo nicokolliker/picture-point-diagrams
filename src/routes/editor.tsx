@@ -248,21 +248,6 @@ function EditorPage() {
         </div>
 
         <div className="flex items-center gap-2">
-          <div className="flex -space-x-2">
-            {["LV", "JM", "AR"].map((i, idx) => (
-              <div
-                key={i}
-                className={cn(
-                  "flex h-7 w-7 items-center justify-center rounded-full border-2 border-white text-xs font-medium text-white",
-                  idx === 0 && "bg-[#5B6CF8]",
-                  idx === 1 && "bg-[#16A34A]",
-                  idx === 2 && "bg-[#F59E0B]",
-                )}
-              >
-                {i}
-              </div>
-            ))}
-          </div>
           <span className="text-xs text-[#6B7280] tabular-nums">{Math.round(zoom * 100)}%</span>
           <button
             onClick={() => document.documentElement.requestFullscreen?.().catch(() => {})}
@@ -1750,6 +1735,178 @@ function AllDocsModal({
   );
 }
 
+// Loads pdf.js from a CDN (no bundler dependency) and renders pages into a <canvas>.
+let pdfjsPromise: Promise<any> | null = null;
+function loadPdfJs(): Promise<any> {
+  if (typeof window === "undefined") return Promise.reject(new Error("ssr"));
+  const w = window as any;
+  if (w.pdfjsLib) return Promise.resolve(w.pdfjsLib);
+  if (pdfjsPromise) return pdfjsPromise;
+  const VERSION = "4.7.76";
+  const SRC = `https://cdn.jsdelivr.net/npm/pdfjs-dist@${VERSION}/build/pdf.min.mjs`;
+  const WORKER = `https://cdn.jsdelivr.net/npm/pdfjs-dist@${VERSION}/build/pdf.worker.min.mjs`;
+  pdfjsPromise = import(/* @vite-ignore */ SRC)
+    .then((mod: any) => {
+      const lib = mod?.default ?? mod;
+      try {
+        lib.GlobalWorkerOptions.workerSrc = WORKER;
+      } catch {
+        /* ignore */
+      }
+      w.pdfjsLib = lib;
+      return lib;
+    })
+    .catch((err) => {
+      pdfjsPromise = null;
+      throw err;
+    });
+  return pdfjsPromise;
+}
+
+function PdfCanvasViewer({
+  src,
+  failed,
+  downloadHref,
+  downloadName,
+}: {
+  src: string | null;
+  failed: boolean;
+  downloadHref?: string;
+  downloadName: string;
+}) {
+  const canvasRef = useRef<HTMLCanvasElement | null>(null);
+  const [pdf, setPdf] = useState<any>(null);
+  const [page, setPage] = useState(1);
+  const [numPages, setNumPages] = useState(0);
+  const [loading, setLoading] = useState(false);
+  const [loadFailed, setLoadFailed] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    setPdf(null);
+    setPage(1);
+    setNumPages(0);
+    setLoadFailed(false);
+    if (!src || failed) return;
+    setLoading(true);
+    (async () => {
+      try {
+        const lib = await loadPdfJs();
+        // Fetch as ArrayBuffer (works for both blob: and http(s):).
+        const res = await fetch(src);
+        const buf = await res.arrayBuffer();
+        if (cancelled) return;
+        const doc = await lib.getDocument({ data: buf }).promise;
+        if (cancelled) return;
+        setPdf(doc);
+        setNumPages(doc.numPages);
+      } catch (e) {
+        console.warn("pdfjs load failed", e);
+        if (!cancelled) {
+          setLoadFailed(true);
+          // Fallback: open blob/url in new tab.
+          if (src) {
+            try {
+              window.open(src, "_blank", "noopener,noreferrer");
+            } catch {
+              /* ignore */
+            }
+          }
+        }
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [src, failed]);
+
+  useEffect(() => {
+    if (!pdf || !canvasRef.current) return;
+    let cancelled = false;
+    let renderTask: any = null;
+    (async () => {
+      try {
+        const p = await pdf.getPage(page);
+        if (cancelled) return;
+        const viewport = p.getViewport({ scale: 1.5 });
+        const canvas = canvasRef.current!;
+        const ctx = canvas.getContext("2d");
+        if (!ctx) return;
+        canvas.width = viewport.width;
+        canvas.height = viewport.height;
+        renderTask = p.render({ canvasContext: ctx, viewport });
+        await renderTask.promise;
+      } catch (e) {
+        if (!cancelled) console.warn("pdfjs render failed", e);
+      }
+    })();
+    return () => {
+      cancelled = true;
+      try {
+        renderTask?.cancel?.();
+      } catch {
+        /* ignore */
+      }
+    };
+  }, [pdf, page]);
+
+  if (!src || failed || loadFailed) {
+    return (
+      <div className="flex flex-1 flex-col items-center justify-center gap-3 p-8 text-center">
+        <FileText className="h-10 w-10 text-[#6B7280]" />
+        <div className="text-sm text-[#374151]">No se puede previsualizar</div>
+        {downloadHref && (
+          <a
+            href={downloadHref}
+            download={downloadName}
+            target="_blank"
+            rel="noreferrer"
+            className="inline-flex items-center gap-1.5 rounded-md bg-[#5B6CF8] px-3 py-1.5 text-xs font-medium text-white hover:bg-[#4854d1]"
+          >
+            <Download className="h-3.5 w-3.5" /> Descargar PDF
+          </a>
+        )}
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex h-full flex-col">
+      <div className="flex-1 overflow-auto bg-[#1f2937] p-4">
+        {loading && (
+          <div className="flex h-full items-center justify-center">
+            <div className="h-8 w-8 animate-spin rounded-full border-2 border-white/30 border-t-white" />
+          </div>
+        )}
+        <canvas ref={canvasRef} className="mx-auto block shadow-lg" />
+      </div>
+      {numPages > 1 && (
+        <div className="flex items-center justify-center gap-3 border-t border-[#EBEBEB] bg-white px-4 py-2 text-xs">
+          <button
+            onClick={() => setPage((p) => Math.max(1, p - 1))}
+            disabled={page <= 1}
+            className="rounded-md border border-[#EBEBEB] px-2.5 py-1 hover:bg-[#F3F4F6] disabled:opacity-40"
+          >
+            ← Anterior
+          </button>
+          <span className="tabular-nums text-[#374151]">
+            Página {page} / {numPages}
+          </span>
+          <button
+            onClick={() => setPage((p) => Math.min(numPages, p + 1))}
+            disabled={page >= numPages}
+            className="rounded-md border border-[#EBEBEB] px-2.5 py-1 hover:bg-[#F3F4F6] disabled:opacity-40"
+          >
+            Siguiente →
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
+
 function DocPreviewModal({ doc, onClose }: { doc: DocEntry; onClose: () => void }) {
   const mime = doc.fileMime ?? "";
   const isPdf = mime.includes("pdf") || (doc.fileName ?? "").toLowerCase().endsWith(".pdf");
@@ -1782,8 +1939,6 @@ function DocPreviewModal({ doc, onClose }: { doc: DocEntry; onClose: () => void 
 
   const downloadHref = doc.fileDataUrl ?? doc.url;
   const downloadName = doc.fileName || doc.name || "documento";
-  // Source the iframe can render: prefer the uploaded file blob, fall back to the external URL.
-  const pdfSrc = pdfBlobUrl ?? (doc.url || null);
 
   return (
     <div
@@ -1812,32 +1967,12 @@ function DocPreviewModal({ doc, onClose }: { doc: DocEntry; onClose: () => void 
         </div>
         <div className="flex-1 min-h-0 overflow-auto bg-[#F9FAFB]">
           {isPdf && (
-            <div className="flex h-full flex-col">
-              {pdfSrc && !pdfFailed && (
-                <iframe
-                  src={pdfSrc}
-                  title={doc.name}
-                  className="w-full flex-1 border-0"
-                />
-              )}
-              {(pdfFailed || !pdfSrc) && (
-                <div className="flex flex-1 flex-col items-center justify-center gap-3 p-8 text-center">
-                  <FileText className="h-10 w-10 text-[#6B7280]" />
-                  <div className="text-sm text-[#374151]">No se puede previsualizar</div>
-                  {downloadHref && (
-                    <a
-                      href={downloadHref}
-                      download={downloadName}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="inline-flex items-center gap-1.5 rounded-md bg-[#5B6CF8] px-3 py-1.5 text-xs font-medium text-white hover:bg-[#4854d1]"
-                    >
-                      <Download className="h-3.5 w-3.5" /> Descargar PDF
-                    </a>
-                  )}
-                </div>
-              )}
-            </div>
+            <PdfCanvasViewer
+              src={pdfBlobUrl ?? doc.url ?? null}
+              failed={pdfFailed}
+              downloadHref={downloadHref}
+              downloadName={downloadName}
+            />
           )}
           {isImage && doc.fileDataUrl && (
             <img
@@ -2530,43 +2665,37 @@ function ShapeNode({
     if (!rect) return;
     const POP_W = popupSize?.w ?? 320;
     const POP_H = popupSize?.h ?? 380;
-    const MARGIN = 24;
-    const MAX_GAP = 120;
+    const GAP = 16;
     const pad = 8;
-    const candidates: { left: number; top: number; ok: boolean }[] = [];
-    // Right
-    {
-      const left = rect.right + MARGIN;
-      const top = Math.max(pad, Math.min(rect.top, window.innerHeight - POP_H - pad));
-      candidates.push({ left, top, ok: left + POP_W + pad <= window.innerWidth });
-    }
-    // Left
-    {
-      const left = rect.left - POP_W - MARGIN;
-      const top = Math.max(pad, Math.min(rect.top, window.innerHeight - POP_H - pad));
-      candidates.push({ left, top, ok: left >= pad });
-    }
-    // Bottom
-    {
-      const top = rect.bottom + MARGIN;
-      const left = Math.max(pad, Math.min(rect.left, window.innerWidth - POP_W - pad));
-      candidates.push({ left, top, ok: top + POP_H + pad <= window.innerHeight });
-    }
-    // Top
-    {
-      const top = rect.top - POP_H - MARGIN;
-      const left = Math.max(pad, Math.min(rect.left, window.innerWidth - POP_W - pad));
-      candidates.push({ left, top, ok: top >= pad });
-    }
+    const clampTop = (t: number) =>
+      Math.max(pad, Math.min(t, window.innerHeight - POP_H - pad));
+    const clampLeft = (l: number) =>
+      Math.max(pad, Math.min(l, window.innerWidth - POP_W - pad));
+    // Try right, left, bottom, top — pick first that fits inside viewport with the 16px gap.
+    const candidates = [
+      {
+        left: rect.right + GAP,
+        top: clampTop(rect.top),
+        ok: rect.right + GAP + POP_W + pad <= window.innerWidth,
+      },
+      {
+        left: rect.left - POP_W - GAP,
+        top: clampTop(rect.top),
+        ok: rect.left - POP_W - GAP >= pad,
+      },
+      {
+        left: clampLeft(rect.left),
+        top: rect.bottom + GAP,
+        ok: rect.bottom + GAP + POP_H + pad <= window.innerHeight,
+      },
+      {
+        left: clampLeft(rect.left),
+        top: rect.top - POP_H - GAP,
+        ok: rect.top - POP_H - GAP >= pad,
+      },
+    ];
     const pick = candidates.find((c) => c.ok) ?? candidates[0];
-    let { left, top } = pick;
-    // Enforce max 120px gap from nearest shape edge.
-    if (left > rect.right + MAX_GAP) left = rect.right + MAX_GAP;
-    if (left + POP_W < rect.left - MAX_GAP) left = rect.left - MAX_GAP - POP_W;
-    if (top > rect.bottom + MAX_GAP) top = rect.bottom + MAX_GAP;
-    if (top + POP_H < rect.top - MAX_GAP) top = rect.top - MAX_GAP - POP_H;
-    top = Math.max(pad, Math.min(top, window.innerHeight - 80));
-    setPopupPos({ left, top });
+    setPopupPos({ left: pick.left, top: pick.top });
   }, [popupSize]);
 
   const onResizePopupDown = useCallback(
