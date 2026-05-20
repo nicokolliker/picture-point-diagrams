@@ -24,7 +24,7 @@ import {
   ListChecks,
   Maximize2,
   GripVertical,
-  Paperclip,
+  
   Pin,
   Plus,
   Search,
@@ -1310,6 +1310,84 @@ function ImprovementList({
 }
 
 /* -------------------- Documents section -------------------- */
+function getDocIcon(d: DocEntry): string {
+  const mime = d.fileMime ?? "";
+  const name = (d.fileName ?? "").toLowerCase();
+  if (mime.includes("pdf") || name.endsWith(".pdf")) return "📄";
+  if (mime.includes("word") || name.endsWith(".docx") || name.endsWith(".doc")) return "📝";
+  if (mime.startsWith("image/") || /\.(png|jpe?g|gif|webp|svg)$/.test(name)) return "🖼";
+  if (d.url) return "🔗";
+  return "📄";
+}
+
+function DocCard({
+  doc,
+  onPreview,
+  onDelete,
+  large = false,
+}: {
+  doc: DocEntry;
+  onPreview: () => void;
+  onDelete: () => void;
+  large?: boolean;
+}) {
+  const icon = getDocIcon(doc);
+  const title = doc.name || doc.fileName || "Sin nombre";
+  const canPreview = !!doc.fileDataUrl || !!doc.url;
+  return (
+    <div
+      className={cn(
+        "flex items-center gap-2 rounded-md border border-[#EBEBEB] bg-white transition-shadow hover:shadow-sm",
+        large ? "p-3" : "p-2",
+      )}
+    >
+      <div
+        className={cn(
+          "flex shrink-0 items-center justify-center rounded-md bg-[#F3F4F6]",
+          large ? "h-12 w-12 text-2xl" : "h-9 w-9 text-lg",
+        )}
+      >
+        {icon}
+      </div>
+      <div className="min-w-0 flex-1">
+        <div
+          className={cn(
+            "truncate font-semibold text-[#111827]",
+            large ? "text-sm" : "text-[13px]",
+          )}
+        >
+          {title}
+        </div>
+        <div className="mt-0.5 flex items-center gap-1.5">
+          <span className="inline-flex items-center rounded-full bg-[#EEF2FF] px-2 py-0.5 text-[10px] font-medium text-[#3730A3]">
+            {doc.docType}
+          </span>
+          {doc.fileName && (
+            <span className="truncate text-[10px] text-[#9CA3AF]">{doc.fileName}</span>
+          )}
+        </div>
+      </div>
+      <div className="flex shrink-0 items-center gap-0.5">
+        <button
+          onClick={onPreview}
+          disabled={!canPreview}
+          title="Vista previa"
+          className="flex h-7 w-7 items-center justify-center rounded-md text-[#6B7280] transition-colors hover:bg-[#F3F4F6] hover:text-[#111827] disabled:opacity-30"
+        >
+          <Eye className="h-3.5 w-3.5" />
+        </button>
+        <button
+          onClick={onDelete}
+          title="Eliminar"
+          className="flex h-7 w-7 items-center justify-center rounded-md text-[#6B7280] transition-colors hover:bg-[#FEE2E2] hover:text-[#DC2626]"
+        >
+          <Trash2 className="h-3.5 w-3.5" />
+        </button>
+      </div>
+    </div>
+  );
+}
+
 function DocumentsSection({
   docId,
   pageId,
@@ -1327,21 +1405,72 @@ function DocumentsSection({
   const docs = shape.documents ?? [];
   const disabled = !!shape.noStandardDoc;
   const [previewDoc, setPreviewDoc] = useState<DocEntry | null>(null);
+  const [showAll, setShowAll] = useState(false);
+  const [adding, setAdding] = useState(false);
 
-  const handleFile = (entryId: string, file: File) => {
+  // Inline add form state
+  const [formName, setFormName] = useState("");
+  const [formType, setFormType] = useState<DocType>("Playbook");
+  const [formTab, setFormTab] = useState<"file" | "url">("file");
+  const [formUrl, setFormUrl] = useState("");
+  const [formFile, setFormFile] = useState<{
+    dataUrl: string;
+    mime: string;
+    size: number;
+    name: string;
+  } | null>(null);
+
+  const resetForm = () => {
+    setFormName("");
+    setFormType("Playbook");
+    setFormTab("file");
+    setFormUrl("");
+    setFormFile(null);
+    setAdding(false);
+  };
+
+  const handleFilePick = (file: File) => {
     const reader = new FileReader();
     reader.onload = () => {
-      const dataUrl = reader.result as string;
-      updateShapeDoc(docId, pageId, shape.id, entryId, {
-        fileDataUrl: dataUrl,
-        fileMime: file.type,
-        fileSize: file.size,
-        fileName: file.name,
-        url: "",
+      setFormFile({
+        dataUrl: reader.result as string,
+        mime: file.type,
+        size: file.size,
+        name: file.name,
       });
+      if (!formName) setFormName(file.name.replace(/\.[^.]+$/, ""));
     };
     reader.readAsDataURL(file);
   };
+
+  const handleSave = () => {
+    addShapeDoc(docId, pageId, shape.id);
+    // Find the just-added entry — it's appended at the end. We patch the latest store state.
+    const state = useDiagramStore.getState();
+    const d = state.documents.find((x) => x.id === docId);
+    const p = d?.pages.find((x) => x.id === pageId);
+    const s = p?.shapes.find((x) => x.id === shape.id);
+    const newest = s?.documents?.[s.documents.length - 1];
+    if (newest) {
+      updateShapeDoc(docId, pageId, shape.id, newest.id, {
+        name: formName || formFile?.name || "",
+        docType: formType,
+        url: formTab === "url" ? formUrl : "",
+        fileDataUrl: formTab === "file" ? formFile?.dataUrl : undefined,
+        fileMime: formTab === "file" ? formFile?.mime : undefined,
+        fileSize: formTab === "file" ? formFile?.size : undefined,
+        fileName: formTab === "file" ? formFile?.name : undefined,
+      });
+    }
+    resetForm();
+  };
+
+  const canSave =
+    (formName.trim().length > 0) &&
+    (formTab === "file" ? !!formFile : formUrl.trim().length > 0);
+
+  const visible = docs.slice(0, 3);
+  const hasMore = docs.length > visible.length;
 
   return (
     <div className="space-y-2">
@@ -1356,157 +1485,253 @@ function DocumentsSection({
         <span>Sin documentación estandarizada</span>
       </label>
       <div className={cn("space-y-1.5", disabled && "pointer-events-none opacity-50")}>
-        {docs.length === 0 ? (
+        {docs.length === 0 && !adding ? (
           <div className="rounded-md border border-dashed border-[#E5E7EB] p-2 text-center text-[11px] text-[#9CA3AF]">
             Sin documentos
           </div>
         ) : (
-          <ul className="space-y-1.5">
-            {docs.map((d) => {
-              const hasFile = !!d.fileDataUrl;
-              const isLarge = (d.fileSize ?? 0) > 2 * 1024 * 1024;
-              return (
-                <li
-                  key={d.id}
-                  className="group space-y-1 rounded-md border border-[#EBEBEB] bg-white p-1.5"
-                >
-                  <div className="flex items-center gap-1">
-                    <Input
-                      value={d.name}
-                      onChange={(e) =>
-                        updateShapeDoc(docId, pageId, shape.id, d.id, {
-                          name: e.target.value,
-                        })
-                      }
-                      placeholder="Nombre del documento"
-                      className="h-7 text-xs"
-                    />
-                    <button
-                      onClick={() => deleteShapeDoc(docId, pageId, shape.id, d.id)}
-                      className="opacity-0 transition-opacity group-hover:opacity-100"
-                      title="Eliminar"
-                    >
-                      <Trash2 className="h-3.5 w-3.5 text-[#DC2626]" />
-                    </button>
-                  </div>
-                  <div className="flex gap-1">
-                    <Select
-                      value={d.docType}
-                      onValueChange={(v) =>
-                        updateShapeDoc(docId, pageId, shape.id, d.id, {
-                          docType: v as DocType,
-                        })
-                      }
-                    >
-                      <SelectTrigger className="h-7 w-[100px] text-xs">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {DOC_TYPES.map((t) => (
-                          <SelectItem key={t} value={t}>
-                            {t}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    {hasFile ? (
-                      <div className="flex h-7 flex-1 items-center gap-1 rounded-md border border-[#EBEBEB] bg-[#F9FAFB] px-2 text-[11px] text-[#374151]">
-                        <Paperclip className="h-3 w-3 shrink-0 text-[#5B6CF8]" />
-                        <span className="truncate">{d.fileName}</span>
-                      </div>
-                    ) : (
-                      <Input
-                        value={d.url}
-                        onChange={(e) =>
-                          updateShapeDoc(docId, pageId, shape.id, d.id, {
-                            url: e.target.value,
-                          })
-                        }
-                        placeholder="https://…"
-                        className="h-7 flex-1 text-xs"
-                      />
-                    )}
-                  </div>
-                  <div className="flex items-center gap-1">
-                    {hasFile ? (
-                      <>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          className="h-6 flex-1 text-[11px]"
-                          onClick={() => setPreviewDoc(d)}
-                        >
-                          <Eye className="h-3 w-3" /> Vista previa
-                        </Button>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          className="h-6 text-[11px]"
-                          onClick={() =>
-                            updateShapeDoc(docId, pageId, shape.id, d.id, {
-                              fileDataUrl: undefined,
-                              fileMime: undefined,
-                              fileSize: undefined,
-                              fileName: undefined,
-                            })
-                          }
-                          title="Quitar archivo"
-                        >
-                          <X className="h-3 w-3" />
-                        </Button>
-                      </>
-                    ) : (
-                      <label className="flex h-6 flex-1 cursor-pointer items-center justify-center gap-1 rounded-md border border-dashed border-[#D0D0D0] text-[11px] text-[#6B7280] hover:border-[#5B6CF8] hover:text-[#5B6CF8]">
-                        <Upload className="h-3 w-3" />
-                        Subir archivo
-                        <input
-                          type="file"
-                          accept=".pdf,.png,.jpg,.jpeg,.docx,application/pdf,image/png,image/jpeg,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
-                          className="hidden"
-                          onChange={(e) => {
-                            const f = e.target.files?.[0];
-                            if (f) handleFile(d.id, f);
-                            e.target.value = "";
-                          }}
-                        />
-                      </label>
-                    )}
-                  </div>
-                  {hasFile && isLarge && (
-                    <div className="text-[10px] text-[#F59E0B]">
-                      Archivo grande — puede afectar el rendimiento
-                    </div>
-                  )}
-                </li>
-              );
-            })}
-          </ul>
+          <div className="space-y-1.5">
+            {visible.map((d) => (
+              <DocCard
+                key={d.id}
+                doc={d}
+                onPreview={() => setPreviewDoc(d)}
+                onDelete={() => deleteShapeDoc(docId, pageId, shape.id, d.id)}
+              />
+            ))}
+          </div>
         )}
-        <Button
-          variant="outline"
-          size="sm"
-          className="w-full"
-          onClick={() => addShapeDoc(docId, pageId, shape.id)}
-          disabled={disabled}
-        >
-          <Plus className="h-3.5 w-3.5" /> Agregar documento
-        </Button>
+
+        {!adding && (
+          <Button
+            variant="outline"
+            size="sm"
+            className="w-full"
+            onClick={() => setAdding(true)}
+            disabled={disabled}
+          >
+            <Plus className="h-3.5 w-3.5" /> Agregar documento
+          </Button>
+        )}
+
+        {adding && (
+          <div className="space-y-2 rounded-md border border-[#EBEBEB] bg-[#FAFAFA] p-2">
+            <Input
+              value={formName}
+              onChange={(e) => setFormName(e.target.value)}
+              placeholder="Nombre del documento"
+              className="h-8 text-xs"
+            />
+            <Select value={formType} onValueChange={(v) => setFormType(v as DocType)}>
+              <SelectTrigger className="h-8 text-xs">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {DOC_TYPES.map((t) => (
+                  <SelectItem key={t} value={t}>
+                    {t}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <div className="flex gap-1 rounded-md bg-white p-0.5">
+              <button
+                onClick={() => setFormTab("file")}
+                className={cn(
+                  "flex-1 rounded px-2 py-1 text-[11px] font-medium transition-colors",
+                  formTab === "file"
+                    ? "bg-[#5B6CF8] text-white"
+                    : "text-[#6B7280] hover:bg-[#F3F4F6]",
+                )}
+              >
+                📎 Subir archivo
+              </button>
+              <button
+                onClick={() => setFormTab("url")}
+                className={cn(
+                  "flex-1 rounded px-2 py-1 text-[11px] font-medium transition-colors",
+                  formTab === "url"
+                    ? "bg-[#5B6CF8] text-white"
+                    : "text-[#6B7280] hover:bg-[#F3F4F6]",
+                )}
+              >
+                🔗 Pegar URL
+              </button>
+            </div>
+            {formTab === "file" ? (
+              <label className="flex h-9 cursor-pointer items-center justify-center gap-1.5 rounded-md border border-dashed border-[#D0D0D0] text-[11px] text-[#6B7280] hover:border-[#5B6CF8] hover:text-[#5B6CF8]">
+                <Upload className="h-3.5 w-3.5" />
+                {formFile ? formFile.name : "Seleccionar archivo…"}
+                <input
+                  type="file"
+                  accept=".pdf,.png,.jpg,.jpeg,.docx,application/pdf,image/png,image/jpeg,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+                  className="hidden"
+                  onChange={(e) => {
+                    const f = e.target.files?.[0];
+                    if (f) handleFilePick(f);
+                    e.target.value = "";
+                  }}
+                />
+              </label>
+            ) : (
+              <Input
+                value={formUrl}
+                onChange={(e) => setFormUrl(e.target.value)}
+                placeholder="https://…"
+                className="h-8 text-xs"
+              />
+            )}
+            {formFile && formFile.size > 2 * 1024 * 1024 && (
+              <div className="text-[10px] text-[#F59E0B]">
+                Archivo grande — puede afectar el rendimiento
+              </div>
+            )}
+            <div className="flex items-center justify-end gap-2 pt-1">
+              <button
+                onClick={resetForm}
+                className="text-[11px] text-[#6B7280] hover:text-[#111827] hover:underline"
+              >
+                Cancelar
+              </button>
+              <Button size="sm" className="h-7 text-[11px]" onClick={handleSave} disabled={!canSave}>
+                Guardar
+              </Button>
+            </div>
+          </div>
+        )}
+
+        {hasMore && !adding && (
+          <button
+            onClick={() => setShowAll(true)}
+            className="w-full text-right text-[11px] font-medium text-[#5B6CF8] hover:underline"
+          >
+            Ver todos ({docs.length}) →
+          </button>
+        )}
+        {docs.length >= 2 && !hasMore && !adding && (
+          <button
+            onClick={() => setShowAll(true)}
+            className="w-full text-right text-[11px] font-medium text-[#5B6CF8] hover:underline"
+          >
+            Ver todos →
+          </button>
+        )}
       </div>
+
       {previewDoc && (
         <DocPreviewModal doc={previewDoc} onClose={() => setPreviewDoc(null)} />
       )}
+      {showAll && (
+        <AllDocsModal
+          docs={docs}
+          onClose={() => setShowAll(false)}
+          onPreview={(d) => setPreviewDoc(d)}
+          onDelete={(d) => deleteShapeDoc(docId, pageId, shape.id, d.id)}
+          shapeTitle={shape.title || shape.text || "Documentos"}
+        />
+      )}
+    </div>
+  );
+}
+
+function AllDocsModal({
+  docs,
+  onClose,
+  onPreview,
+  onDelete,
+  shapeTitle,
+}: {
+  docs: DocEntry[];
+  onClose: () => void;
+  onPreview: (d: DocEntry) => void;
+  onDelete: (d: DocEntry) => void;
+  shapeTitle: string;
+}) {
+  return (
+    <div
+      className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 p-4"
+      onClick={onClose}
+    >
+      <div
+        className="flex max-h-[90vh] w-full max-w-[720px] flex-col overflow-hidden rounded-lg bg-white shadow-2xl"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="flex items-center justify-between border-b border-[#EBEBEB] px-4 py-3">
+          <div className="min-w-0 flex-1">
+            <div className="truncate text-sm font-semibold text-[#111827]">
+              Documentos · {shapeTitle}
+            </div>
+            <div className="text-[11px] text-[#6B7280]">{docs.length} elemento(s)</div>
+          </div>
+          <button
+            onClick={onClose}
+            className="flex h-8 w-8 items-center justify-center rounded-md text-[#6B7280] hover:bg-[#F3F4F6] hover:text-[#111827]"
+          >
+            <X className="h-4 w-4" />
+          </button>
+        </div>
+        <div className="flex-1 overflow-auto bg-[#F9FAFB] p-4">
+          <div className="space-y-2">
+            {docs.map((d) => (
+              <DocCard
+                key={d.id}
+                doc={d}
+                large
+                onPreview={() => onPreview(d)}
+                onDelete={() => onDelete(d)}
+              />
+            ))}
+          </div>
+        </div>
+      </div>
     </div>
   );
 }
 
 function DocPreviewModal({ doc, onClose }: { doc: DocEntry; onClose: () => void }) {
   const mime = doc.fileMime ?? "";
-  const isPdf = mime.includes("pdf");
+  const isPdf = mime.includes("pdf") || (doc.fileName ?? "").toLowerCase().endsWith(".pdf");
   const isImage = mime.startsWith("image/");
   const isDocx = mime.includes("word") || (doc.fileName ?? "").toLowerCase().endsWith(".docx");
+  const isLink = !doc.fileDataUrl && !!doc.url;
+
+  const [pdfBlobUrl, setPdfBlobUrl] = useState<string | null>(null);
+  const [pdfFailed, setPdfFailed] = useState(false);
+  const [pdfLoaded, setPdfLoaded] = useState(false);
+
+  // Convert base64 PDF → Blob URL (iframes don't reliably accept huge data: URIs).
+  useEffect(() => {
+    if (!isPdf || !doc.fileDataUrl) return;
+    try {
+      const comma = doc.fileDataUrl.indexOf(",");
+      const b64 = comma >= 0 ? doc.fileDataUrl.slice(comma + 1) : doc.fileDataUrl;
+      const bin = atob(b64);
+      const bytes = new Uint8Array(bin.length);
+      for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+      const blob = new Blob([bytes], { type: "application/pdf" });
+      const url = URL.createObjectURL(blob);
+      setPdfBlobUrl(url);
+      return () => URL.revokeObjectURL(url);
+    } catch {
+      setPdfFailed(true);
+    }
+  }, [isPdf, doc.fileDataUrl]);
+
+  // Fallback timeout: if iframe doesn't load within 2s, show fallback.
+  useEffect(() => {
+    if (!isPdf || !pdfBlobUrl) return;
+    const t = window.setTimeout(() => {
+      if (!pdfLoaded) setPdfFailed(true);
+    }, 2000);
+    return () => clearTimeout(t);
+  }, [isPdf, pdfBlobUrl, pdfLoaded]);
+
+  const downloadHref = doc.fileDataUrl ?? doc.url;
+  const downloadName = doc.fileName || doc.name || "documento";
+
   return (
     <div
-      className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 p-4"
+      className="fixed inset-0 z-[110] flex items-center justify-center bg-black/60 p-4"
       onClick={onClose}
     >
       <div
@@ -1530,12 +1755,44 @@ function DocPreviewModal({ doc, onClose }: { doc: DocEntry; onClose: () => void 
           </button>
         </div>
         <div className="flex-1 overflow-auto bg-[#F9FAFB]">
-          {isPdf && doc.fileDataUrl && (
-            <iframe
-              src={doc.fileDataUrl}
-              title={doc.name}
-              className="h-[75vh] w-full border-0"
-            />
+          {isPdf && (
+            <div className="flex flex-col">
+              {pdfBlobUrl && !pdfFailed && (
+                <iframe
+                  src={pdfBlobUrl}
+                  title={doc.name}
+                  onLoad={() => setPdfLoaded(true)}
+                  style={{ width: "100%", height: 500 }}
+                  className="border-0"
+                />
+              )}
+              {pdfFailed && (
+                <div className="flex flex-col items-center justify-center gap-3 p-8 text-center">
+                  <FileText className="h-10 w-10 text-[#6B7280]" />
+                  <div className="text-sm text-[#374151]">No se puede previsualizar</div>
+                  {downloadHref && (
+                    <a
+                      href={downloadHref}
+                      download={downloadName}
+                      className="inline-flex items-center gap-1.5 rounded-md bg-[#5B6CF8] px-3 py-1.5 text-xs font-medium text-white hover:bg-[#4854d1]"
+                    >
+                      <Download className="h-3.5 w-3.5" /> Descargar PDF
+                    </a>
+                  )}
+                </div>
+              )}
+              {downloadHref && !pdfFailed && (
+                <div className="flex justify-end border-t border-[#EBEBEB] bg-white px-4 py-2">
+                  <a
+                    href={downloadHref}
+                    download={downloadName}
+                    className="inline-flex items-center gap-1.5 rounded-md border border-[#EBEBEB] px-2.5 py-1 text-[11px] font-medium text-[#374151] hover:bg-[#F3F4F6]"
+                  >
+                    <Download className="h-3 w-3" /> Descargar PDF
+                  </a>
+                </div>
+              )}
+            </div>
           )}
           {isImage && doc.fileDataUrl && (
             <img
@@ -1561,7 +1818,21 @@ function DocPreviewModal({ doc, onClose }: { doc: DocEntry; onClose: () => void 
               )}
             </div>
           )}
-          {!isPdf && !isImage && !isDocx && (
+          {isLink && (
+            <div className="flex flex-col items-center justify-center gap-3 p-12 text-center">
+              <div className="text-3xl">🔗</div>
+              <div className="break-all text-sm text-[#374151]">{doc.url}</div>
+              <a
+                href={doc.url}
+                target="_blank"
+                rel="noreferrer"
+                className="inline-flex items-center gap-1.5 rounded-md bg-[#5B6CF8] px-3 py-1.5 text-xs font-medium text-white hover:bg-[#4854d1]"
+              >
+                Abrir enlace ↗
+              </a>
+            </div>
+          )}
+          {!isPdf && !isImage && !isDocx && !isLink && (
             <div className="p-12 text-center text-sm text-[#6B7280]">
               Vista previa no disponible
             </div>
@@ -2199,26 +2470,29 @@ function ShapeNode({
     if (!rect) return;
     const POP_W = 320;
     const POP_H = 420;
-    const margin = 12;
-    let left = rect.right + margin;
-    let top = rect.top;
-    if (left + POP_W > window.innerWidth - 8) {
-      left = rect.left - POP_W - margin;
-    }
-    if (left < 8) left = 8;
-    if (top + POP_H > window.innerHeight - 8) {
-      top = Math.max(8, window.innerHeight - POP_H - 8);
-    }
+    const MARGIN = 40;
+    // Choose horizontal/vertical side with the most available empty space.
+    const spaceLeft = rect.left;
+    const spaceRight = window.innerWidth - rect.right;
+    const spaceTop = rect.top;
+    const spaceBottom = window.innerHeight - rect.bottom;
+    const placeRight = spaceRight >= spaceLeft;
+    const placeBottom = spaceBottom >= spaceTop;
+    let left = placeRight ? rect.right + MARGIN : rect.left - POP_W - MARGIN;
+    let top = placeBottom ? rect.bottom + MARGIN : rect.top - POP_H - MARGIN;
+    // Clamp to viewport with 8px padding.
+    left = Math.max(8, Math.min(left, window.innerWidth - POP_W - 8));
+    top = Math.max(8, Math.min(top, window.innerHeight - POP_H - 8));
     setPopupPos({ left, top });
   }, []);
 
-  // Pinned popup is always shown.
+  // Pinned popup is always shown. Don't auto-reposition if user has dragged.
   useEffect(() => {
     if (pinned) {
-      computePos();
+      if (!dragPos) computePos();
       setShowPopup(true);
     }
-  }, [pinned, computePos]);
+  }, [pinned, computePos, dragPos]);
 
   // Hover-show with 500ms delay, hover-hide with grace timer.
   useEffect(() => {
