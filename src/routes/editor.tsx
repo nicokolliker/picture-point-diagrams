@@ -3448,7 +3448,6 @@ function CanvasArea({
               setQuickGhost(edge ? { shapeId: s.id, edge } : null);
             }}
 
-            }}
             onStartConnector={(e) => {
               e.stopPropagation();
               const w = screenToWorld(e.clientX, e.clientY);
