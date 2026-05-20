@@ -1,6 +1,18 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
-import type { ChangeEntry, Connector, DiagramDocument, Page, Shape, ShapeType, Status } from "./shape-types";
+import type {
+  ChangeEntry,
+  Connector,
+  DiagramDocument,
+  DocEntry,
+  DocType,
+  ImprovementCategory,
+  ImprovementEntry,
+  Page,
+  Shape,
+  ShapeType,
+  Status,
+} from "./shape-types";
 import { createDemoDocument } from "./preloaded-demo";
 
 interface State {
@@ -26,6 +38,12 @@ interface State {
   removeUpload: (dataUrl: string) => void;
   addChange: (docId: string, pageId: string, shapeId: string, text: string) => void;
   deleteChange: (docId: string, pageId: string, shapeId: string, changeId: string) => void;
+  addImprovement: (docId: string, pageId: string, shapeId: string, text: string, categories?: ImprovementCategory[]) => void;
+  updateImprovement: (docId: string, pageId: string, shapeId: string, entryId: string, patch: Partial<ImprovementEntry>) => void;
+  deleteImprovement: (docId: string, pageId: string, shapeId: string, entryId: string) => void;
+  addShapeDoc: (docId: string, pageId: string, shapeId: string) => void;
+  updateShapeDoc: (docId: string, pageId: string, shapeId: string, entryId: string, patch: Partial<DocEntry>) => void;
+  deleteShapeDoc: (docId: string, pageId: string, shapeId: string, entryId: string) => void;
 }
 
 function mutDoc(
@@ -205,6 +223,103 @@ export const useDiagramStore = create<State>()(
             );
           }),
         }),
+      addImprovement: (docId, pageId, shapeId, text, categories = []) =>
+        set({
+          documents: mutPage(get().documents, docId, pageId, (p) => {
+            p.shapes = p.shapes.map((s) =>
+              s.id === shapeId
+                ? {
+                    ...s,
+                    improvementEntries: [
+                      ...(s.improvementEntries ?? []),
+                      {
+                        id: `im${Date.now()}${Math.floor(Math.random() * 1000)}`,
+                        text,
+                        categories,
+                        date: Date.now(),
+                      } as ImprovementEntry,
+                    ],
+                  }
+                : s,
+            );
+          }),
+        }),
+      updateImprovement: (docId, pageId, shapeId, entryId, patch) =>
+        set({
+          documents: mutPage(get().documents, docId, pageId, (p) => {
+            p.shapes = p.shapes.map((s) =>
+              s.id === shapeId
+                ? {
+                    ...s,
+                    improvementEntries: (s.improvementEntries ?? []).map((e) =>
+                      e.id === entryId ? { ...e, ...patch } : e,
+                    ),
+                  }
+                : s,
+            );
+          }),
+        }),
+      deleteImprovement: (docId, pageId, shapeId, entryId) =>
+        set({
+          documents: mutPage(get().documents, docId, pageId, (p) => {
+            p.shapes = p.shapes.map((s) =>
+              s.id === shapeId
+                ? {
+                    ...s,
+                    improvementEntries: (s.improvementEntries ?? []).filter(
+                      (e) => e.id !== entryId,
+                    ),
+                  }
+                : s,
+            );
+          }),
+        }),
+      addShapeDoc: (docId, pageId, shapeId) =>
+        set({
+          documents: mutPage(get().documents, docId, pageId, (p) => {
+            p.shapes = p.shapes.map((s) =>
+              s.id === shapeId
+                ? {
+                    ...s,
+                    documents: [
+                      ...(s.documents ?? []),
+                      {
+                        id: `doc${Date.now()}${Math.floor(Math.random() * 1000)}`,
+                        name: "",
+                        docType: "Playbook" as DocType,
+                        url: "",
+                      } as DocEntry,
+                    ],
+                  }
+                : s,
+            );
+          }),
+        }),
+      updateShapeDoc: (docId, pageId, shapeId, entryId, patch) =>
+        set({
+          documents: mutPage(get().documents, docId, pageId, (p) => {
+            p.shapes = p.shapes.map((s) =>
+              s.id === shapeId
+                ? {
+                    ...s,
+                    documents: (s.documents ?? []).map((d) =>
+                      d.id === entryId ? { ...d, ...patch } : d,
+                    ),
+                  }
+                : s,
+            );
+          }),
+        }),
+      deleteShapeDoc: (docId, pageId, shapeId, entryId) =>
+        set({
+          documents: mutPage(get().documents, docId, pageId, (p) => {
+            p.shapes = p.shapes.map((s) =>
+              s.id === shapeId
+                ? { ...s, documents: (s.documents ?? []).filter((d) => d.id !== entryId) }
+                : s,
+            );
+          }),
+        }),
     }),
     { name: "flowit-store" },
   ),
@@ -235,6 +350,10 @@ export function makeDefaultShape(type: ShapeType, x: number, y: number): Shape {
     description: "",
     responsable: "",
     status: "ninguno" as Status,
+    diagnostico: "sin_definir",
+    improvementEntries: [],
+    documents: [],
+    noStandardDoc: false,
     fontFamily: "Inter",
     fontSize: 14,
     bold: false,

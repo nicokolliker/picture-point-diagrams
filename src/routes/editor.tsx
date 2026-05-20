@@ -13,6 +13,8 @@ import {
   ArrowLeft,
   Bold,
   Camera,
+  FileText,
+  FileWarning,
   Image as ImageIcon,
   Italic,
   Layers,
@@ -52,8 +54,21 @@ import {
 } from "@/components/ui/select";
 import { useDiagramStore, makeDefaultShape } from "@/lib/diagram-store";
 import { edgePoint, GRID, shapeCenter, snap } from "@/lib/geometry";
-import type { Connector, Shape, ShapeType, Status } from "@/lib/shape-types";
-import { STATUS_COLORS } from "@/lib/shape-types";
+import type {
+  Connector,
+  Diagnostico,
+  DocType,
+  ImprovementCategory,
+  Prioridad,
+  Shape,
+  ShapeType,
+} from "@/lib/shape-types";
+import {
+  CATEGORY_META,
+  DIAGNOSTICO_META,
+  DOC_TYPES,
+  PRIORIDAD_META,
+} from "@/lib/shape-types";
 import { cn } from "@/lib/utils";
 
 interface EditorSearch {
@@ -965,18 +980,22 @@ function RightPanel({
           />
         </div>
         <div className="space-y-2">
-          <Label className="text-xs text-[#6B7280]">Estado</Label>
-          <StatusSelector value={shape.status} onChange={(v) => onChange({ status: v })} />
-        </div>
-        <div className="space-y-1.5">
-          <Label className="text-xs text-[#6B7280]">Oportunidades de mejora</Label>
-          <Textarea
-            value={shape.improvements ?? ""}
-            onChange={(e) => onChange({ improvements: e.target.value })}
-            placeholder="Ideas para mejorar esta etapa"
-            rows={3}
-            className="resize-none text-sm"
+          <Label className="text-xs text-[#6B7280]">Diagnóstico</Label>
+          <DiagnosticoSelector
+            value={shape.diagnostico ?? "sin_definir"}
+            onChange={(v) => onChange({ diagnostico: v })}
           />
+        </div>
+        <div className="space-y-2">
+          <Label className="text-xs text-[#6B7280]">Prioridad de intervención</Label>
+          <PrioridadSelector
+            value={shape.prioridad}
+            onChange={(v) => onChange({ prioridad: v })}
+          />
+        </div>
+        <div className="space-y-2">
+          <Label className="text-xs text-[#6B7280]">Oportunidades de mejora</Label>
+          <ImprovementList docId={docId} pageId={pageId} shape={shape} />
         </div>
         <div className="space-y-1.5">
           <Label className="text-xs text-[#6B7280]">Responsable</Label>
@@ -991,6 +1010,12 @@ function RightPanel({
           <Label className="text-xs text-[#6B7280]">Cambios sugeridos</Label>
           <ChangesList docId={docId} pageId={pageId} shape={shape} />
         </div>
+
+        <div className="space-y-2">
+          <Label className="text-xs text-[#6B7280]">Documentos</Label>
+          <DocumentsSection docId={docId} pageId={pageId} shape={shape} onChange={onChange} />
+        </div>
+
 
         <div className="space-y-2">
           <Label className="text-xs text-[#6B7280]">Image</Label>
@@ -1065,36 +1090,33 @@ function RightPanel({
   );
 }
 
-/* -------------------- Status selector pill -------------------- */
-function StatusSelector({
+
+/* -------------------- Diagnóstico selector -------------------- */
+function DiagnosticoSelector({
   value,
   onChange,
 }: {
-  value: Status;
-  onChange: (v: Status) => void;
+  value: Diagnostico;
+  onChange: (v: Diagnostico) => void;
 }) {
-  const order: Status[] = ["funciona", "riesgo", "roto", "ninguno"];
+  const order: Diagnostico[] = ["funciona", "inconsistente", "roto", "sin_definir"];
   return (
     <div className="flex flex-wrap gap-1.5">
       {order.map((s) => {
+        const meta = DIAGNOSTICO_META[s];
         const active = value === s;
         return (
           <button
             key={s}
             onClick={() => onChange(s)}
             className={cn(
-              "flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-medium transition-all",
-              active
-                ? "text-white shadow-sm"
-                : "bg-[#F3F4F6] text-[#4B5563] hover:bg-[#E5E7EB]",
+              "flex items-center gap-1 rounded-full px-2.5 py-1 text-[11px] font-medium transition-all",
+              active ? "text-white shadow-sm" : "bg-[#F3F4F6] text-[#4B5563] hover:bg-[#E5E7EB]",
             )}
-            style={active ? { background: STATUS_COLORS[s].bg } : undefined}
+            style={active ? { background: meta.bg } : undefined}
           >
-            <span
-              className="h-1.5 w-1.5 rounded-full"
-              style={{ background: active ? "#ffffff" : STATUS_COLORS[s].bg }}
-            />
-            {STATUS_COLORS[s].label}
+            <span>{meta.dot}</span>
+            {meta.label}
           </button>
         );
       })}
@@ -1102,7 +1124,293 @@ function StatusSelector({
   );
 }
 
-/* -------------------- Changes list -------------------- */
+/* -------------------- Prioridad selector -------------------- */
+function PrioridadSelector({
+  value,
+  onChange,
+}: {
+  value: Prioridad | undefined;
+  onChange: (v: Prioridad) => void;
+}) {
+  const order: Prioridad[] = ["urgente", "proximo_sprint", "backlog", "ok"];
+  return (
+    <div className="flex flex-wrap gap-1.5">
+      {order.map((s) => {
+        const meta = PRIORIDAD_META[s];
+        const active = value === s;
+        return (
+          <button
+            key={s}
+            onClick={() => onChange(s)}
+            className={cn(
+              "flex items-center gap-1 rounded-full px-2.5 py-1 text-[11px] font-medium transition-all",
+              active ? "text-white shadow-sm" : "bg-[#F3F4F6] text-[#4B5563] hover:bg-[#E5E7EB]",
+            )}
+            style={active ? { background: meta.bg } : undefined}
+          >
+            <span>{meta.dot}</span>
+            {meta.label}
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
+/* -------------------- Improvement list (multi-category) -------------------- */
+function CategoryToggle({
+  cat,
+  active,
+  onClick,
+}: {
+  cat: ImprovementCategory;
+  active: boolean;
+  onClick: () => void;
+}) {
+  const meta = CATEGORY_META[cat];
+  return (
+    <button
+      onClick={(e) => {
+        e.stopPropagation();
+        onClick();
+      }}
+      className={cn(
+        "inline-flex items-center gap-1 rounded-full border px-1.5 py-0.5 text-[10px] font-medium transition-all",
+        active ? "border-transparent" : "border-[#E5E7EB] bg-white text-[#9CA3AF] hover:border-[#D1D5DB]",
+      )}
+      style={active ? { background: meta.bg, color: meta.fg } : undefined}
+      title={meta.label}
+    >
+      <span>{meta.icon}</span>
+      {meta.label}
+    </button>
+  );
+}
+
+const ALL_CATEGORIES: ImprovementCategory[] = [
+  "proceso",
+  "personas",
+  "herramienta",
+  "documentacion",
+  "probar",
+];
+
+function ImprovementList({
+  docId,
+  pageId,
+  shape,
+}: {
+  docId: string;
+  pageId: string;
+  shape: Shape;
+}) {
+  const [text, setText] = useState("");
+  const [draftCats, setDraftCats] = useState<ImprovementCategory[]>([]);
+  const addImprovement = useDiagramStore((s) => s.addImprovement);
+  const updateImprovement = useDiagramStore((s) => s.updateImprovement);
+  const deleteImprovement = useDiagramStore((s) => s.deleteImprovement);
+  const entries = shape.improvementEntries ?? [];
+
+  const toggleDraft = (c: ImprovementCategory) =>
+    setDraftCats((prev) =>
+      prev.includes(c) ? prev.filter((x) => x !== c) : [...prev, c],
+    );
+
+  const submit = () => {
+    const v = text.trim();
+    if (!v) return;
+    addImprovement(docId, pageId, shape.id, v, draftCats);
+    setText("");
+    setDraftCats([]);
+  };
+
+  return (
+    <div className="space-y-2">
+      <div className="space-y-1.5 rounded-md border border-[#EBEBEB] bg-[#FAFAFA] p-2">
+        <div className="flex gap-1">
+          <Input
+            value={text}
+            onChange={(e) => setText(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") {
+                e.preventDefault();
+                submit();
+              }
+            }}
+            placeholder="Nueva oportunidad…"
+            className="h-8 text-xs"
+          />
+          <Button size="sm" onClick={submit} disabled={!text.trim()}>
+            <Plus className="h-3.5 w-3.5" />
+          </Button>
+        </div>
+        <div className="flex flex-wrap gap-1">
+          {ALL_CATEGORIES.map((c) => (
+            <CategoryToggle
+              key={c}
+              cat={c}
+              active={draftCats.includes(c)}
+              onClick={() => toggleDraft(c)}
+            />
+          ))}
+        </div>
+      </div>
+      {entries.length === 0 ? (
+        <div className="rounded-md border border-dashed border-[#E5E7EB] p-2 text-center text-[11px] text-[#9CA3AF]">
+          Sin oportunidades
+        </div>
+      ) : (
+        <ul className="space-y-1.5">
+          {entries
+            .slice()
+            .sort((a, b) => b.date - a.date)
+            .map((e) => (
+              <li
+                key={e.id}
+                className="flowit-entry group space-y-1 rounded-md border border-[#EBEBEB] bg-white px-2 py-1.5"
+              >
+                <div className="flex items-start gap-2">
+                  <div className="min-w-0 flex-1 break-words text-[12px] leading-snug text-[#111827]">
+                    {e.text}
+                  </div>
+                  <button
+                    onClick={() => deleteImprovement(docId, pageId, shape.id, e.id)}
+                    className="opacity-0 transition-opacity group-hover:opacity-100"
+                    title="Eliminar"
+                  >
+                    <Trash2 className="h-3.5 w-3.5 text-[#DC2626]" />
+                  </button>
+                </div>
+                <div className="flex flex-wrap gap-1">
+                  {ALL_CATEGORIES.map((c) => (
+                    <CategoryToggle
+                      key={c}
+                      cat={c}
+                      active={e.categories.includes(c)}
+                      onClick={() => {
+                        const next = e.categories.includes(c)
+                          ? e.categories.filter((x) => x !== c)
+                          : [...e.categories, c];
+                        updateImprovement(docId, pageId, shape.id, e.id, {
+                          categories: next,
+                        });
+                      }}
+                    />
+                  ))}
+                </div>
+                <div className="text-[10px] text-[#9CA3AF]">{formatDate(e.date)}</div>
+              </li>
+            ))}
+        </ul>
+      )}
+    </div>
+  );
+}
+
+/* -------------------- Documents section -------------------- */
+function DocumentsSection({
+  docId,
+  pageId,
+  shape,
+  onChange,
+}: {
+  docId: string;
+  pageId: string;
+  shape: Shape;
+  onChange: (patch: Partial<Shape>) => void;
+}) {
+  const addShapeDoc = useDiagramStore((s) => s.addShapeDoc);
+  const updateShapeDoc = useDiagramStore((s) => s.updateShapeDoc);
+  const deleteShapeDoc = useDiagramStore((s) => s.deleteShapeDoc);
+  const docs = shape.documents ?? [];
+  const disabled = !!shape.noStandardDoc;
+
+  return (
+    <div className="space-y-2">
+      <label className="flex cursor-pointer items-center gap-2 rounded-md border border-[#EBEBEB] bg-[#FAFAFA] px-2 py-1.5 text-[12px] text-[#374151]">
+        <input
+          type="checkbox"
+          checked={disabled}
+          onChange={(e) => onChange({ noStandardDoc: e.target.checked })}
+          className="h-3.5 w-3.5"
+        />
+        <FileWarning className="h-3.5 w-3.5 text-[#F59E0B]" />
+        <span>Sin documentación estandarizada</span>
+      </label>
+      <div className={cn("space-y-1.5", disabled && "pointer-events-none opacity-50")}>
+        {docs.length === 0 ? (
+          <div className="rounded-md border border-dashed border-[#E5E7EB] p-2 text-center text-[11px] text-[#9CA3AF]">
+            Sin documentos
+          </div>
+        ) : (
+          <ul className="space-y-1.5">
+            {docs.map((d) => (
+              <li
+                key={d.id}
+                className="group space-y-1 rounded-md border border-[#EBEBEB] bg-white p-1.5"
+              >
+                <div className="flex items-center gap-1">
+                  <Input
+                    value={d.name}
+                    onChange={(e) =>
+                      updateShapeDoc(docId, pageId, shape.id, d.id, { name: e.target.value })
+                    }
+                    placeholder="Nombre del documento"
+                    className="h-7 text-xs"
+                  />
+                  <button
+                    onClick={() => deleteShapeDoc(docId, pageId, shape.id, d.id)}
+                    className="opacity-0 transition-opacity group-hover:opacity-100"
+                    title="Eliminar"
+                  >
+                    <Trash2 className="h-3.5 w-3.5 text-[#DC2626]" />
+                  </button>
+                </div>
+                <div className="flex gap-1">
+                  <Select
+                    value={d.docType}
+                    onValueChange={(v) =>
+                      updateShapeDoc(docId, pageId, shape.id, d.id, { docType: v as DocType })
+                    }
+                  >
+                    <SelectTrigger className="h-7 w-[100px] text-xs">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {DOC_TYPES.map((t) => (
+                        <SelectItem key={t} value={t}>
+                          {t}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <Input
+                    value={d.url}
+                    onChange={(e) =>
+                      updateShapeDoc(docId, pageId, shape.id, d.id, { url: e.target.value })
+                    }
+                    placeholder="https://…"
+                    className="h-7 flex-1 text-xs"
+                  />
+                </div>
+              </li>
+            ))}
+          </ul>
+        )}
+        <Button
+          variant="outline"
+          size="sm"
+          className="w-full"
+          onClick={() => addShapeDoc(docId, pageId, shape.id)}
+          disabled={disabled}
+        >
+          <Plus className="h-3.5 w-3.5" /> Agregar documento
+        </Button>
+      </div>
+    </div>
+  );
+}
+
 function ChangesList({
   docId,
   pageId,
@@ -1202,37 +1510,78 @@ function SummaryPanel({
           Todas las mejoras propuestas en el proceso
         </p>
       </div>
-      <div className="flex-1 overflow-y-auto p-3">
-        {entries.length === 0 ? (
-          <div className="rounded-md border border-dashed border-[#E5E7EB] p-6 text-center text-xs text-[#9CA3AF]">
-            Aún no hay cambios sugeridos. Añade uno desde cualquier forma.
+      <div className="flex-1 space-y-4 overflow-y-auto p-3">
+        <div>
+          <div className="mb-1.5 text-[11px] font-semibold uppercase tracking-wide text-[#6B7280]">
+            Cambios sugeridos
           </div>
-        ) : (
-          <ul className="space-y-2">
-            {entries.map(({ shape, change }) => (
-              <li
-                key={change.id}
-                className="rounded-md border border-[#EBEBEB] bg-white p-2.5 hover:border-[#5B6CF8]"
-              >
-                <button
-                  onClick={() => onJumpToShape(shape.id)}
-                  className="mb-1.5 inline-flex max-w-full items-center gap-1 rounded-full bg-[#EEF0FF] px-2 py-0.5 text-[10px] font-medium text-[#5B6CF8] hover:bg-[#DDE2FF]"
+          {entries.length === 0 ? (
+            <div className="rounded-md border border-dashed border-[#E5E7EB] p-4 text-center text-xs text-[#9CA3AF]">
+              Aún no hay cambios sugeridos.
+            </div>
+          ) : (
+            <ul className="space-y-2">
+              {entries.map(({ shape, change }) => (
+                <li
+                  key={change.id}
+                  className="rounded-md border border-[#EBEBEB] bg-white p-2.5 hover:border-[#5B6CF8]"
                 >
-                  <span
-                    className="h-1.5 w-1.5 shrink-0 rounded-full"
-                    style={{ background: STATUS_COLORS[shape.status].bg }}
-                  />
-                  <span className="truncate">{shape.title || shape.text}</span>
-                </button>
-                <div className="break-words text-[12px] leading-snug text-[#111827]">
-                  {change.text}
+                  <button
+                    onClick={() => onJumpToShape(shape.id)}
+                    className="mb-1.5 inline-flex max-w-full items-center gap-1 rounded-full bg-[#EEF0FF] px-2 py-0.5 text-[10px] font-medium text-[#5B6CF8] hover:bg-[#DDE2FF]"
+                  >
+                    <span
+                      className="h-1.5 w-1.5 shrink-0 rounded-full"
+                      style={{
+                        background:
+                          DIAGNOSTICO_META[shape.diagnostico ?? "sin_definir"].bg,
+                      }}
+                    />
+                    <span className="truncate">{shape.title || shape.text}</span>
+                  </button>
+                  <div className="break-words text-[12px] leading-snug text-[#111827]">
+                    {change.text}
+                  </div>
+                  <div className="mt-1 text-[10px] text-[#9CA3AF]">{formatDate(change.date)}</div>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+
+        <div>
+          <div className="mb-1.5 flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wide text-[#6B7280]">
+            <FileWarning className="h-3.5 w-3.5 text-[#F59E0B]" />
+            Documentación faltante
+          </div>
+          {(() => {
+            const missing = page.shapes.filter((s) => s.noStandardDoc);
+            if (missing.length === 0) {
+              return (
+                <div className="rounded-md border border-dashed border-[#E5E7EB] p-3 text-center text-xs text-[#9CA3AF]">
+                  Todas las etapas tienen documentación.
                 </div>
-                <div className="mt-1 text-[10px] text-[#9CA3AF]">{formatDate(change.date)}</div>
-              </li>
-            ))}
-          </ul>
-        )}
+              );
+            }
+            return (
+              <ul className="space-y-1">
+                {missing.map((s) => (
+                  <li key={s.id}>
+                    <button
+                      onClick={() => onJumpToShape(s.id)}
+                      className="flex w-full items-center gap-2 rounded-md border border-[#EBEBEB] bg-white px-2 py-1.5 text-left text-[12px] hover:border-[#F59E0B] hover:bg-[#FFFBEB]"
+                    >
+                      <FileWarning className="h-3.5 w-3.5 shrink-0 text-[#F59E0B]" />
+                      <span className="truncate">{s.title || s.text || "Sin título"}</span>
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            );
+          })()}
+        </div>
       </div>
+
     </div>
   );
 }
@@ -1789,11 +2138,6 @@ function ShapeNode({
     };
   }, [hovered, popupHovered, pinned, showPopup, computePos]);
 
-  const updateThis = useCallback(
-    (patch: Partial<Shape>) =>
-      useDiagramStore.getState().updateShape(docId, pageId, shape.id, patch),
-    [docId, pageId, shape.id],
-  );
 
 
   const style: CSSProperties = {
@@ -1847,7 +2191,10 @@ function ShapeNode({
     style.background = "transparent";
   }
 
-  const status = STATUS_COLORS[shape.status];
+  const diag = shape.diagnostico && shape.diagnostico !== "sin_definir" ? DIAGNOSTICO_META[shape.diagnostico] : null;
+  const prio = shape.prioridad ? PRIORIDAD_META[shape.prioridad] : null;
+  const hasDocs = (shape.documents ?? []).length > 0;
+  const missingDocs = !!shape.noStandardDoc;
 
   return (
     <>
@@ -1883,22 +2230,55 @@ function ShapeNode({
               </span>
             )}
 
-            {/* Status pill bottom-left */}
-            {shape.status !== "ninguno" && shape.type !== "text" && (
-              <div
-                className="pointer-events-none absolute bottom-1.5 left-1.5 rounded-full px-2 py-0.5 text-[10px] font-medium text-white"
-                style={{ background: status.bg }}
-              >
-                {status.label}
+            {/* Status pills bottom-left (diagnostico + prioridad) */}
+            {shape.type !== "text" && (diag || prio) && (
+              <div className="pointer-events-none absolute bottom-1.5 left-1.5 flex flex-col gap-0.5">
+                {diag && (
+                  <div
+                    className="rounded-full px-2 py-0.5 text-[10px] font-medium text-white"
+                    style={{ background: diag.bg }}
+                  >
+                    {diag.label}
+                  </div>
+                )}
+                {prio && (
+                  <div
+                    className="rounded-full px-2 py-0.5 text-[10px] font-medium text-white"
+                    style={{ background: prio.bg }}
+                  >
+                    {prio.label}
+                  </div>
+                )}
               </div>
             )}
 
-            {/* Image badge bottom-right */}
-            {shape.imageDataUrl && (
-              <div className="pointer-events-none absolute bottom-1.5 right-1.5 flex h-5 w-5 items-center justify-center rounded-full bg-[#5B6CF8] text-white">
-                <Camera className="h-3 w-3" />
+            {/* Bottom-right badges: docs, image */}
+            {shape.type !== "text" && (hasDocs || missingDocs || shape.imageDataUrl) && (
+              <div className="pointer-events-none absolute bottom-1.5 right-1.5 flex items-center gap-1">
+                {missingDocs && (
+                  <div
+                    className="flex h-5 w-5 items-center justify-center rounded-full bg-[#9CA3AF] text-white"
+                    title="Sin documentación estandarizada"
+                  >
+                    <FileWarning className="h-3 w-3" />
+                  </div>
+                )}
+                {hasDocs && !missingDocs && (
+                  <div
+                    className="flex h-5 w-5 items-center justify-center rounded-full bg-[#5B6CF8] text-white"
+                    title="Documentos vinculados"
+                  >
+                    <FileText className="h-3 w-3" />
+                  </div>
+                )}
+                {shape.imageDataUrl && (
+                  <div className="flex h-5 w-5 items-center justify-center rounded-full bg-[#5B6CF8] text-white">
+                    <Camera className="h-3 w-3" />
+                  </div>
+                )}
               </div>
             )}
+
 
             {/* Selection handles + connector handles */}
             {selected && (
@@ -2024,50 +2404,55 @@ function ShapeNode({
                 {shape.title || shape.text || "Sin título"}
               </div>
             )}
-            {pinned ? (
-              <>
+            <div className="flex flex-col gap-1.5">
+              {diag && (
                 <div
-                  className="inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-medium text-white"
-                  style={{
-                    background: STATUS_COLORS[shape.status].bg,
-                    transition: "background-color 150ms ease-out",
-                  }}
+                  className="inline-flex w-fit items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-medium text-white"
+                  style={{ background: diag.bg, transition: "background-color 150ms ease-out" }}
                 >
-                  <span className="h-1.5 w-1.5 rounded-full bg-white" />
-                  {STATUS_COLORS[shape.status].label}
+                  <span>{diag.dot}</span>
+                  {diag.label}
                 </div>
-                {(shape.changes ?? []).length > 0 && (
-                  <div className="space-y-1.5 pt-1">
-                    <div className="text-[10px] font-semibold uppercase tracking-wide text-[#6B7280]">
-                      Cambios sugeridos
-                    </div>
-                    <ul className="space-y-1">
-                      {(shape.changes ?? [])
-                        .slice()
-                        .sort((a, b) => b.date - a.date)
-                        .map((c) => (
-                          <li
-                            key={c.id}
-                            className="flowit-entry rounded-md border border-[#EBEBEB] bg-white px-2 py-1.5"
-                          >
-                            <div className="break-words text-[12px] leading-snug text-[#111827]">
-                              {c.text}
-                            </div>
-                            <div className="mt-0.5 text-[10px] text-[#9CA3AF]">
-                              {formatDate(c.date)}
-                            </div>
-                          </li>
-                        ))}
-                    </ul>
-                  </div>
-                )}
-              </>
-            ) : (
-              <StatusSelector
-                value={shape.status}
-                onChange={(v) => updateThis({ status: v })}
-              />
+              )}
+              {prio && (
+                <div
+                  className="inline-flex w-fit items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-medium text-white"
+                  style={{ background: prio.bg, transition: "background-color 150ms ease-out" }}
+                >
+                  <span>{prio.dot}</span>
+                  {prio.label}
+                </div>
+              )}
+              {!diag && !prio && (
+                <div className="text-[11px] text-[#9CA3AF]">Sin diagnóstico</div>
+              )}
+            </div>
+            {pinned && (shape.changes ?? []).length > 0 && (
+              <div className="space-y-1.5 pt-1">
+                <div className="text-[10px] font-semibold uppercase tracking-wide text-[#6B7280]">
+                  Cambios sugeridos
+                </div>
+                <ul className="space-y-1">
+                  {(shape.changes ?? [])
+                    .slice()
+                    .sort((a, b) => b.date - a.date)
+                    .map((c) => (
+                      <li
+                        key={c.id}
+                        className="flowit-entry rounded-md border border-[#EBEBEB] bg-white px-2 py-1.5"
+                      >
+                        <div className="break-words text-[12px] leading-snug text-[#111827]">
+                          {c.text}
+                        </div>
+                        <div className="mt-0.5 text-[10px] text-[#9CA3AF]">
+                          {formatDate(c.date)}
+                        </div>
+                      </li>
+                    ))}
+                </ul>
+              </div>
             )}
+
           </div>
         </div>
       )}
