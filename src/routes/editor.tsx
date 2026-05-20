@@ -3420,23 +3420,6 @@ function ShapeNode({
             )}
 
 
-            {/* Connector handles only (selection ring drawn as sibling overlay below) */}
-            {selected && (
-              <>
-                <div
-                  onPointerDown={onStartConnector}
-                  className="absolute h-3 w-3 -translate-y-1/2 cursor-crosshair rounded-full border-2 border-[#5B6CF8] bg-white hover:scale-125 transition-transform"
-                  style={{ right: -6, top: "50%" }}
-                  title="Drag to connect"
-                />
-                <div
-                  onPointerDown={onStartConnector}
-                  className="absolute h-3 w-3 -translate-x-1/2 cursor-crosshair rounded-full border-2 border-[#5B6CF8] bg-white hover:scale-125 transition-transform"
-                  style={{ bottom: -6, left: "50%" }}
-                  title="Drag to connect"
-                />
-              </>
-            )}
           </div>
         </ContextMenuTrigger>
         <ContextMenuContent>
@@ -3454,6 +3437,30 @@ function ShapeNode({
           </ContextMenuItem>
         </ContextMenuContent>
       </ContextMenu>
+
+      {/* Quick-add (+) button below shape */}
+      {showQuickAdd && shape.type !== "text" && (
+        <button
+          onPointerDown={(e) => e.stopPropagation()}
+          onClick={(e) => {
+            e.stopPropagation();
+            onQuickAdd();
+          }}
+          onMouseEnter={() => setQaHover(true)}
+          onMouseLeave={() => setQaHover(false)}
+          className="flowit-fade-in absolute flex items-center justify-center rounded-full border-2 border-[#5B6CF8] bg-white text-[#5B6CF8] hover:bg-[#EEF0FF]"
+          style={{
+            left: shape.x + shape.width / 2 - 12,
+            top: shape.y + shape.height + 16,
+            width: 24,
+            height: 24,
+            zIndex: 9998,
+          }}
+          title="Add connected shape"
+        >
+          <Plus className="h-4 w-4" />
+        </button>
+      )}
 
       {/* HOVER POPUP */}
       {showPopup && popupPos && (
