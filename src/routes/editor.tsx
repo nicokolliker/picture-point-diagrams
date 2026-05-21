@@ -4364,17 +4364,17 @@ function ShapeNode({
           onMouseEnter={() => setHovered(true)}
           onMouseLeave={() => setHovered(false)}
           className={cn(
-            "absolute flex items-center justify-center rounded-full border text-[12px] font-semibold leading-none shadow-sm transition-all hover:scale-110",
+            "absolute flex items-center justify-center rounded-full border-2 text-[13px] font-semibold leading-none shadow-sm transition-all hover:scale-110",
             subPanelState === "open" && "border-[#5B6CF8] bg-[#5B6CF8] text-white",
             subPanelState === "minimized" && "border-[#F59E0B] bg-[#F59E0B] text-white",
             !subPanelState && shape.subProcessPageId && "border-[#5B6CF8] bg-white text-[#5B6CF8]",
             !subPanelState && !shape.subProcessPageId && "border-[#D1D5DB] bg-white text-[#D1D5DB] hover:border-[#5B6CF8] hover:text-[#5B6CF8]",
           )}
           style={{
-            left: shape.x - 10,
-            top: shape.y - 10,
-            width: 22,
-            height: 22,
+            left: shape.x - 11,
+            top: shape.y - 11,
+            width: 24,
+            height: 24,
             zIndex: 9999,
           }}
           title={shape.subProcessPageId ? "Abrir sub-proceso" : "Crear sub-proceso"}
