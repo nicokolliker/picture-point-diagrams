@@ -4364,17 +4364,17 @@ function ShapeNode({
           onMouseEnter={() => setHovered(true)}
           onMouseLeave={() => setHovered(false)}
           className={cn(
-            "absolute flex items-center justify-center rounded-full border text-[12px] font-semibold leading-none shadow-sm transition-all hover:scale-110",
+            "absolute flex items-center justify-center rounded-full border-2 text-[13px] font-semibold leading-none shadow-sm transition-all hover:scale-110",
             subPanelState === "open" && "border-[#5B6CF8] bg-[#5B6CF8] text-white",
             subPanelState === "minimized" && "border-[#F59E0B] bg-[#F59E0B] text-white",
             !subPanelState && shape.subProcessPageId && "border-[#5B6CF8] bg-white text-[#5B6CF8]",
             !subPanelState && !shape.subProcessPageId && "border-[#D1D5DB] bg-white text-[#D1D5DB] hover:border-[#5B6CF8] hover:text-[#5B6CF8]",
           )}
           style={{
-            left: shape.x - 10,
-            top: shape.y - 10,
-            width: 22,
-            height: 22,
+            left: shape.x - 11,
+            top: shape.y - 11,
+            width: 24,
+            height: 24,
             zIndex: 9999,
           }}
           title={shape.subProcessPageId ? "Abrir sub-proceso" : "Crear sub-proceso"}
@@ -4683,12 +4683,24 @@ function SubProcessPanel({
   subPanelStates,
   zIndexBase,
 }: SubProcessPanelProps) {
-  const [pan, setPan] = useState({ x: 80, y: 40 });
+  const [pan, setPan] = useState({ x: 60, y: 40 });
   const [zoom, setZoom] = useState(1);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [pinnedIds, setPinnedIds] = useState<string[]>([]);
   const [nameVal, setNameVal] = useState(page.name);
   const [mounted, setMounted] = useState(false);
+
+  const initialW = Math.min(900, Math.round(window.innerWidth * 0.72));
+  const initialH = Math.min(600, Math.round(window.innerHeight * 0.68));
+  const [size, setSize] = useState({ w: initialW, h: initialH });
+  const [pos, setPos] = useState({
+    left: Math.round((window.innerWidth - initialW) / 2),
+    top: 80,
+  });
+
+  const dragRef = useRef<{ startX: number; startY: number; left: number; top: number } | null>(null);
+  const resizeRef = useRef<{ startX: number; startY: number; w: number; h: number } | null>(null);
+
   useEffect(() => {
     const id = requestAnimationFrame(() => setMounted(true));
     return () => cancelAnimationFrame(id);
@@ -4713,33 +4725,89 @@ function SubProcessPanel({
     }
   };
 
+  const onHeaderPointerDown = (e: ReactPointerEvent<HTMLDivElement>) => {
+    if ((e.target as HTMLElement).closest("input,button")) return;
+    dragRef.current = { startX: e.clientX, startY: e.clientY, left: pos.left, top: pos.top };
+    (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
+  };
+  const onHeaderPointerMove = (e: ReactPointerEvent<HTMLDivElement>) => {
+    if (!dragRef.current) return;
+    setPos({
+      left: dragRef.current.left + (e.clientX - dragRef.current.startX),
+      top: dragRef.current.top + (e.clientY - dragRef.current.startY),
+    });
+  };
+  const onHeaderPointerUp = (e: ReactPointerEvent<HTMLDivElement>) => {
+    dragRef.current = null;
+    try {
+      (e.currentTarget as HTMLElement).releasePointerCapture(e.pointerId);
+    } catch {}
+  };
+
+  const onResizePointerDown = (e: ReactPointerEvent<HTMLDivElement>) => {
+    e.stopPropagation();
+    resizeRef.current = { startX: e.clientX, startY: e.clientY, w: size.w, h: size.h };
+    (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
+  };
+  const onResizePointerMove = (e: ReactPointerEvent<HTMLDivElement>) => {
+    if (!resizeRef.current) return;
+    setSize({
+      w: Math.max(420, resizeRef.current.w + (e.clientX - resizeRef.current.startX)),
+      h: Math.max(280, resizeRef.current.h + (e.clientY - resizeRef.current.startY)),
+    });
+  };
+  const onResizePointerUp = (e: ReactPointerEvent<HTMLDivElement>) => {
+    resizeRef.current = null;
+    try {
+      (e.currentTarget as HTMLElement).releasePointerCapture(e.pointerId);
+    } catch {}
+  };
+
+  const addShapeOfType = (type: ShapeType) => {
+    const cx = (size.w - 48) / 2;
+    const cy = (size.h - 44) / 2;
+    const wx = (cx - pan.x) / zoom;
+    const wy = (cy - pan.y) / zoom;
+    const s = makeDefaultShape(type, Math.round(wx - 90), Math.round(wy - 40));
+    useDiagramStore.getState().addShape(docId, page.id, s);
+    setSelectedIds([s.id]);
+  };
+
   if (typeof document === "undefined") return null;
 
   const headerBar = (
-    <div className="flex h-10 shrink-0 items-center gap-2 border-b border-[#EBEBEB] bg-white px-3">
-      <div className="flex h-5 w-5 items-center justify-center rounded-full bg-[#5B6CF8] text-[11px] font-semibold leading-none text-white">
+    <div
+      onPointerDown={onHeaderPointerDown}
+      onPointerMove={onHeaderPointerMove}
+      onPointerUp={onHeaderPointerUp}
+      onPointerCancel={onHeaderPointerUp}
+      style={{ background: "#F8F9FF", cursor: dragRef.current ? "grabbing" : "grab" }}
+      className="flex h-11 shrink-0 items-center gap-2 border-b border-[#EBEBEB] px-3 select-none"
+    >
+      <div className="flex h-[18px] w-[18px] items-center justify-center rounded-[4px] bg-[#5B6CF8] text-[12px] font-semibold leading-none text-white">
         ⊞
       </div>
-      <Input
+      <input
         value={nameVal}
         onChange={(e) => setNameVal(e.target.value)}
         onBlur={commitName}
         onKeyDown={(e) => {
           if (e.key === "Enter") (e.target as HTMLInputElement).blur();
         }}
-        className="h-7 flex-1 border-transparent bg-transparent px-1 text-[13px] font-medium focus-visible:border-[#EBEBEB]"
+        onPointerDown={(e) => e.stopPropagation()}
+        className="h-7 flex-1 min-w-0 border-0 bg-transparent px-1 text-[14px] font-semibold text-[#111827] outline-none focus:bg-white focus:rounded"
         title={shapeTitle}
       />
       <button
         onClick={onToggleMinimize}
-        className="flex h-7 w-7 items-center justify-center rounded text-[#6B7280] hover:bg-[#F3F4F6] hover:text-[#111827]"
+        className="flex h-7 w-7 items-center justify-center rounded text-[#6B7280] hover:bg-[#EEF0FF] hover:text-[#111827]"
         title={minimized ? "Restaurar" : "Minimizar"}
       >
         {minimized ? "□" : "−"}
       </button>
       <button
         onClick={onClose}
-        className="flex h-7 w-7 items-center justify-center rounded text-[#6B7280] hover:bg-[#F3F4F6] hover:text-[#DC2626]"
+        className="flex h-7 w-7 items-center justify-center rounded text-[#6B7280] hover:bg-[#FEE2E2] hover:text-[#DC2626]"
         title="Cerrar"
       >
         <X className="h-4 w-4" />
@@ -4747,17 +4815,30 @@ function SubProcessPanel({
     </div>
   );
 
+  const toolbarShapes: ShapeType[] = [
+    "rectangle",
+    "diamond",
+    "oval",
+    "parallelogram",
+    "cylinder",
+    "document",
+    "manual",
+    "sticky",
+    "text",
+    "container",
+  ];
+
   const baseStyle: CSSProperties = minimized
     ? {
         position: "fixed",
-        left: 20 + minimizedStackIndex * 280,
-        bottom: 20,
+        left: 320 + minimizedStackIndex * 280,
+        bottom: 16,
         width: 260,
-        height: 40,
+        height: 44,
         background: "white",
         borderRadius: 12,
         boxShadow:
-          "0 12px 40px rgba(0,0,0,0.18), 0 0 0 1px rgba(0,0,0,0.06)",
+          "0 12px 40px rgba(0,0,0,0.15), 0 0 0 1px rgba(0,0,0,0.05)",
         zIndex: zIndexBase,
         overflow: "hidden",
         display: "flex",
@@ -4768,20 +4849,20 @@ function SubProcessPanel({
       }
     : {
         position: "fixed",
-        width: "65vw",
-        height: "70vh",
-        top: "12vh",
-        left: "50%",
+        left: pos.left,
+        top: pos.top,
+        width: size.w,
+        height: size.h,
         background: "white",
         borderRadius: 16,
         boxShadow:
-          "0 24px 80px rgba(0,0,0,0.18), 0 0 0 1px rgba(0,0,0,0.06)",
+          "0 20px 60px rgba(0,0,0,0.15), 0 0 0 1px rgba(0,0,0,0.05)",
         zIndex: zIndexBase,
         overflow: "hidden",
         display: "flex",
         flexDirection: "column",
         opacity: mounted ? 1 : 0,
-        transform: mounted ? "translateX(-50%) scale(1)" : "translateX(-50%) scale(0.95)",
+        transform: mounted ? "scale(1)" : "scale(0.95)",
         transition: "opacity 200ms ease-out, transform 200ms ease-out",
       };
 
@@ -4789,21 +4870,52 @@ function SubProcessPanel({
     <div style={baseStyle}>
       {headerBar}
       {!minimized && (
-        <div className="relative flex-1 overflow-hidden">
-          <CanvasArea
-            docId={docId}
-            page={page}
-            pan={pan}
-            setPan={setPan}
-            zoom={zoom}
-            setZoom={setZoom}
-            selectedIds={selectedIds}
-            setSelectedIds={setSelectedIds}
-            pinnedIds={pinnedIds}
-            pinShape={pinShape}
-            unpinShape={unpinShape}
-            onSubProcessIconClick={onSubProcessIconClick}
-            subPanelStates={subPanelStates}
+        <div className="relative flex flex-1 min-h-0 overflow-hidden">
+          {/* Left shape toolbar */}
+          <div
+            className="flex w-12 shrink-0 flex-col items-center gap-1 border-r border-[#EBEBEB] bg-white py-2"
+            style={{ width: 48 }}
+          >
+            {toolbarShapes.map((t) => (
+              <button
+                key={t}
+                onClick={() => addShapeOfType(t)}
+                title={t}
+                className="flex h-10 w-10 items-center justify-center rounded-md hover:bg-[#F3F4F6]"
+              >
+                <ShapePreview type={t} />
+              </button>
+            ))}
+          </div>
+          {/* Canvas region */}
+          <div className="relative flex flex-1 min-w-0 min-h-0 overflow-hidden">
+            <CanvasArea
+              docId={docId}
+              page={page}
+              pan={pan}
+              setPan={setPan}
+              zoom={zoom}
+              setZoom={setZoom}
+              selectedIds={selectedIds}
+              setSelectedIds={setSelectedIds}
+              pinnedIds={pinnedIds}
+              pinShape={pinShape}
+              unpinShape={unpinShape}
+              onSubProcessIconClick={onSubProcessIconClick}
+              subPanelStates={subPanelStates}
+            />
+          </div>
+          {/* Resize handle */}
+          <div
+            onPointerDown={onResizePointerDown}
+            onPointerMove={onResizePointerMove}
+            onPointerUp={onResizePointerUp}
+            onPointerCancel={onResizePointerUp}
+            className="absolute bottom-0 right-0 h-4 w-4 cursor-nwse-resize"
+            style={{
+              background:
+                "linear-gradient(135deg, transparent 50%, #C4C7D2 50%, #C4C7D2 60%, transparent 60%, transparent 70%, #C4C7D2 70%, #C4C7D2 80%, transparent 80%)",
+            }}
           />
         </div>
       )}
