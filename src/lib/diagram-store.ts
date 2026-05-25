@@ -30,7 +30,7 @@ interface State {
   updatePerson: (id: string, patch: Partial<Person>) => void;
   deletePerson: (id: string) => void;
   ensureSeed: () => void;
-  createDocument: (name?: string) => string;
+  createDocument: (opts?: { name?: string; areaId?: string }) => string;
   deleteDocument: (id: string) => void;
   duplicateDocument: (id: string) => void;
   renameDocument: (id: string, name: string) => void;
