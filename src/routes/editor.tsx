@@ -5235,7 +5235,7 @@ function ShapeNode({
     if (!overlay || !shapeEl) return;
     const or = overlay.getBoundingClientRect();
     const sr = shapeEl.getBoundingClientRect();
-    shapeInOverlayRef.current = {
+    const newRect = {
       left: sr.left - or.left,
       top: sr.top - or.top,
       right: sr.right - or.left,
@@ -5243,6 +5243,17 @@ function ShapeNode({
       width: sr.width,
       height: sr.height,
     };
+    shapeInOverlayRef.current = newRect;
+    // If pinned, slide the popup along with the shape so it stays anchored
+    // to the shape rather than to the viewport when the canvas pans/zooms.
+    if (pinned && pinnedAnchorRef.current) {
+      const next = {
+        left: newRect.left + pinnedAnchorRef.current.dx,
+        top: newRect.top + pinnedAnchorRef.current.dy,
+      };
+      setPopupPos(next);
+      setDragPos(null);
+    }
     forceConnectorTick((n) => (n + 1) % 1000000);
   }, [pan, zoom, showPopup, pinned, overlayRef]);
 
