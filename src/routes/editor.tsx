@@ -2972,8 +2972,24 @@ function FullSummaryModal({
         flexDirection: "column",
       }}
     >
-      <div className="flex h-12 shrink-0 items-center justify-between border-b border-[#EBEBEB] px-5">
+      <div className="flex h-12 shrink-0 items-center gap-4 border-b border-[#EBEBEB] px-5">
         <div className="text-[14px] font-semibold text-[#111827]">Resumen de cambios</div>
+        <div className="flex items-center gap-2">
+          {[
+            { label: "Alertas", value: allAlerts.length, color: "#DC2626", bg: "#FEF2F2" },
+            { label: "Mejoras", value: allEntries.length, color: "#5B6CF8", bg: "#EEF0FF" },
+            { label: "Docs", value: aggMissing.size, color: "#D97706", bg: "#FFFBEB" },
+          ].map((s) => (
+            <div
+              key={s.label}
+              className="flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-semibold"
+              style={{ background: s.bg, color: s.color }}
+            >
+              {s.value} {s.label}
+            </div>
+          ))}
+        </div>
+        <div className="flex-1" />
         <ViewTabs value={view} onChange={setView} />
         <button
           onClick={onClose}
