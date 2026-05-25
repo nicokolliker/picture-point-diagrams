@@ -5049,10 +5049,26 @@ function ShapeNode({
     }
   }, [hovered, qaHover, pointerActive, showQuickAdd, showPopup, popupSide]);
 
-  // Reset drag position when unpinned
+  // Reset drag position + anchor when unpinned
   useEffect(() => {
-    if (!pinned) setDragPos(null);
+    if (!pinned) {
+      setDragPos(null);
+      pinnedAnchorRef.current = null;
+    }
   }, [pinned]);
+
+  // When the popup transitions to pinned, capture its world-relative anchor
+  // so subsequent canvas pan/zoom keeps the popup glued to the shape.
+  useEffect(() => {
+    if (!pinned) return;
+    const pos = dragPos ?? popupPos;
+    if (pos && shapeInOverlayRef.current && !pinnedAnchorRef.current) {
+      pinnedAnchorRef.current = {
+        dx: pos.left - shapeInOverlayRef.current.left,
+        dy: pos.top - shapeInOverlayRef.current.top,
+      };
+    }
+  }, [pinned, popupPos, dragPos]);
 
   const onDragHandleDown = useCallback(
     (e: React.PointerEvent<HTMLDivElement>) => {
@@ -5065,21 +5081,32 @@ function ShapeNode({
       const startLeft = origin.left;
       const startTop = origin.top;
       setDragging(true);
+      let lastPos = { left: startLeft, top: startTop };
       const onMove = (ev: PointerEvent) => {
-        setDragPos({
+        lastPos = {
           left: startLeft + (ev.clientX - startX),
           top: startTop + (ev.clientY - startY),
-        });
+        };
+        setDragPos(lastPos);
       };
       const onUp = () => {
         setDragging(false);
+        // Commit drag → re-anchor relative to shape so pan/zoom keeps it glued.
+        if (pinned && shapeInOverlayRef.current) {
+          pinnedAnchorRef.current = {
+            dx: lastPos.left - shapeInOverlayRef.current.left,
+            dy: lastPos.top - shapeInOverlayRef.current.top,
+          };
+          setPopupPos(lastPos);
+          setDragPos(null);
+        }
         window.removeEventListener("pointermove", onMove);
         window.removeEventListener("pointerup", onUp);
       };
       window.addEventListener("pointermove", onMove);
       window.addEventListener("pointerup", onUp);
     },
-    [dragPos, popupPos],
+    [dragPos, popupPos, pinned],
   );
 
   const [popupSize, setPopupSize] = useState<{ w: number; h: number } | null>(null);
