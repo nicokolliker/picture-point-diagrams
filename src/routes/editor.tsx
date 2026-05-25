@@ -4424,7 +4424,7 @@ function ShapeNode({
             left: shape.x - 2,
             top: shape.y - 2,
             width: shape.width + 4,
-            height: shape.height + 4,
+            height: renderedH + 4,
             zIndex: 9999,
             pointerEvents: "none",
           }}
