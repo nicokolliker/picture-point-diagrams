@@ -430,8 +430,21 @@ function EditorPage() {
                   setSelectedIds([s.id]);
                 }}
                 shapesInUse={page.shapes}
+                onApplyTheme={(theme) => {
+                  const targets = selectedIds.length > 0
+                    ? page.shapes.filter((s) => selectedIds.includes(s.id))
+                    : page.shapes;
+                  targets.forEach((s, i) => {
+                    useDiagramStore.getState().updateShape(doc.id, page.id, s.id, {
+                      fill: theme.fills[i % theme.fills.length],
+                      textColor: theme.text,
+                      borderColor: theme.border,
+                    });
+                  });
+                }}
               />
             )}
+
             {activeTab === "images" && (
               <ImagesPanel
                 onAssign={(dataUrl) => {
