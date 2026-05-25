@@ -69,6 +69,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { useDiagramStore, makeDefaultShape } from "@/lib/diagram-store";
+import { CaptureProcessModal } from "@/components/CaptureProcessModal";
 import { edgePoint, GRID, shapeCenter, snap } from "@/lib/geometry";
 import type {
   Connector,
