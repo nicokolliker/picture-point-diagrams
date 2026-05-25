@@ -974,9 +974,11 @@ function ToggleBtn({
 function ShapesPanel({
   onAddShape,
   shapesInUse,
+  onApplyTheme,
 }: {
   onAddShape: (t: ShapeType) => void;
   shapesInUse: Shape[];
+  onApplyTheme?: (theme: (typeof THEMES)[number]) => void;
 }) {
   const [q, setQ] = useState("");
   const inUseTypes = Array.from(new Set(shapesInUse.map((s) => s.type)));
@@ -998,6 +1000,30 @@ function ShapesPanel({
         </div>
       </div>
       <div className="flex-1 overflow-y-auto p-3">
+        {onApplyTheme && (
+          <Section title="Themes">
+            <div className="grid grid-cols-2 gap-2">
+              {THEMES.map((t) => (
+                <button
+                  key={t.name}
+                  onClick={() => onApplyTheme(t)}
+                  className="group flex flex-col items-stretch gap-1 rounded-md border border-[#EBEBEB] bg-white p-1.5 text-left hover:border-[#5B6CF8] hover:shadow-sm"
+                  title={`Apply ${t.name} theme`}
+                >
+                  <div className="flex h-5 overflow-hidden rounded">
+                    {t.fills.map((c) => (
+                      <div key={c} className="flex-1" style={{ background: c }} />
+                    ))}
+                  </div>
+                  <span className="text-[10px] font-medium text-[#374151]">{t.name}</span>
+                </button>
+              ))}
+            </div>
+            <p className="mt-1.5 text-[10px] text-[#9CA3AF]">
+              Aplica al seleccionado o a toda la página.
+            </p>
+          </Section>
+        )}
         {inUseTypes.length > 0 && (
           <Section title="Shapes in use">
             <div className="grid grid-cols-3 gap-2">
@@ -1007,6 +1033,7 @@ function ShapesPanel({
             </div>
           </Section>
         )}
+
         <Section title="Flowchart">
           <div className="grid grid-cols-3 gap-2">
             {filt(FLOWCHART_SHAPES).map((s) => (
