@@ -170,12 +170,14 @@ export const useDiagramStore = create<State>()(
           set({ documents: [createDemoDocument()] });
         }
       },
-      createDocument: (name = "Untitled diagram") => {
+      createDocument: (opts = {}) => {
+        const { name = "Sin título", areaId } = opts;
         const id = `d${Date.now()}`;
         const doc: DiagramDocument = {
           id,
           name,
           category: "Processes",
+          areaId,
           updatedAt: Date.now(),
           status: "draft",
           pages: [{ id: `p${Date.now()}`, name: "Page 1", shapes: [], connectors: [] }],
