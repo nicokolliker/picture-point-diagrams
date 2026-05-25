@@ -3268,6 +3268,7 @@ function CanvasArea({
   unpinShape,
   onSubProcessIconClick,
   subPanelStates,
+  rightPanelOpen,
 }: CanvasProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const [spaceDown, setSpaceDown] = useState(false);
