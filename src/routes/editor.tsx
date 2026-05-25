@@ -5095,9 +5095,10 @@ function ShapeNode({
         setDragging(false);
         // Commit drag → re-anchor relative to shape so pan/zoom keeps it glued.
         if (pinned && shapeInOverlayRef.current) {
+          const z = zoom || 1;
           pinnedAnchorRef.current = {
-            dx: lastPos.left - shapeInOverlayRef.current.left,
-            dy: lastPos.top - shapeInOverlayRef.current.top,
+            dx: (lastPos.left - shapeInOverlayRef.current.left) / z,
+            dy: (lastPos.top - shapeInOverlayRef.current.top) / z,
           };
           setPopupPos(lastPos);
           setDragPos(null);
