@@ -4861,7 +4861,7 @@ function CanvasArea({
         }}
       >
         {/* Miro-style floating FormatBar above selected shape */}
-        {selectedIds.length === 1 && (() => {
+        {selectedIds.length === 1 && propertiesOpenFor !== selectedIds[0] && (() => {
           const s = page.shapes.find((sh) => sh.id === selectedIds[0]);
           if (!s) return null;
           const left = pan.x + (s.x + s.width / 2) * zoom;
