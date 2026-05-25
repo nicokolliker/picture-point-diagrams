@@ -664,9 +664,9 @@ function FormatBar({
     shape.cornerStyle === "sharp" ? "▢" : shape.cornerStyle === "rounded" ? "▣" : "⬭";
   const opacity = shape.opacity ?? 1;
   return (
-    <div className="flex flex-nowrap items-center gap-1 whitespace-nowrap rounded-md border border-[#EBEBEB] bg-white p-1 shadow-sm">
+    <div className="flex flex-nowrap items-center gap-0.5 whitespace-nowrap rounded-md border border-[#EBEBEB] bg-white px-1 py-0.5 shadow-sm">
       <Select value={shape.fontFamily} onValueChange={(v) => onChange({ fontFamily: v })}>
-        <SelectTrigger className="h-7 w-[110px] text-xs" style={{ fontFamily: shape.fontFamily }}>
+        <SelectTrigger className="h-6 w-[78px] px-1.5 text-[11px]" style={{ fontFamily: shape.fontFamily }}>
           <SelectValue />
         </SelectTrigger>
         <SelectContent>
@@ -681,7 +681,7 @@ function FormatBar({
         value={String(shape.fontSize)}
         onValueChange={(v) => onChange({ fontSize: Number(v) })}
       >
-        <SelectTrigger className="h-7 w-[60px] text-xs">
+        <SelectTrigger className="h-6 w-[44px] px-1 text-[11px]">
           <SelectValue />
         </SelectTrigger>
         <SelectContent>
@@ -693,48 +693,37 @@ function FormatBar({
         </SelectContent>
       </Select>
       <ToggleBtn active={shape.bold} onClick={() => onChange({ bold: !shape.bold })}>
-        <Bold className="h-3.5 w-3.5" />
+        <Bold className="h-3 w-3" />
       </ToggleBtn>
       <ToggleBtn active={shape.italic} onClick={() => onChange({ italic: !shape.italic })}>
-        <Italic className="h-3.5 w-3.5" />
+        <Italic className="h-3 w-3" />
       </ToggleBtn>
       <ToggleBtn active={shape.underline} onClick={() => onChange({ underline: !shape.underline })}>
-        <Underline className="h-3.5 w-3.5" />
+        <Underline className="h-3 w-3" />
       </ToggleBtn>
       <input
         type="color"
         value={shape.textColor}
         onChange={(e) => onChange({ textColor: e.target.value })}
-        className="h-6 w-6 cursor-pointer rounded border border-[#EBEBEB]"
+        className="h-5 w-5 cursor-pointer rounded border border-[#EBEBEB]"
         title="Text color"
       />
-      <div className="mx-1 h-5 w-px bg-[#EBEBEB]" />
-      <ToggleBtn
-        active={shape.align === "left"}
-        onClick={() => onChange({ align: "left" })}
-      >
-        <AlignLeft className="h-3.5 w-3.5" />
+      <div className="mx-0.5 h-4 w-px bg-[#EBEBEB]" />
+      <ToggleBtn active={shape.align === "left"} onClick={() => onChange({ align: "left" })}>
+        <AlignLeft className="h-3 w-3" />
       </ToggleBtn>
-      <ToggleBtn
-        active={shape.align === "center"}
-        onClick={() => onChange({ align: "center" })}
-      >
-        <AlignCenter className="h-3.5 w-3.5" />
+      <ToggleBtn active={shape.align === "center"} onClick={() => onChange({ align: "center" })}>
+        <AlignCenter className="h-3 w-3" />
       </ToggleBtn>
-      <ToggleBtn
-        active={shape.align === "right"}
-        onClick={() => onChange({ align: "right" })}
-      >
-        <AlignRight className="h-3.5 w-3.5" />
+      <ToggleBtn active={shape.align === "right"} onClick={() => onChange({ align: "right" })}>
+        <AlignRight className="h-3 w-3" />
       </ToggleBtn>
-      <div className="mx-1 h-5 w-px bg-[#EBEBEB]" />
+      <div className="mx-0.5 h-4 w-px bg-[#EBEBEB]" />
       <Select
         value={shape.borderStyle}
-        onValueChange={(v) =>
-          onChange({ borderStyle: v as Shape["borderStyle"] })
-        }
+        onValueChange={(v) => onChange({ borderStyle: v as Shape["borderStyle"] })}
       >
-        <SelectTrigger className="h-7 w-[80px] text-xs">
+        <SelectTrigger className="h-6 w-[58px] px-1 text-[11px]">
           <SelectValue />
         </SelectTrigger>
         <SelectContent>
@@ -747,7 +736,7 @@ function FormatBar({
         value={String(shape.borderWeight)}
         onValueChange={(v) => onChange({ borderWeight: Number(v) as 1 | 2 | 3 })}
       >
-        <SelectTrigger className="h-7 w-[55px] text-xs">
+        <SelectTrigger className="h-6 w-[42px] px-1 text-[11px]">
           <SelectValue />
         </SelectTrigger>
         <SelectContent>
@@ -759,37 +748,30 @@ function FormatBar({
       <button
         onClick={cycleCorner}
         title={`Corners: ${shape.cornerStyle}`}
-        className="flex h-7 w-8 items-center justify-center rounded text-[14px] text-[#374151] hover:bg-[#F3F4F6]"
+        className="flex h-6 w-6 items-center justify-center rounded text-[13px] text-[#374151] hover:bg-[#F3F4F6]"
       >
         {cornerIcon}
       </button>
-      <div className="mx-1 h-5 w-px bg-[#EBEBEB]" />
-      <ColorSwatchPicker
-        label="Fill"
-        value={shape.fill}
-        onChange={(c) => onChange({ fill: c })}
-      />
+      <div className="mx-0.5 h-4 w-px bg-[#EBEBEB]" />
+      <ColorSwatchPicker label="Fill" value={shape.fill} onChange={(c) => onChange({ fill: c })} />
       <ColorSwatchPicker
         label="Border"
         value={shape.borderColor ?? "#D0D0D0"}
         onChange={(c) => onChange({ borderColor: c })}
       />
-      <ToggleBtn
-        active={!!shape.shadow}
-        onClick={() => onChange({ shadow: !shape.shadow })}
-      >
-        <span title="Shadow" className="text-[12px] leading-none">☐</span>
+      <ToggleBtn active={!!shape.shadow} onClick={() => onChange({ shadow: !shape.shadow })}>
+        <span title="Shadow" className="text-[11px] leading-none">☐</span>
       </ToggleBtn>
-      <div className="flex items-center gap-1 rounded border border-[#EBEBEB] px-1.5 py-0.5" title="Opacity">
+      <div className="flex items-center gap-1 rounded border border-[#EBEBEB] px-1 py-0.5" title="Opacity">
         <input
           type="range"
           min={10}
           max={100}
           value={Math.round(opacity * 100)}
           onChange={(e) => onChange({ opacity: Number(e.target.value) / 100 })}
-          className="h-1 w-16 cursor-pointer accent-[#5B6CF8]"
+          className="h-1 w-10 cursor-pointer accent-[#5B6CF8]"
         />
-        <span className="w-7 text-right text-[10px] tabular-nums text-[#6B7280]">
+        <span className="w-6 text-right text-[10px] tabular-nums text-[#6B7280]">
           {Math.round(opacity * 100)}%
         </span>
       </div>
