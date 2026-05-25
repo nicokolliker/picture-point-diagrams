@@ -4861,7 +4861,37 @@ function CanvasArea({
           zIndex: 50,
           overflow: "visible",
         }}
-      />
+      >
+        {/* Miro-style floating FormatBar above selected shape */}
+        {selectedIds.length === 1 && (() => {
+          const s = page.shapes.find((sh) => sh.id === selectedIds[0]);
+          if (!s) return null;
+          const left = pan.x + (s.x + s.width / 2) * zoom;
+          const top = pan.y + s.y * zoom - 12;
+          return (
+            <div
+              style={{
+                position: "absolute",
+                left,
+                top,
+                transform: "translate(-50%, -100%)",
+                pointerEvents: "auto",
+                filter: "drop-shadow(0 6px 16px rgba(0,0,0,0.12))",
+              }}
+              onPointerDown={(e) => e.stopPropagation()}
+              onWheel={(e) => e.stopPropagation()}
+            >
+              <FormatBar
+                shape={s}
+                onChange={(patch) =>
+                  useDiagramStore.getState().updateShape(docId, page.id, s.id, patch)
+                }
+              />
+            </div>
+          );
+        })()}
+      </div>
+
 
       {/* Hint */}
       <div className="pointer-events-none absolute bottom-3 left-3 rounded-md bg-white/90 px-2 py-1 text-[11px] text-[#6B7280] shadow-sm">
