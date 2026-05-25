@@ -4109,6 +4109,48 @@ function CanvasArea({
   );
 }
 
+/* -------------------- Popup connector line (overlay-relative coords, no DOM polling) -------------------- */
+function ConnectorLine({
+  shape,
+  popup,
+  side,
+}: {
+  shape: { left: number; top: number; right: number; bottom: number; width: number; height: number };
+  popup: { left: number; top: number; width: number; height: number };
+  side: "top" | "bottom" | "left" | "right";
+}) {
+  let sx = 0, sy = 0, ex = 0, ey = 0;
+  if (side === "right") {
+    sx = shape.right; sy = shape.top + shape.height / 2;
+    ex = popup.left; ey = popup.top + popup.height / 2;
+  } else if (side === "left") {
+    sx = shape.left; sy = shape.top + shape.height / 2;
+    ex = popup.left + popup.width; ey = popup.top + popup.height / 2;
+  } else if (side === "bottom") {
+    sx = shape.left + shape.width / 2; sy = shape.bottom;
+    ex = popup.left + popup.width / 2; ey = popup.top;
+  } else {
+    sx = shape.left + shape.width / 2; sy = shape.top;
+    ex = popup.left + popup.width / 2; ey = popup.top + popup.height;
+  }
+  const off = 60;
+  const horiz = side === "right" || side === "left";
+  const c1x = horiz ? sx + (side === "right" ? off : -off) : sx;
+  const c1y = horiz ? sy : sy + (side === "bottom" ? off : -off);
+  const c2x = horiz ? ex + (side === "right" ? -off : off) : ex;
+  const c2y = horiz ? ey : ey + (side === "bottom" ? -off : off);
+  return (
+    <path
+      d={`M ${sx},${sy} C ${c1x},${c1y} ${c2x},${c2y} ${ex},${ey}`}
+      fill="none"
+      stroke="#CCCCCC"
+      strokeOpacity={0.6}
+      strokeWidth={1}
+      strokeDasharray="4,4"
+    />
+  );
+}
+
 /* -------------------- Shape node + hover popup -------------------- */
 interface ShapeNodeProps {
   shape: Shape;
