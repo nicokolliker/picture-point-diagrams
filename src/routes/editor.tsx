@@ -42,6 +42,7 @@ import {
   AlignRight,
   Expand,
   Shuffle,
+  SlidersHorizontal,
 } from "lucide-react";
 import {
   Popover,
@@ -220,6 +221,14 @@ function EditorPage() {
   const [renaming, setRenaming] = useState(false);
   const [renameVal, setRenameVal] = useState("");
   const [pinnedIds, setPinnedIds] = useState<string[]>([]);
+  const [propertiesOpenFor, setPropertiesOpenFor] = useState<string | null>(null);
+  // Close properties panel when selection changes to a different shape (or none).
+  useEffect(() => {
+    if (!propertiesOpenFor) return;
+    if (selectedIds.length !== 1 || selectedIds[0] !== propertiesOpenFor) {
+      setPropertiesOpenFor(null);
+    }
+  }, [selectedIds, propertiesOpenFor]);
   const [summaryWidth, setSummaryWidth] = useState<number>(() => {
     if (typeof window === "undefined") return 340;
     const v = Number(window.localStorage.getItem("flowitSummaryWidth"));
@@ -481,11 +490,13 @@ function EditorPage() {
           unpinShape={unpinShape}
           onSubProcessIconClick={(shape, rect) => openSubProcessPanel(shape, page.id, rect)}
           subPanelStates={subPanelStates}
-          rightPanelOpen={!!selectedShape}
+          rightPanelOpen={!!selectedShape && propertiesOpenFor === selectedShape.id}
+          onOpenProperties={(id) => setPropertiesOpenFor(id)}
+          propertiesOpenFor={propertiesOpenFor}
         />
 
-        {/* Right panel */}
-        {selectedShape && (
+        {/* Right panel — only opens via the properties icon on the shape */}
+        {selectedShape && propertiesOpenFor === selectedShape.id && (
           <RightPanel
             docId={doc.id}
             pageId={page.id}
@@ -495,7 +506,7 @@ function EditorPage() {
                 .getState()
                 .updateShape(doc.id, page.id, selectedShape.id, patch)
             }
-            onClose={() => setSelectedIds([])}
+            onClose={() => setPropertiesOpenFor(null)}
           />
         )}
       </div>
@@ -653,9 +664,9 @@ function FormatBar({
     shape.cornerStyle === "sharp" ? "▢" : shape.cornerStyle === "rounded" ? "▣" : "⬭";
   const opacity = shape.opacity ?? 1;
   return (
-    <div className="flex flex-nowrap items-center gap-1 whitespace-nowrap rounded-md border border-[#EBEBEB] bg-white p-1 shadow-sm">
+    <div className="flex flex-nowrap items-center gap-0.5 whitespace-nowrap rounded-md border border-[#EBEBEB] bg-white px-1 py-0.5 shadow-sm">
       <Select value={shape.fontFamily} onValueChange={(v) => onChange({ fontFamily: v })}>
-        <SelectTrigger className="h-7 w-[110px] text-xs" style={{ fontFamily: shape.fontFamily }}>
+        <SelectTrigger className="h-6 w-[78px] px-1.5 text-[11px]" style={{ fontFamily: shape.fontFamily }}>
           <SelectValue />
         </SelectTrigger>
         <SelectContent>
@@ -670,7 +681,7 @@ function FormatBar({
         value={String(shape.fontSize)}
         onValueChange={(v) => onChange({ fontSize: Number(v) })}
       >
-        <SelectTrigger className="h-7 w-[60px] text-xs">
+        <SelectTrigger className="h-6 w-[44px] px-1 text-[11px]">
           <SelectValue />
         </SelectTrigger>
         <SelectContent>
@@ -682,48 +693,37 @@ function FormatBar({
         </SelectContent>
       </Select>
       <ToggleBtn active={shape.bold} onClick={() => onChange({ bold: !shape.bold })}>
-        <Bold className="h-3.5 w-3.5" />
+        <Bold className="h-3 w-3" />
       </ToggleBtn>
       <ToggleBtn active={shape.italic} onClick={() => onChange({ italic: !shape.italic })}>
-        <Italic className="h-3.5 w-3.5" />
+        <Italic className="h-3 w-3" />
       </ToggleBtn>
       <ToggleBtn active={shape.underline} onClick={() => onChange({ underline: !shape.underline })}>
-        <Underline className="h-3.5 w-3.5" />
+        <Underline className="h-3 w-3" />
       </ToggleBtn>
       <input
         type="color"
         value={shape.textColor}
         onChange={(e) => onChange({ textColor: e.target.value })}
-        className="h-6 w-6 cursor-pointer rounded border border-[#EBEBEB]"
+        className="h-5 w-5 cursor-pointer rounded border border-[#EBEBEB]"
         title="Text color"
       />
-      <div className="mx-1 h-5 w-px bg-[#EBEBEB]" />
-      <ToggleBtn
-        active={shape.align === "left"}
-        onClick={() => onChange({ align: "left" })}
-      >
-        <AlignLeft className="h-3.5 w-3.5" />
+      <div className="mx-0.5 h-4 w-px bg-[#EBEBEB]" />
+      <ToggleBtn active={shape.align === "left"} onClick={() => onChange({ align: "left" })}>
+        <AlignLeft className="h-3 w-3" />
       </ToggleBtn>
-      <ToggleBtn
-        active={shape.align === "center"}
-        onClick={() => onChange({ align: "center" })}
-      >
-        <AlignCenter className="h-3.5 w-3.5" />
+      <ToggleBtn active={shape.align === "center"} onClick={() => onChange({ align: "center" })}>
+        <AlignCenter className="h-3 w-3" />
       </ToggleBtn>
-      <ToggleBtn
-        active={shape.align === "right"}
-        onClick={() => onChange({ align: "right" })}
-      >
-        <AlignRight className="h-3.5 w-3.5" />
+      <ToggleBtn active={shape.align === "right"} onClick={() => onChange({ align: "right" })}>
+        <AlignRight className="h-3 w-3" />
       </ToggleBtn>
-      <div className="mx-1 h-5 w-px bg-[#EBEBEB]" />
+      <div className="mx-0.5 h-4 w-px bg-[#EBEBEB]" />
       <Select
         value={shape.borderStyle}
-        onValueChange={(v) =>
-          onChange({ borderStyle: v as Shape["borderStyle"] })
-        }
+        onValueChange={(v) => onChange({ borderStyle: v as Shape["borderStyle"] })}
       >
-        <SelectTrigger className="h-7 w-[80px] text-xs">
+        <SelectTrigger className="h-6 w-[58px] px-1 text-[11px]">
           <SelectValue />
         </SelectTrigger>
         <SelectContent>
@@ -736,7 +736,7 @@ function FormatBar({
         value={String(shape.borderWeight)}
         onValueChange={(v) => onChange({ borderWeight: Number(v) as 1 | 2 | 3 })}
       >
-        <SelectTrigger className="h-7 w-[55px] text-xs">
+        <SelectTrigger className="h-6 w-[42px] px-1 text-[11px]">
           <SelectValue />
         </SelectTrigger>
         <SelectContent>
@@ -748,37 +748,30 @@ function FormatBar({
       <button
         onClick={cycleCorner}
         title={`Corners: ${shape.cornerStyle}`}
-        className="flex h-7 w-8 items-center justify-center rounded text-[14px] text-[#374151] hover:bg-[#F3F4F6]"
+        className="flex h-6 w-6 items-center justify-center rounded text-[13px] text-[#374151] hover:bg-[#F3F4F6]"
       >
         {cornerIcon}
       </button>
-      <div className="mx-1 h-5 w-px bg-[#EBEBEB]" />
-      <ColorSwatchPicker
-        label="Fill"
-        value={shape.fill}
-        onChange={(c) => onChange({ fill: c })}
-      />
+      <div className="mx-0.5 h-4 w-px bg-[#EBEBEB]" />
+      <ColorSwatchPicker label="Fill" value={shape.fill} onChange={(c) => onChange({ fill: c })} />
       <ColorSwatchPicker
         label="Border"
         value={shape.borderColor ?? "#D0D0D0"}
         onChange={(c) => onChange({ borderColor: c })}
       />
-      <ToggleBtn
-        active={!!shape.shadow}
-        onClick={() => onChange({ shadow: !shape.shadow })}
-      >
-        <span title="Shadow" className="text-[12px] leading-none">☐</span>
+      <ToggleBtn active={!!shape.shadow} onClick={() => onChange({ shadow: !shape.shadow })}>
+        <span title="Shadow" className="text-[11px] leading-none">☐</span>
       </ToggleBtn>
-      <div className="flex items-center gap-1 rounded border border-[#EBEBEB] px-1.5 py-0.5" title="Opacity">
+      <div className="flex items-center gap-1 rounded border border-[#EBEBEB] px-1 py-0.5" title="Opacity">
         <input
           type="range"
           min={10}
           max={100}
           value={Math.round(opacity * 100)}
           onChange={(e) => onChange({ opacity: Number(e.target.value) / 100 })}
-          className="h-1 w-16 cursor-pointer accent-[#5B6CF8]"
+          className="h-1 w-10 cursor-pointer accent-[#5B6CF8]"
         />
-        <span className="w-7 text-right text-[10px] tabular-nums text-[#6B7280]">
+        <span className="w-6 text-right text-[10px] tabular-nums text-[#6B7280]">
           {Math.round(opacity * 100)}%
         </span>
       </div>
@@ -805,14 +798,13 @@ function ColorSwatchPicker({
     <Popover>
       <PopoverTrigger asChild>
         <button
-          className="flex h-7 items-center gap-1 rounded border border-[#EBEBEB] px-1.5 text-[11px] text-[#374151] hover:bg-[#F3F4F6]"
+          className="flex h-6 items-center justify-center rounded border border-[#EBEBEB] px-1 hover:bg-[#F3F4F6]"
           title={`${label} color`}
         >
           <span
-            className="h-4 w-4 rounded border border-[#D0D0D0]"
+            className="h-3.5 w-3.5 rounded-sm border border-[#D0D0D0]"
             style={{ background: value }}
           />
-          <span>{label}</span>
         </button>
       </PopoverTrigger>
       <PopoverContent className="w-auto p-2" align="start">
@@ -859,7 +851,7 @@ function ToggleBtn({
     <button
       onClick={onClick}
       className={cn(
-        "flex h-7 w-7 items-center justify-center rounded hover:bg-[#F3F4F6]",
+        "flex h-6 w-6 items-center justify-center rounded hover:bg-[#F3F4F6]",
         active && "bg-[#EEF0FF] text-[#5B6CF8]",
       )}
     >
@@ -4174,6 +4166,8 @@ interface CanvasProps {
   onSubProcessIconClick: (shape: Shape, originRect: DOMRect) => void;
   subPanelStates: Record<string, "open" | "minimized">;
   rightPanelOpen?: boolean;
+  onOpenProperties?: (id: string) => void;
+  propertiesOpenFor?: string | null;
 }
 
 function CanvasArea({
@@ -4191,6 +4185,8 @@ function CanvasArea({
   onSubProcessIconClick,
   subPanelStates,
   rightPanelOpen,
+  onOpenProperties,
+  propertiesOpenFor,
 }: CanvasProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const overlayRef = useRef<HTMLDivElement>(null);
@@ -4700,6 +4696,8 @@ function CanvasArea({
             }}
             onSubProcessIconClick={(rect) => onSubProcessIconClick(s, rect)}
             subPanelState={subPanelStates[s.id]}
+            onOpenProperties={() => onOpenProperties?.(s.id)}
+            propertiesOpen={propertiesOpenFor === s.id}
           />
         ))}
 
@@ -4972,6 +4970,8 @@ interface ShapeNodeProps {
   onSubProcessIconClick: (originRect: DOMRect) => void;
   subPanelState?: "open" | "minimized";
   rightPanelOpen?: boolean;
+  onOpenProperties?: () => void;
+  propertiesOpen?: boolean;
 }
 
 
@@ -4999,6 +4999,8 @@ function ShapeNode({
   onSubProcessIconClick,
   subPanelState,
   rightPanelOpen,
+  onOpenProperties,
+  propertiesOpen,
 }: ShapeNodeProps) {
 
   const [hovered, setHovered] = useState(false);
@@ -5687,6 +5689,33 @@ function ShapeNode({
           title={pinned ? "Desanclar" : "Anclar"}
         >
           <Pin className="h-3 w-3" style={pinned ? { fill: "currentColor" } : undefined} />
+        </button>
+      )}
+
+      {/* Properties button on shape (top-right, next to pin) — opens RightPanel */}
+      {selected && shape.type !== "text" && (
+        <button
+          onPointerDown={(e) => e.stopPropagation()}
+          onClick={(e) => {
+            e.stopPropagation();
+            onOpenProperties?.();
+          }}
+          className={cn(
+            "flowit-fade-in absolute flex items-center justify-center rounded-full border shadow-sm transition-all hover:scale-110",
+            propertiesOpen
+              ? "border-[#5B6CF8] bg-[#5B6CF8] text-white"
+              : "border-[#EBEBEB] bg-white text-[#6B7280] hover:text-[#5B6CF8]",
+          )}
+          style={{
+            left: shape.x + shape.width - 12 - 26,
+            top: shape.y - 10,
+            width: 22,
+            height: 22,
+            zIndex: 9999,
+          }}
+          title="Propiedades"
+        >
+          <SlidersHorizontal className="h-3 w-3" />
         </button>
       )}
 
