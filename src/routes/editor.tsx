@@ -4846,12 +4846,29 @@ function ShapeNode({
         );
       })()}
 
-      {/* HOVER POPUP */}
-      {showPopup && popupPos && (
+      {/* HOVER POPUP — portaled into this CanvasArea's overlay (bounded to canvas, never overlaps sidebars) */}
+      {showPopup && popupPos && overlayRef.current && createPortal(
+        <>
+          {popupSide && shapeInOverlayRef.current && (
+            <svg
+              style={{ position: "absolute", inset: 0, width: "100%", height: "100%", pointerEvents: "none", overflow: "visible" }}
+            >
+              <ConnectorLine
+                shape={shapeInOverlayRef.current}
+                popup={{
+                  left: (dragPos ?? popupPos).left,
+                  top: (dragPos ?? popupPos).top,
+                  width: pinned ? popupSize?.w ?? 320 : 280,
+                  height: pinned ? popupSize?.h ?? 380 : 200,
+                }}
+                side={popupSide}
+              />
+            </svg>
+          )}
         <div
           data-popup-for={shape.id}
           className={cn(
-            "fixed z-50 flex flex-col overflow-hidden rounded-[10px] border border-[#EBEBEB] bg-white",
+            "absolute flex flex-col overflow-hidden rounded-[10px] border border-[#EBEBEB] bg-white",
             pinned ? "flowit-pin-in" : "flowit-popup",
             dragging
               ? "shadow-[0_12px_40px_rgba(0,0,0,0.25)]"
