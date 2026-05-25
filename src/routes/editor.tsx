@@ -94,6 +94,7 @@ import { cn } from "@/lib/utils";
 import { PdfCanvasViewer } from "@/components/pdf-canvas-viewer";
 import { PeoplePicker } from "@/components/people-picker";
 import { IconTip } from "@/components/icon-tooltip";
+import { PublishButton } from "@/components/PublishButton";
 
 interface EditorSearch {
   doc?: string;
@@ -360,6 +361,7 @@ function EditorPage() {
         >
           {doc.status === "draft" ? "Draft" : "Published"}
         </button>
+        <PublishButton doc={doc} />
 
         {/* Format controls when shape selected */}
         <div className="ml-2 flex flex-1 items-center justify-center gap-1">
