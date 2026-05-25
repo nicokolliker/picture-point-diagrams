@@ -64,7 +64,7 @@ function ApprovalsPage() {
       supabase.from("doc_approvers").select("doc_id").eq("user_id", user.id),
       supabase.from("profiles").select("id,email,display_name"),
     ]);
-    setReqs((r.data as Req[]) ?? []);
+    setReqs(((r.data ?? []) as unknown) as Req[]);
     setApprovals((a.data as Approval[]) ?? []);
     setApproverDocIds(new Set((da.data ?? []).map((x: any) => x.doc_id)));
     setProfiles((p.data as Profile[]) ?? []);
