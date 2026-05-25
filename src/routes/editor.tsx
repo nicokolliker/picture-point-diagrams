@@ -4992,9 +4992,10 @@ function ShapeNode({
   const mouseRef = useRef<{ x: number; y: number }>({ x: 0, y: 0 });
   const [qaEdge, setQaEdge] = useState<"top" | "bottom" | "left" | "right">("bottom");
   const [dragPos, setDragPos] = useState<{ left: number; top: number } | null>(null);
-  // World-relative anchor (dx, dy in screen px from shape's overlay top-left)
-  // captured when the popup is pinned; used to keep the pinned popup glued to
-  // the shape as the canvas pans/zooms.
+  // World-space anchor (in canvas world units, NOT screen px) captured when
+  // the popup is pinned. We re-derive the popup's overlay position on every
+  // pan/zoom as `shapeOverlay + anchor * zoom`, so the popup stays glued to
+  // the shape during both panning AND zooming in/out.
   const pinnedAnchorRef = useRef<{ dx: number; dy: number } | null>(null);
   const [dragging, setDragging] = useState(false);
   const [lightbox, setLightbox] = useState(false);
