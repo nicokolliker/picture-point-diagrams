@@ -5711,6 +5711,33 @@ function ShapeNode({
         </button>
       )}
 
+      {/* Properties button on shape (top-right, next to pin) — opens RightPanel */}
+      {selected && shape.type !== "text" && (
+        <button
+          onPointerDown={(e) => e.stopPropagation()}
+          onClick={(e) => {
+            e.stopPropagation();
+            onOpenProperties?.();
+          }}
+          className={cn(
+            "flowit-fade-in absolute flex items-center justify-center rounded-full border shadow-sm transition-all hover:scale-110",
+            propertiesOpen
+              ? "border-[#5B6CF8] bg-[#5B6CF8] text-white"
+              : "border-[#EBEBEB] bg-white text-[#6B7280] hover:text-[#5B6CF8]",
+          )}
+          style={{
+            left: shape.x + shape.width - 12 - 26,
+            top: shape.y - 10,
+            width: 22,
+            height: 22,
+            zIndex: 9999,
+          }}
+          title="Propiedades"
+        >
+          <SlidersHorizontal className="h-3 w-3" />
+        </button>
+      )}
+
       {/* Sub-process trigger (top-left corner) */}
       {shape.type !== "text" && (
         <button
