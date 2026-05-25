@@ -4219,7 +4219,12 @@ function ShapeNode({
     minHeight: minH,
     background: shape.fill,
     border: `${shape.borderWeight}px ${shape.borderStyle} ${shape.borderColor ?? "#D0D0D0"}`,
-    borderRadius: shape.cornerStyle === "rounded" ? 8 : 0,
+    borderRadius:
+      shape.cornerStyle === "pill"
+        ? 9999
+        : shape.cornerStyle === "rounded"
+          ? 8
+          : 0,
     padding: `${basePad}px ${basePad}px ${padBottom}px ${basePad}px`,
     display: "flex",
     alignItems: "center",
@@ -4234,6 +4239,8 @@ function ShapeNode({
     textAlign: shape.align,
     boxSizing: "border-box",
     cursor: "move",
+    opacity: shape.opacity ?? 1,
+    boxShadow: shape.shadow ? "0 4px 12px rgba(0,0,0,0.12)" : undefined,
     transition: "border-color 100ms ease-out, box-shadow 150ms ease-out",
   };
 
