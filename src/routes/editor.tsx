@@ -3431,6 +3431,7 @@ function CanvasArea({
   rightPanelOpen,
 }: CanvasProps) {
   const containerRef = useRef<HTMLDivElement>(null);
+  const overlayRef = useRef<HTMLDivElement>(null);
   const [spaceDown, setSpaceDown] = useState(false);
   const panRef = useRef<{ startX: number; startY: number; panX: number; panY: number } | null>(null);
   const [dragging, setDragging] = useState<{
