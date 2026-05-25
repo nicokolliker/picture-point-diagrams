@@ -3042,7 +3042,7 @@ interface CanvasProps {
   pinnedIds: string[];
   pinShape: (id: string) => void;
   unpinShape: (id: string) => void;
-  onSubProcessIconClick: (shape: Shape) => void;
+  onSubProcessIconClick: (shape: Shape, originRect: DOMRect) => void;
   subPanelStates: Record<string, "open" | "minimized">;
 }
 
