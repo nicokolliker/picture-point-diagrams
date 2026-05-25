@@ -2429,7 +2429,7 @@ function buildAggregations(pagesData: PageSummaryData[]) {
 function hashColor(id: string) {
   let h = 0;
   for (let i = 0; i < id.length; i++) h = (h * 31 + id.charCodeAt(i)) >>> 0;
-  return `hsl(${h % 360}, 60%, 48%)`;
+  return `hsl(${h % 360}, 58%, 42%)`;
 }
 
 function PersonAvatar({ person, size = 32 }: { person: { id: string; name: string }; size?: number }) {
