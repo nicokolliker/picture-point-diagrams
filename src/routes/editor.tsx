@@ -431,17 +431,45 @@ function EditorPage() {
                 }}
                 shapesInUse={page.shapes}
                 onApplyTheme={(theme) => {
-                  const targets = selectedIds.length > 0
-                    ? page.shapes.filter((s) => selectedIds.includes(s.id))
-                    : page.shapes;
-                  targets.forEach((s, i) => {
-                    useDiagramStore.getState().updateShape(doc.id, page.id, s.id, {
-                      fill: theme.fills[i % theme.fills.length],
-                      textColor: theme.text,
-                      borderColor: theme.border,
-                    });
-                  });
-                }}
+                   const targets = selectedIds.length > 0
+                     ? page.shapes.filter((s) => selectedIds.includes(s.id))
+                     : page.shapes;
+                   // Map shape type → tone index (light → dark) so the gradient
+                   // reflects semantic role rather than position in the array.
+                   //   container → lightest (background)
+                   //   sticky    → light pastel
+                   //   rectangle → light (process step)
+                   //   svg/other → medium-light (data, io, etc.)
+                   //   diamond   → medium-dark (decision)
+                   //   oval      → darkest (start/end anchors)
+                   //   text      → no fill change
+                   const idxForType = (t: string): number => {
+                     switch (t) {
+                       case "container": return 0;
+                       case "sticky":    return 1;
+                       case "rectangle": return 1;
+                       case "diamond":   return 3;
+                       case "oval":      return 4;
+                       case "text":      return -1;
+                       default:          return 2;
+                     }
+                   };
+                   targets.forEach((s) => {
+                     const i = idxForType(s.type);
+                     if (i < 0) {
+                       useDiagramStore.getState().updateShape(doc.id, page.id, s.id, {
+                         textColor: theme.text,
+                       });
+                       return;
+                     }
+                     const fillIdx = Math.min(i, theme.fills.length - 1);
+                     useDiagramStore.getState().updateShape(doc.id, page.id, s.id, {
+                       fill: theme.fills[fillIdx],
+                       textColor: theme.text,
+                       borderColor: theme.border,
+                     });
+                   });
+                 }}
               />
             )}
 
