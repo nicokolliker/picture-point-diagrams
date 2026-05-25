@@ -430,8 +430,21 @@ function EditorPage() {
                   setSelectedIds([s.id]);
                 }}
                 shapesInUse={page.shapes}
+                onApplyTheme={(theme) => {
+                  const targets = selectedIds.length > 0
+                    ? page.shapes.filter((s) => selectedIds.includes(s.id))
+                    : page.shapes;
+                  targets.forEach((s, i) => {
+                    useDiagramStore.getState().updateShape(doc.id, page.id, s.id, {
+                      fill: theme.fills[i % theme.fills.length],
+                      textColor: theme.text,
+                      borderColor: theme.border,
+                    });
+                  });
+                }}
               />
             )}
+
             {activeTab === "images" && (
               <ImagesPanel
                 onAssign={(dataUrl) => {
@@ -687,21 +700,26 @@ function FormatBar({
         </PopoverTrigger>
         <PopoverContent className="w-auto p-2 space-y-2" align="start">
           <div className="text-[10px] uppercase tracking-wide text-[#9CA3AF]">Color</div>
-          <div className="grid grid-cols-6 gap-1">
-            {SWATCHES.map((c) => (
-              <button
-                key={c}
-                onClick={() => onChange({ borderColor: c })}
-                className={cn(
-                  "h-6 w-6 rounded border",
-                  (shape.borderColor ?? "").toLowerCase() === c.toLowerCase()
-                    ? "border-[#5B6CF8] ring-1 ring-[#5B6CF8]"
-                    : "border-[#D0D0D0]",
-                )}
-                style={{ background: c }}
-              />
+          <div className="space-y-0.5">
+            {COLOR_RAMPS.map((ramp) => (
+              <div key={ramp.name} className="flex gap-0.5">
+                {ramp.colors.map((c) => (
+                  <button
+                    key={c}
+                    onClick={() => onChange({ borderColor: c })}
+                    className={cn(
+                      "h-5 w-5 rounded-sm border transition-transform hover:scale-110",
+                      (shape.borderColor ?? "").toLowerCase() === c.toLowerCase()
+                        ? "border-[#5B6CF8] ring-1 ring-[#5B6CF8]"
+                        : "border-[#E5E7EB]",
+                    )}
+                    style={{ background: c }}
+                  />
+                ))}
+              </div>
             ))}
           </div>
+
           <div className="flex gap-2">
             <div className="flex-1">
               <div className="mb-1 text-[10px] uppercase tracking-wide text-[#9CA3AF]">Style</div>
@@ -846,11 +864,31 @@ function FormatBar({
 }
 
 
-const SWATCHES = [
-  "#FFFFFF", "#000000", "#6B7280", "#D0D0D0",
-  "#FCA5A5", "#F59E0B", "#FCD34D", "#86EFAC",
-  "#5EEAD4", "#93C5FD", "#A78BFA", "#F0ABFC",
+const COLOR_RAMPS: { name: string; colors: string[] }[] = [
+  { name: "Gray",   colors: ["#FFFFFF","#F3F4F6","#E5E7EB","#D1D5DB","#9CA3AF","#4B5563","#1F2937","#000000"] },
+  { name: "Red",    colors: ["#FEE2E2","#FECACA","#FCA5A5","#F87171","#EF4444","#DC2626","#991B1B","#7F1D1D"] },
+  { name: "Orange", colors: ["#FFEDD5","#FED7AA","#FDBA74","#FB923C","#F97316","#EA580C","#9A3412","#7C2D12"] },
+  { name: "Amber",  colors: ["#FEF3C7","#FDE68A","#FCD34D","#FBBF24","#F59E0B","#D97706","#92400E","#78350F"] },
+  { name: "Green",  colors: ["#DCFCE7","#BBF7D0","#86EFAC","#4ADE80","#22C55E","#16A34A","#15803D","#14532D"] },
+  { name: "Teal",   colors: ["#CCFBF1","#99F6E4","#5EEAD4","#2DD4BF","#14B8A6","#0D9488","#115E59","#134E4A"] },
+  { name: "Blue",   colors: ["#DBEAFE","#BFDBFE","#93C5FD","#60A5FA","#3B82F6","#2563EB","#1D4ED8","#1E3A8A"] },
+  { name: "Indigo", colors: ["#E0E7FF","#C7D2FE","#A5B4FC","#818CF8","#6366F1","#4F46E5","#3730A3","#312E81"] },
+  { name: "Purple", colors: ["#EDE9FE","#DDD6FE","#C4B5FD","#A78BFA","#8B5CF6","#7C3AED","#5B21B6","#4C1D95"] },
+  { name: "Pink",   colors: ["#FCE7F3","#FBCFE8","#F9A8D4","#F472B6","#EC4899","#DB2777","#9D174D","#831843"] },
 ];
+const SWATCHES = COLOR_RAMPS.flatMap((r) => r.colors);
+
+const THEMES: { name: string; fills: string[]; text: string; border: string }[] = [
+  { name: "Indigo",  fills: ["#EEF2FF","#C7D2FE","#A5B4FC","#818CF8","#6366F1"], text: "#1E1B4B", border: "#4F46E5" },
+  { name: "Ocean",   fills: ["#ECFEFF","#CFFAFE","#A5F3FC","#67E8F9","#22D3EE"], text: "#083344", border: "#0891B2" },
+  { name: "Forest",  fills: ["#ECFDF5","#D1FAE5","#A7F3D0","#6EE7B7","#34D399"], text: "#064E3B", border: "#059669" },
+  { name: "Sunset",  fills: ["#FFF7ED","#FFEDD5","#FED7AA","#FDBA74","#FB923C"], text: "#7C2D12", border: "#EA580C" },
+  { name: "Rose",    fills: ["#FFF1F2","#FFE4E6","#FECDD3","#FDA4AF","#FB7185"], text: "#881337", border: "#E11D48" },
+  { name: "Mono",    fills: ["#FFFFFF","#F3F4F6","#E5E7EB","#D1D5DB","#9CA3AF"], text: "#111827", border: "#4B5563" },
+  { name: "Candy",   fills: ["#FDE68A","#FCA5A5","#A5F3FC","#C4B5FD","#86EFAC"], text: "#1F2937", border: "#6B7280" },
+  { name: "Pastel",  fills: ["#FEF3C7","#DBEAFE","#DCFCE7","#FCE7F3","#EDE9FE"], text: "#374151", border: "#D1D5DB" },
+];
+
 
 function ColorSwatchPicker({
   label,
@@ -875,22 +913,27 @@ function ColorSwatchPicker({
         </button>
       </PopoverTrigger>
       <PopoverContent className="w-auto p-2" align="start">
-        <div className="grid grid-cols-6 gap-1">
-          {SWATCHES.map((c) => (
-            <button
-              key={c}
-              onClick={() => onChange(c)}
-              className={cn(
-                "h-6 w-6 rounded border",
-                value.toLowerCase() === c.toLowerCase()
-                  ? "border-[#5B6CF8] ring-1 ring-[#5B6CF8]"
-                  : "border-[#D0D0D0]",
-              )}
-              style={{ background: c }}
-              title={c}
-            />
+        <div className="space-y-0.5">
+          {COLOR_RAMPS.map((ramp) => (
+            <div key={ramp.name} className="flex gap-0.5" title={ramp.name}>
+              {ramp.colors.map((c) => (
+                <button
+                  key={c}
+                  onClick={() => onChange(c)}
+                  className={cn(
+                    "h-5 w-5 rounded-sm border transition-transform hover:scale-110",
+                    value.toLowerCase() === c.toLowerCase()
+                      ? "border-[#5B6CF8] ring-1 ring-[#5B6CF8]"
+                      : "border-[#E5E7EB]",
+                  )}
+                  style={{ background: c }}
+                  title={c}
+                />
+              ))}
+            </div>
           ))}
         </div>
+
         <div className="mt-2 flex items-center gap-1.5">
           <input
             type="color"
@@ -931,9 +974,11 @@ function ToggleBtn({
 function ShapesPanel({
   onAddShape,
   shapesInUse,
+  onApplyTheme,
 }: {
   onAddShape: (t: ShapeType) => void;
   shapesInUse: Shape[];
+  onApplyTheme?: (theme: (typeof THEMES)[number]) => void;
 }) {
   const [q, setQ] = useState("");
   const inUseTypes = Array.from(new Set(shapesInUse.map((s) => s.type)));
@@ -955,6 +1000,30 @@ function ShapesPanel({
         </div>
       </div>
       <div className="flex-1 overflow-y-auto p-3">
+        {onApplyTheme && (
+          <Section title="Themes">
+            <div className="grid grid-cols-2 gap-2">
+              {THEMES.map((t) => (
+                <button
+                  key={t.name}
+                  onClick={() => onApplyTheme(t)}
+                  className="group flex flex-col items-stretch gap-1 rounded-md border border-[#EBEBEB] bg-white p-1.5 text-left hover:border-[#5B6CF8] hover:shadow-sm"
+                  title={`Apply ${t.name} theme`}
+                >
+                  <div className="flex h-5 overflow-hidden rounded">
+                    {t.fills.map((c) => (
+                      <div key={c} className="flex-1" style={{ background: c }} />
+                    ))}
+                  </div>
+                  <span className="text-[10px] font-medium text-[#374151]">{t.name}</span>
+                </button>
+              ))}
+            </div>
+            <p className="mt-1.5 text-[10px] text-[#9CA3AF]">
+              Aplica al seleccionado o a toda la página.
+            </p>
+          </Section>
+        )}
         {inUseTypes.length > 0 && (
           <Section title="Shapes in use">
             <div className="grid grid-cols-3 gap-2">
@@ -964,6 +1033,7 @@ function ShapesPanel({
             </div>
           </Section>
         )}
+
         <Section title="Flowchart">
           <div className="grid grid-cols-3 gap-2">
             {filt(FLOWCHART_SHAPES).map((s) => (
