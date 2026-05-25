@@ -3050,7 +3050,7 @@ function SummaryPanel({
                 </span>
               </div>
               <div className="mt-1.5">
-                <ProgressMeter value={progress} />
+                <ProgressMeter value={progress} compact />
               </div>
               <div className="mt-1 flex items-center gap-3 text-[10px] text-[#6B7280]">
                 <span>⚠ {pd.alerts.length} alertas</span>
