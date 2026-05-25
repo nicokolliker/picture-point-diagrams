@@ -4310,6 +4310,8 @@ function ShapeNode({
   const [popupSize, setPopupSize] = useState<{ w: number; h: number } | null>(null);
 
   const computePos = useCallback(() => {
+    // Pinned popup is frozen in place — never reposition once pinned.
+    if (pinned && popupPos) return;
     const overlay = overlayRef.current;
     const node = nodeRef.current;
     if (!overlay || !node) return;
@@ -4331,7 +4333,7 @@ function ShapeNode({
 
     const POP_W = pinned ? popupSize?.w ?? 320 : 280;
     const POP_H = pinned ? popupSize?.h ?? 380 : 200;
-    const GAP = 10;
+    const GAP = 24;
     const pad = 8;
     const OW = overlayRect.width;
     const OH = overlayRect.height;
@@ -4416,10 +4418,31 @@ function ShapeNode({
   // Pinned popup is always shown. Don't auto-reposition if user has dragged.
   useEffect(() => {
     if (pinned) {
-      if (!dragPos) computePos();
+      if (!dragPos && !popupPos) computePos();
       setShowPopup(true);
     }
-  }, [pinned, computePos, dragPos]);
+  }, [pinned, computePos, dragPos, popupPos]);
+
+  // Keep shape's overlay-relative rect fresh on every pan/zoom so the
+  // connector line's shape-end stays anchored even when the popup is pinned
+  // (computePos itself bails early when pinned).
+  useEffect(() => {
+    if (!showPopup && !pinned) return;
+    const overlay = overlayRef.current;
+    const shapeEl = nodeRef.current;
+    if (!overlay || !shapeEl) return;
+    const or = overlay.getBoundingClientRect();
+    const sr = shapeEl.getBoundingClientRect();
+    shapeInOverlayRef.current = {
+      left: sr.left - or.left,
+      top: sr.top - or.top,
+      right: sr.right - or.left,
+      bottom: sr.bottom - or.top,
+      width: sr.width,
+      height: sr.height,
+    };
+    forceConnectorTick((n) => (n + 1) % 1000000);
+  }, [pan, zoom, showPopup, pinned, overlayRef]);
 
   // Hover-show with 400ms delay; popup itself does not extend its lifetime.
   // When the mouse leaves the shape, hide after a 150ms grace period.
