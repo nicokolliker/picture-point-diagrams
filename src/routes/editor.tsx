@@ -4992,6 +4992,10 @@ function ShapeNode({
   const mouseRef = useRef<{ x: number; y: number }>({ x: 0, y: 0 });
   const [qaEdge, setQaEdge] = useState<"top" | "bottom" | "left" | "right">("bottom");
   const [dragPos, setDragPos] = useState<{ left: number; top: number } | null>(null);
+  // World-relative anchor (dx, dy in screen px from shape's overlay top-left)
+  // captured when the popup is pinned; used to keep the pinned popup glued to
+  // the shape as the canvas pans/zooms.
+  const pinnedAnchorRef = useRef<{ dx: number; dy: number } | null>(null);
   const [dragging, setDragging] = useState(false);
   const [lightbox, setLightbox] = useState(false);
   useEffect(() => {
