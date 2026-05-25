@@ -4359,7 +4359,8 @@ function ShapeNode({
           onPointerDown={(e) => e.stopPropagation()}
           onClick={(e) => {
             e.stopPropagation();
-            onSubProcessIconClick();
+            const rect = nodeRef.current?.getBoundingClientRect();
+            if (rect) onSubProcessIconClick(rect);
           }}
           onMouseEnter={() => setHovered(true)}
           onMouseLeave={() => setHovered(false)}
