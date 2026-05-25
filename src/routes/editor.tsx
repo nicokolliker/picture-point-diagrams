@@ -502,30 +502,26 @@ function EditorPage() {
 
       <PinnedConnectorsOverlay pinnedIds={pinnedIds} />
 
-      {/* Floating sub-process panels */}
-      {subPanels.map((panel, idx) => {
-        const srcPage = doc.pages.find((p) => p.id === panel.sourcePageId);
-        const srcShape = srcPage?.shapes.find((s) => s.id === panel.shapeId);
-        const subPage = doc.pages.find((p) => p.id === panel.pageId);
+      {/* Sub-process modals (zoom-in from shape with dim overlay) */}
+      {subModals.map((modal, idx) => {
+        const srcPage = doc.pages.find((p) => p.id === modal.sourcePageId);
+        const srcShape = srcPage?.shapes.find((s) => s.id === modal.shapeId);
+        const subPage = doc.pages.find((p) => p.id === modal.pageId);
         if (!subPage) return null;
-        const minimizedIndex = subPanels
-          .filter((p) => p.minimized)
-          .findIndex((p) => p.shapeId === panel.shapeId);
         return (
-          <SubProcessPanel
-            key={panel.shapeId}
+          <SubProcessModal
+            key={modal.shapeId}
             docId={doc.id}
             page={subPage}
             shapeTitle={srcShape?.title || srcShape?.text || "Sub-proceso"}
-            minimized={panel.minimized}
-            minimizedStackIndex={minimizedIndex}
-            onClose={() => closeSubProcessPanel(panel.shapeId)}
-            onToggleMinimize={() => toggleMinimizeSubPanel(panel.shapeId)}
-            onSubProcessIconClick={(shape) =>
-              openSubProcessPanel(shape, panel.pageId)
+            originRect={modal.originRect}
+            closing={!!modal.closing}
+            onClose={() => closeSubProcessPanel(modal.shapeId)}
+            onSubProcessIconClick={(shape, rect) =>
+              openSubProcessPanel(shape, modal.pageId, rect)
             }
             subPanelStates={subPanelStates}
-            zIndexBase={8000 + idx}
+            zIndexBase={8000 + idx * 10}
           />
         );
       })}
