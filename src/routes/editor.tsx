@@ -42,6 +42,7 @@ import {
   AlignRight,
   Expand,
   Shuffle,
+  SlidersHorizontal,
 } from "lucide-react";
 import {
   Popover,
