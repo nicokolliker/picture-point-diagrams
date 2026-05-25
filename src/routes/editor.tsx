@@ -4268,20 +4268,38 @@ function ShapeNode({
   const [popupSize, setPopupSize] = useState<{ w: number; h: number } | null>(null);
 
   const computePos = useCallback(() => {
-    const rect = nodeRef.current?.getBoundingClientRect();
-    if (!rect) return;
+    const overlay = overlayRef.current;
+    const node = nodeRef.current;
+    if (!overlay || !node) return;
+    const overlayRect = overlay.getBoundingClientRect();
+    const rect = node.getBoundingClientRect();
+    void pan;
+    void rightPanelOpen;
+
+    // Convert shape screen position → overlay-relative position.
+    const shapeInOverlay = {
+      left: rect.left - overlayRect.left,
+      top: rect.top - overlayRect.top,
+      right: rect.right - overlayRect.left,
+      bottom: rect.bottom - overlayRect.top,
+      width: rect.width,
+      height: rect.height,
+    };
+    shapeInOverlayRef.current = shapeInOverlay;
+
     const POP_W = pinned ? popupSize?.w ?? 320 : 280;
     const POP_H = pinned ? popupSize?.h ?? 380 : 200;
-    const GAP = 8;
-    void pan;
-    // Account for app chrome: left shapes sidebar and right properties panel.
-    const LEFT_W = 370;
-    const RIGHT_W = rightPanelOpen ? 320 : 0;
-    const TOP_H = 48;
+    const GAP = 10;
+    const pad = 8;
+    const OW = overlayRect.width;
+    const OH = overlayRect.height;
 
-    const canvasOffsetX = rect.left - shape.x * zoom;
-    const canvasOffsetY = rect.top - shape.y * zoom;
+    const clampL = (l: number) => Math.max(pad, Math.min(l, OW - POP_W - pad));
+    const clampT = (t: number) => Math.max(pad, Math.min(t, OH - POP_H - pad));
 
+    // Other shapes, in overlay-relative coordinates, for overlap scoring.
+    const canvasOffsetX = rect.left - shape.x * zoom - overlayRect.left;
+    const canvasOffsetY = rect.top - shape.y * zoom - overlayRect.top;
     const otherRects = allShapes
       .filter((s) => s.id !== shape.id)
       .map((s) => ({
@@ -4290,7 +4308,6 @@ function ShapeNode({
         right: (s.x + s.width) * zoom + canvasOffsetX,
         bottom: (s.y + s.height) * zoom + canvasOffsetY,
       }));
-
     const overlapScore = (pl: number, pt: number) => {
       const pr = pl + POP_W;
       const pb = pt + POP_H;
@@ -4301,27 +4318,34 @@ function ShapeNode({
       }, 0);
     };
 
-    const clampL = (l: number) =>
-      Math.max(LEFT_W + 8, Math.min(l, window.innerWidth - RIGHT_W - POP_W - 8));
-    const clampT = (t: number) =>
-      Math.max(TOP_H + 8, Math.min(t, window.innerHeight - POP_H - 8));
-
     const raw = [
-      { name: "right", l: rect.right + GAP, t: clampT(rect.top) },
-      { name: "left", l: rect.left - POP_W - GAP, t: clampT(rect.top) },
-      { name: "bottom", l: clampL(rect.left), t: rect.bottom + GAP },
-      { name: "top", l: clampL(rect.left), t: rect.top - POP_H - GAP },
+      { name: "right", l: shapeInOverlay.right + GAP, t: clampT(shapeInOverlay.top) },
+      { name: "left", l: shapeInOverlay.left - POP_W - GAP, t: clampT(shapeInOverlay.top) },
+      { name: "bottom", l: clampL(shapeInOverlay.left), t: shapeInOverlay.bottom + GAP },
+      { name: "top", l: clampL(shapeInOverlay.left), t: shapeInOverlay.top - POP_H - GAP },
     ];
+    const fits = raw.filter(
+      (s) =>
+        s.l >= pad &&
+        s.t >= pad &&
+        s.l + POP_W <= OW - pad &&
+        s.t + POP_H <= OH - pad,
+    );
+    const pool = (fits.length > 0 ? fits : raw).map((c) => ({
+      ...c,
+      l: clampL(c.l),
+      t: clampT(c.t),
+    }));
     const priority: Record<string, number> = { right: 0, left: 1, bottom: 2, top: 3 };
-    const candidates = raw
-      .map((c) => ({ ...c, l: clampL(c.l), t: clampT(c.t) }))
+    const best = pool
       .map((c) => ({ ...c, score: overlapScore(c.l, c.t) }))
-      .sort((a, b) => a.score - b.score || priority[a.name] - priority[b.name]);
+      .sort((a, b) => a.score - b.score || priority[a.name] - priority[b.name])[0];
 
-    const best = candidates[0];
     setPopupPos({ left: best.l, top: best.t });
     setPopupSide(best.name as "top" | "bottom" | "left" | "right");
-  }, [shape, allShapes, pan, zoom, popupSize, pinned, rightPanelOpen]);
+    forceConnectorTick((n) => (n + 1) % 1000000);
+  }, [shape, allShapes, overlayRef, pan, zoom, popupSize, pinned, rightPanelOpen]);
+
 
   const onResizePopupDown = useCallback(
     (e: React.PointerEvent<HTMLDivElement>) => {
