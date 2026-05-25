@@ -3050,8 +3050,9 @@ function SummaryPanel({
             >
               <div className="flex items-center gap-2">
                 <span className="text-[10px] text-[#6B7280]">{open ? "▼" : "▶"}</span>
-                <span className="truncate text-[12px] font-semibold text-[#111827]">
-                  {isMain ? pd.page.name : `⊞ ${pd.page.name}`}
+                <span className="flex items-center gap-1 truncate text-[12px] font-semibold text-[#111827]">
+                  {!isMain && <Shuffle className="h-3 w-3 text-[#5B6CF8]" />}
+                  {pd.page.name}
                 </span>
               </div>
               <div className="mt-1.5">
