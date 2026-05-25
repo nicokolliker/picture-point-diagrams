@@ -1,69 +1,172 @@
+# Plan: Aprobaciones de versiones + Input de Granola
 
-## 1. Toolbar flotante estilo Miro para edición de shapes
-
-Hoy `FormatBar` vive en la barra superior fija del editor. Mover a una barra flotante contextual sobre la shape seleccionada, igual a Miro.
-
-- Nuevo componente `FloatingFormatBar` renderizado vía `createPortal` dentro del `overlayRef` de `CanvasArea` (mismo patrón que los popups → no se mueve con sidebars).
-- Se ancla arriba de la(s) shape(s) seleccionada(s) con `computeRect()` similar a `computePos`, recalculando en `pan`/`zoom`/`renderedH` y al redimensionar.
-- Se oculta automáticamente cuando no hay selección, durante drag, o cuando hay multi-selección con shapes muy separadas (fallback: top-center del viewport).
-- Se quita la FormatBar de la barra superior. La barra superior queda sólo con acciones globales (undo/redo, zoom, vista, etc.).
-
-Contenido de la barra (paridad con Miro), agrupado con separadores verticales:
-1. Color de relleno (swatch + popover con paleta + custom hex + slider de opacidad con valor numérico "67%").
-2. Color y grosor de borde + estilo (sólido/dashed/dotted).
-3. Tipografía: family, size (con stepper ▲▼), bold/italic/underline, alineación (izq/centro/der), color de texto.
-4. Estilo de esquina (sharp / rounded / pill) como toggle de 3 estados.
-5. Sombra (toggle con variant filled cuando está activo).
-6. Capa (traer al frente / enviar atrás).
-7. Link, lock, comentarios (placeholders consistentes con el resto).
-8. Menú `⋮` con "Duplicar", "Copiar estilo", "Eliminar".
-
-Detalles UX:
-- Pills redondeadas, fondo blanco, sombra `0 8px 24px rgba(0,0,0,0.12)`, borde `1px solid #E5E7EB`.
-- Cada popover (color, fuente) abre debajo con z-index por encima de la propia barra y se cierra al click afuera.
-- Tooltips con `IconTip` en cada botón.
-- La barra nunca se solapa con la shape: si no entra arriba, se ancla abajo.
-
-## 2. Popup pineado no debe seguir al pan/scroll
-
-Síntoma: aunque `computePos` hace early-return cuando `pinned`, el popup igual se mueve. Causa: el popup vive en el `overlayRef` del `CanvasArea`, pero ese overlay está dentro del contenedor que pannea (o hereda el `transform` del layer pannable). El "freeze" actual sólo congela las coordenadas, no el sistema de referencia.
-
-Fix:
-- Asegurar que `overlayRef` es un `<div absolute inset-0>` hermano del layer pannable (no hijo). Si ya lo es, el bug está en que las coordenadas guardadas son del shape (pannean) en vez de del viewport.
-- Cuando se pinea, convertir `popupPos` a coordenadas **viewport-fijas** (sumar `pan` y multiplicar por `zoom` una sola vez al pinear) y dejar el popup como `position: fixed` mientras está pineado, fuera del overlay pannable.
-- El extremo "shape" del connector sí debe recalcularse con `pan`/`zoom` cada frame (ya lo hace `shapeInOverlayRef`), el extremo "popup" queda fijo en viewport.
-- Clamp del drag del popup pineado a `[0, vw-w] × [0, vh-h]` para que no quede inaccesible.
-
-## 3. Edición de objetos dentro de sub-procesos
-
-`SubProcessModal` ya monta `CanvasArea` + `RightPanel` con state propio, pero las shapes no se pueden editar. Causas a verificar/corregir:
-
-- El contenedor exterior del modal hace `onPointerDown={(e) => e.stopPropagation()}` y `onClick={(e) => e.stopPropagation()}`. Eso no debería bloquear handlers internos, pero sí rompe el ciclo `pointerdown → focus` de inputs anidados (textareas de shapes) en algunos casos. Quitar el `stopPropagation` del contenedor y manejarlo sólo en el overlay oscuro de fondo.
-- Verificar que el `docId`/`pageId` que recibe `CanvasArea` apunta a la página del sub-proceso y que las mutaciones (`updateShape`, `addShape`, etc.) están escribiendo en esa misma página y no en la página principal.
-- Verificar que `RightPanel` dentro del modal opera sobre `selectedIds` locales y aplica `onChange` a la página del sub-proceso (no a la principal).
-- Asegurar que el modal acepta foco de teclado (tab-index, `onKeyDown` para Delete/Backspace de la shape seleccionada dentro del modal y no a nivel global del editor).
-
-Resultado esperado: dentro del modal funciona drag, resize, edición de texto, FloatingFormatBar (punto 1), y atajos de teclado, exactamente igual que en el canvas principal.
-
-## 4. Ícono de sub-proceso: ⊞ → shuffle
-
-Reemplazar el glifo `⊞` por el ícono `Shuffle` de lucide-react en los tres lugares donde aparece:
-- Badge en la esquina top-left de `ShapeNode` (trigger del modal).
-- Header del `SubProcessModal` (cuadrito azul a la izquierda del nombre).
-- Tab de página en la barra de páginas (`⊞ ${pd.page.name}` → ícono + nombre).
-
-Mantener el mismo tamaño visual (14px), color heredado del contenedor, con `IconTip` "Abrir sub-proceso" en el trigger.
+## Decisiones tomadas
+- **Trigger**: aprobación se pide al "Publicar" (draft → published).
+- **Modelo**: N aprobaciones requeridas (sin orden), configurable por documento.
+- **Granola**: conexión vía connector oficial; eleg ís la reunión de una lista.
+- **AI**: genera un documento nuevo en **draft** que vos revisás antes de publicar.
+- **Superadmin**: `nkolliker@chillit.com` — aprueba todo, gestiona usuarios y permisos.
 
 ---
 
-## Archivos a tocar
+## 1. Backend (Lovable Cloud)
 
-- `src/routes/editor.tsx` — `FormatBar` → `FloatingFormatBar` con portal, lógica de anclaje, freeze de popup pineado, fix de edición en `SubProcessModal`, reemplazo de ⊞ por `Shuffle`.
-- Sin cambios en store, types, ni nuevas dependencias.
+Activar Lovable Cloud (no estaba). Toda la persistencia de docs (que hoy vive en `localStorage` vía `diagram-store.ts`) sigue en localStorage para no romper UX; **lo nuevo** (usuarios, roles, versiones, aprobaciones, reuniones Granola) va a DB.
 
-## Validación
+### Tablas
 
-1. Seleccionar una shape en el canvas principal → la barra flotante aparece encima, con todos los controles. Mover/zoom el canvas → la barra sigue a la shape.
-2. Pinear un popup, hacer pan/zoom y scroll de página → el popup queda fijo en viewport, la línea sigue conectada al borde de la shape.
-3. Abrir un sub-proceso → crear shape desde el toolbar lateral, arrastrarla, redimensionarla, editar su texto, cambiar color con la barra flotante, borrar con Delete.
-4. Verificar que el ícono shuffle aparece en los 3 lugares.
+```text
+profiles                    user_roles                publish_requests
+─────────                   ──────────                ────────────────
+id (uuid, FK auth.users)    id                        id
+email                       user_id → auth.users      doc_id           (texto: id local del doc)
+display_name                role: app_role enum       doc_name
+created_at                  created_at                version_number
+                            unique(user_id, role)     snapshot (jsonb) ← copia inmutable del documento
+                                                      requested_by → auth.users
+                                                      required_approvals (int)
+                                                      status: pending|approved|rejected|cancelled
+                                                      created_at, resolved_at
+
+doc_approvers               approvals
+─────────────               ─────────
+id                          id
+doc_id (texto)              request_id → publish_requests
+user_id → auth.users        approver_id → auth.users
+required_count (int)        decision: approve|reject
+unique(doc_id, user_id)     comment (text)
+                            created_at
+                            unique(request_id, approver_id)
+
+granola_imports
+───────────────
+id
+user_id → auth.users
+note_id (granola)
+note_title
+generated_doc_id (texto, el id del nuevo documento)
+status: pending|generating|ready|failed
+created_at
+```
+
+`app_role` enum: `super_admin`, `admin`, `editor`, `viewer`.
+
+### Seguridad
+- RLS en todas las tablas.
+- Función `has_role(user, role)` como `SECURITY DEFINER` (patrón estándar — los roles NUNCA viven en `profiles`).
+- `super_admin` puede leer/escribir todo; `admin` gestiona usuarios menos super_admins; `editor` solicita aprobaciones; `viewer` solo lee.
+- Trigger en signup: crea fila en `profiles`. Si email = `nkolliker@chillit.com`, inserta rol `super_admin` automáticamente.
+
+---
+
+## 2. Frontend: Auth
+
+- Página `/login` con email/password + Google (default Lovable Cloud).
+- Wrapper `_authenticated` para proteger rutas del editor.
+- Header con avatar + menu (logout, "Admin" si corresponde).
+- Cliente Supabase + `onAuthStateChange` en `__root.tsx`.
+
+---
+
+## 3. Frontend: Panel de administración (solo super_admin/admin)
+
+Nueva ruta `/admin`:
+- **Usuarios**: lista, invitar (email), cambiar rol, desactivar.
+- **Aprobadores por proceso**: por cada documento, elegir aprobadores y `required_count` (N firmas).
+- **Auditoría**: historial de `publish_requests` con quién aprobó/rechazó y cuándo.
+
+---
+
+## 4. Flujo de aprobación de versiones
+
+### En el editor
+- El botón **"Publish"** (que hoy cambia `status` a `published` localmente) cambia comportamiento:
+  - Si el doc NO tiene aprobadores configurados → super_admin/admin publica directo; editor recibe error "configurar aprobadores".
+  - Si tiene aprobadores → abre modal "Solicitar aprobación": snapshot del doc se guarda en `publish_requests.snapshot`, status `pending`.
+- Mientras hay request `pending`, el doc muestra badge **"Pendiente de aprobación"** y el botón Publish queda deshabilitado.
+
+### Nueva vista `/approvals`
+- **Pendientes para mí**: requests donde figuro como aprobador.
+- **Mis solicitudes**: requests que yo creé.
+- Cada request muestra: nombre del doc, versión, quién pidió, diff resumido (cantidad de shapes/conectores nuevos/modificados/eliminados vs versión anterior), botones **Aprobar / Rechazar + comentario**.
+- Cuando `approvals.count(approve) >= required_approvals` → status pasa a `approved`, el snapshot se aplica al documento local (`status: published`, se incrementa `version_number`).
+- Cualquier rechazo → status `rejected`, queda registrado.
+
+### Historial
+- Tab "Versiones" en el editor: lista de `publish_requests` aprobadas con timestamp, autor, aprobadores. Permite ver snapshot de cualquier versión (read-only).
+
+---
+
+## 5. Input de Granola
+
+### Conexión
+- Usar `standard_connectors--connect` con `connector_id: granola`. El usuario conecta su cuenta una vez.
+
+### UI
+- Nuevo botón en el home (`/`) "Importar desde Granola" + tab dentro del editor.
+- Modal con lista de reuniones (`GET /v1/notes` vía gateway), buscador, paginación.
+- Al elegir una → server function que:
+  1. Trae transcript + summary de la nota (`/v1/notes/{id}?include=transcript`).
+  2. Llama a Lovable AI Gateway (`google/gemini-3-flash-preview`) con structured output (Zod schema) para generar:
+     - Lista de shapes (tipo: rectangle/diamond/oval, título, descripción, responsable detectado).
+     - Lista de conectores entre shapes.
+     - Layout en grilla automática (posiciones x/y).
+  3. Crea un `DiagramDocument` nuevo en localStorage vía un endpoint client-side post-respuesta, con `status: draft` y nombre = título de la nota.
+  4. Registra el import en `granola_imports`.
+- Toast: "Documento generado, abrir en editor".
+
+### Server functions
+- `src/lib/granola.functions.ts`:
+  - `listGranolaNotes({ cursor, limit })`
+  - `generateFlowchartFromNote({ noteId })` → retorna el JSON del documento.
+
+### Schema AI (Zod)
+```ts
+z.object({
+  name: z.string(),
+  shapes: z.array(z.object({
+    id: z.string(),
+    type: z.enum(["rectangle","diamond","oval","sticky"]),
+    title: z.string(),
+    text: z.string(),
+    responsable: z.string().optional(),
+  })),
+  connectors: z.array(z.object({
+    fromId: z.string(), toId: z.string(), label: z.string().optional(),
+  })),
+})
+```
+
+---
+
+## 6. Cambios en `diagram-store.ts`
+- Agregar campo `pendingRequestId?: string` y `version: number` a `DiagramDocument`.
+- Acción `applyApprovedSnapshot(docId, snapshot)` para reemplazar el doc cuando se aprueba.
+- Acción `createDocumentFromAI(payload)` para Granola.
+
+---
+
+## 7. Detalles técnicos
+
+- **Stack**: Lovable Cloud (Supabase) + TanStack Start.
+- **Server functions** protegidas con `requireSupabaseAuth`.
+- **Granola** vía connector gateway (`https://connector-gateway.lovable.dev/granola/v1/...`), headers `Authorization: Bearer $LOVABLE_API_KEY` + `X-Connection-Api-Key: $GRANOLA_API_KEY`.
+- **AI** vía Lovable AI Gateway con `generateText` + `Output.object` (structured output).
+- **Snapshot del doc**: JSON completo de la página/s con shapes y conectores; permite reaplicar exactamente la versión aprobada.
+- **Diff resumido** computado en el cliente comparando snapshot vs versión publicada anterior.
+
+---
+
+## 8. Orden de implementación
+
+1. Activar Lovable Cloud + crear schema (profiles, user_roles, has_role, RLS).
+2. Auth UI (login + Google) + protección de rutas + trigger superadmin.
+3. Panel `/admin` (usuarios + aprobadores por doc).
+4. Schema `publish_requests` + `approvals` + flujo "Solicitar aprobación" en editor.
+5. Vista `/approvals` + aplicación del snapshot al aprobarse.
+6. Tab "Versiones" en el editor (historial read-only).
+7. Conectar Granola + UI listado de reuniones.
+8. Server function `generateFlowchartFromNote` + creación de doc draft.
+9. QA end-to-end con tu cuenta superadmin.
+
+¿Te cierra? Si querés ajusto algo (por ejemplo: agregar comentarios por shape en las requests, o notificaciones por email a aprobadores) antes de implementar.
