@@ -653,7 +653,7 @@ function FormatBar({
     shape.cornerStyle === "sharp" ? "▢" : shape.cornerStyle === "rounded" ? "▣" : "⬭";
   const opacity = shape.opacity ?? 1;
   return (
-    <div className="flex flex-wrap items-center gap-1 rounded-md border border-[#EBEBEB] bg-white p-1">
+    <div className="flex flex-nowrap items-center gap-1 whitespace-nowrap rounded-md border border-[#EBEBEB] bg-white p-1 shadow-sm">
       <Select value={shape.fontFamily} onValueChange={(v) => onChange({ fontFamily: v })}>
         <SelectTrigger className="h-7 w-[110px] text-xs" style={{ fontFamily: shape.fontFamily }}>
           <SelectValue />
