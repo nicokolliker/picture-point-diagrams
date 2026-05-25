@@ -3102,43 +3102,78 @@ function FullSummaryModal({
                   pd.missingGroups.size > 0 ||
                   pd.noStateShapes.length > 0;
                 if (!hasContent) return null;
+                const open = isGroupOpen(pd.page.id);
+                const progress = computeProgress(pd);
                 return (
-                  <div key={pd.page.id} className="mb-3">
-                    <div className="mb-1 px-1 text-[11px] font-semibold uppercase tracking-wider text-[#111827]">
-                      {isMain ? pd.page.name : `Sub-proceso: ${pd.page.name}`}
-                      <span className="ml-1 text-[10px] font-normal text-[#9CA3AF]">
-                        ({pd.alerts.length}⚠ · {pd.entries.length}● · {missingTotal}📄)
-                      </span>
-                    </div>
-                    {pd.alerts.map(renderAlertRow)}
-                    {pd.entries.map(renderEntryRow)}
-                    {Array.from(pd.missingGroups.entries()).map(([type, ss]) => (
-                      <Row
-                        key={`${pd.page.id}:${type}`}
-                        active={sel?.kind === "missing" && sel.type === type && sel.pageId === pd.page.id}
-                        onClick={() => setSel({ kind: "missing", type, pageId: pd.page.id })}
-                      >
-                        <FileText className="h-3.5 w-3.5 text-[#9CA3AF]" />
-                        <span className="flex-1 truncate">
-                          {type === MISSING_UNSPEC ? type : `${type} faltante`}
+                  <div
+                    key={pd.page.id}
+                    className="mb-3 rounded-md border border-[#EBEBEB] bg-[#FAFAFB]"
+                  >
+                    <button
+                      onClick={() => toggleGroup(pd.page.id)}
+                      className="flex w-full items-center justify-between gap-2 px-3 py-2 text-left"
+                    >
+                      <div className="flex min-w-0 flex-1 items-center gap-2">
+                        <span className="text-[12px] text-[#6B7280]">{open ? "▼" : "▶"}</span>
+                        <span className="truncate text-[12px] font-semibold text-[#111827]">
+                          {pd.page.name}
                         </span>
-                        <span className="text-[10px] text-[#9CA3AF]">{ss.length}</span>
-                      </Row>
-                    ))}
-                    {pd.noStateShapes.map((s) => (
-                      <Row
-                        key={`${pd.page.id}:ns:${s.id}`}
-                        active={
-                          sel?.kind === "nostate" &&
-                          sel.shapeId === s.id &&
-                          sel.pageId === pd.page.id
-                        }
-                        onClick={() => setSel({ kind: "nostate", shapeId: s.id, pageId: pd.page.id })}
-                      >
-                        <span>⚫</span>
-                        <span className="flex-1 truncate">{s.title || s.text || "Sin título"}</span>
-                      </Row>
-                    ))}
+                        {!isMain && (
+                          <span className="rounded bg-[#F3F4F6] px-1.5 py-0.5 text-[10px] font-medium text-[#6B7280]">
+                            Sub-proceso
+                          </span>
+                        )}
+                      </div>
+                      <ProgressBar value={progress} />
+                    </button>
+                    <div className="flex items-center gap-3 px-3 pb-2 text-[10px] text-[#6B7280]">
+                      <span>⚠ {pd.alerts.length}</span>
+                      <span>● {pd.entries.length}</span>
+                      <span>📄 {missingTotal}</span>
+                    </div>
+                    {open && (
+                      <div className="border-t border-[#EBEBEB] bg-white p-2">
+                        {pd.alerts.map(renderAlertRow)}
+                        {pd.entries.map(renderEntryRow)}
+                        {Array.from(pd.missingGroups.entries()).map(([type, ss]) => (
+                          <Row
+                            key={`${pd.page.id}:${type}`}
+                            active={
+                              sel?.kind === "missing" &&
+                              sel.type === type &&
+                              sel.pageId === pd.page.id
+                            }
+                            onClick={() =>
+                              setSel({ kind: "missing", type, pageId: pd.page.id })
+                            }
+                          >
+                            <FileText className="h-3.5 w-3.5 text-[#9CA3AF]" />
+                            <span className="flex-1 truncate">
+                              {type === MISSING_UNSPEC ? type : `${type} faltante`}
+                            </span>
+                            <span className="text-[10px] text-[#9CA3AF]">{ss.length}</span>
+                          </Row>
+                        ))}
+                        {pd.noStateShapes.map((s) => (
+                          <Row
+                            key={`${pd.page.id}:ns:${s.id}`}
+                            active={
+                              sel?.kind === "nostate" &&
+                              sel.shapeId === s.id &&
+                              sel.pageId === pd.page.id
+                            }
+                            onClick={() =>
+                              setSel({ kind: "nostate", shapeId: s.id, pageId: pd.page.id })
+                            }
+                          >
+                            <span>⚫</span>
+                            <span className="flex-1 truncate">
+                              {s.title || s.text || "Sin título"}
+                            </span>
+                          </Row>
+                        ))}
+                      </div>
+                    )}
                   </div>
                 );
               })}
