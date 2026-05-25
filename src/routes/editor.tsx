@@ -5109,7 +5109,7 @@ function ShapeNode({
       window.addEventListener("pointermove", onMove);
       window.addEventListener("pointerup", onUp);
     },
-    [dragPos, popupPos, pinned],
+    [dragPos, popupPos, pinned, zoom],
   );
 
   const [popupSize, setPopupSize] = useState<{ w: number; h: number } | null>(null);
