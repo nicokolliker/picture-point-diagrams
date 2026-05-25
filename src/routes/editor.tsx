@@ -508,7 +508,7 @@ function EditorPage() {
         )}
       </div>
 
-      <PinnedConnectorsOverlay pinnedIds={pinnedIds} />
+      {/* PinnedConnectorsOverlay removed — connector lines now live inside each CanvasArea's popup-overlay */}
 
       {/* Sub-process modals (zoom-in from shape with dim overlay) */}
       {subModals.map((modal, idx) => {
