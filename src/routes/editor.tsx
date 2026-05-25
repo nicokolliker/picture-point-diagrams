@@ -2512,6 +2512,88 @@ function SummaryPanel({
     </li>
   );
 
+  // Aggregate counts for stat bar.
+  const totalAlerts = allAlerts.length;
+  const totalImprovements = allEntries.length;
+  const totalMissing = Array.from(aggMissing.values()).reduce((n, a) => n + a.length, 0);
+
+  const StatBar = () => (
+    <div className="mb-4 grid grid-cols-3 gap-2">
+      {[
+        { label: "Alertas", value: totalAlerts, color: "#DC2626", bg: "#FEF2F2", icon: "⚠️" },
+        { label: "Mejoras", value: totalImprovements, color: "#5B6CF8", bg: "#EEF0FF", icon: "●" },
+        { label: "Docs", value: totalMissing, color: "#D97706", bg: "#FFFBEB", icon: "📄" },
+      ].map((s) => (
+        <div
+          key={s.label}
+          className="flex flex-col items-center justify-center rounded-md border border-[#EBEBEB] py-2"
+          style={{ background: s.bg }}
+        >
+          <div className="text-[16px] font-bold tabular-nums" style={{ color: s.color }}>
+            {s.value}
+          </div>
+          <div className="mt-0.5 flex items-center gap-1 text-[10px] font-medium uppercase tracking-wider text-[#6B7280]">
+            <span>{s.icon}</span>
+            <span>{s.label}</span>
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+
+  const DocTypeCard = ({ type, items }: { type: string; items: MissingItem[] }) => (
+    <div className="rounded-lg border border-[#EBEBEB] bg-white p-3">
+      <div className="mb-2 flex items-center justify-between gap-2">
+        <div className="flex min-w-0 items-center gap-1.5">
+          <FileText className="h-3.5 w-3.5 shrink-0 text-[#D97706]" />
+          <span className="truncate text-[12px] font-semibold text-[#111827]">{type}</span>
+        </div>
+        <span className="inline-flex h-5 min-w-[20px] items-center justify-center rounded-full bg-[#FEF3C7] px-1.5 text-[10px] font-semibold text-[#92400E]">
+          {items.length}
+        </span>
+      </div>
+      <ul className="flex flex-col gap-1">
+        {items.map((it) => (
+          <li key={`${it.pageId}:${it.shape.id}`}>
+            <button
+              onClick={() => onJumpToShape(it.shape.id, it.pageId)}
+              className="flex w-full items-center gap-1.5 rounded px-1.5 py-1 text-left text-[11px] text-[#374151] hover:bg-[#F3F4F6]"
+            >
+              <span className="h-1 w-1 shrink-0 rounded-full bg-[#9CA3AF]" />
+              <span className="flex-1 truncate">
+                {it.shape.title || it.shape.text || "Sin título"}
+              </span>
+              {it.pageId !== mainPageId && (
+                <span className="rounded bg-[#F3F4F6] px-1 text-[9px] text-[#6B7280]">
+                  {it.pageName}
+                </span>
+              )}
+            </button>
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+
+  const computeProgress = (pd: ReturnType<typeof computePageSummary>) => {
+    const total = pd.page.shapes.length;
+    if (total === 0) return 1;
+    const flagged = new Set<string>();
+    pd.alerts.forEach((a) => a.shapes.forEach((s) => flagged.add(s.id)));
+    pd.missingGroups.forEach((ss) => ss.forEach((s) => flagged.add(s.id)));
+    return Math.max(0, (total - flagged.size) / total);
+  };
+  const ProgressBar = ({ value }: { value: number }) => {
+    const filled = Math.round(value * 10);
+    return (
+      <span className="font-mono text-[10px] tracking-tight text-[#10B981]">
+        {"█".repeat(filled)}
+        <span className="text-[#E5E7EB]">{"░".repeat(10 - filled)}</span>
+        <span className="ml-1 text-[#6B7280]">{Math.round(value * 100)}%</span>
+      </span>
+    );
+  };
+
   const generalContent = (
     <>
       <div>
