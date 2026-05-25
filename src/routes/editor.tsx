@@ -4508,7 +4508,13 @@ function ShapeNode({
       <ContextMenu>
         <ContextMenuTrigger asChild>
           <div
-            ref={nodeRef}
+            ref={(el) => {
+              nodeRef.current = el;
+              if (el) {
+                const h = el.offsetHeight;
+                if (Math.abs(h - renderedH) > 2) setRenderedH(h);
+              }
+            }}
             data-shape-id={shape.id}
             style={style}
             onPointerDown={(e) => {
