@@ -895,22 +895,27 @@ function ColorSwatchPicker({
         </button>
       </PopoverTrigger>
       <PopoverContent className="w-auto p-2" align="start">
-        <div className="grid grid-cols-6 gap-1">
-          {SWATCHES.map((c) => (
-            <button
-              key={c}
-              onClick={() => onChange(c)}
-              className={cn(
-                "h-6 w-6 rounded border",
-                value.toLowerCase() === c.toLowerCase()
-                  ? "border-[#5B6CF8] ring-1 ring-[#5B6CF8]"
-                  : "border-[#D0D0D0]",
-              )}
-              style={{ background: c }}
-              title={c}
-            />
+        <div className="space-y-0.5">
+          {COLOR_RAMPS.map((ramp) => (
+            <div key={ramp.name} className="flex gap-0.5" title={ramp.name}>
+              {ramp.colors.map((c) => (
+                <button
+                  key={c}
+                  onClick={() => onChange(c)}
+                  className={cn(
+                    "h-5 w-5 rounded-sm border transition-transform hover:scale-110",
+                    value.toLowerCase() === c.toLowerCase()
+                      ? "border-[#5B6CF8] ring-1 ring-[#5B6CF8]"
+                      : "border-[#E5E7EB]",
+                  )}
+                  style={{ background: c }}
+                  title={c}
+                />
+              ))}
+            </div>
           ))}
         </div>
+
         <div className="mt-2 flex items-center gap-1.5">
           <input
             type="color"
