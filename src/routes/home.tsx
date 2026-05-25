@@ -58,6 +58,7 @@ const SIDEBAR_ITEMS = [
 
 function HomePage() {
   const navigate = useNavigate();
+  const { user, isAdmin, loading } = useAuth();
   const documents = useDiagramStore((s) => s.documents);
   const ensureSeed = useDiagramStore((s) => s.ensureSeed);
   const createDocument = useDiagramStore((s) => s.createDocument);
@@ -74,6 +75,10 @@ function HomePage() {
   useEffect(() => {
     ensureSeed();
   }, [ensureSeed]);
+
+  useEffect(() => {
+    if (!loading && !user) navigate({ to: "/login" });
+  }, [loading, user, navigate]);
 
   const filtered = useMemo(() => {
     return documents
