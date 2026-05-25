@@ -3674,6 +3674,7 @@ function CanvasArea({
             zoom={zoom}
             pan={pan}
             allShapes={page.shapes}
+            rightPanelOpen={rightPanelOpen}
             pinned={pinnedIds.includes(s.id)}
             onPin={() => pinShape(s.id)}
             onUnpin={() => unpinShape(s.id)}
