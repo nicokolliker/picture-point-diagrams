@@ -4174,6 +4174,8 @@ function ShapeNode({
   const [renderedH, setRenderedH] = useState(shape.height);
   const [popupPos, setPopupPos] = useState<{ left: number; top: number } | null>(null);
   const [popupSide, setPopupSide] = useState<"top" | "bottom" | "left" | "right" | null>(null);
+  const shapeInOverlayRef = useRef<{ left: number; top: number; right: number; bottom: number; width: number; height: number } | null>(null);
+  const [, forceConnectorTick] = useState(0);
   const mouseRef = useRef<{ x: number; y: number }>({ x: 0, y: 0 });
   const [qaEdge, setQaEdge] = useState<"top" | "bottom" | "left" | "right">("bottom");
   const [dragPos, setDragPos] = useState<{ left: number; top: number } | null>(null);
