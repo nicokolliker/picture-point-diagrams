@@ -2180,92 +2180,87 @@ function formatDate(ts: number) {
   return d.toLocaleDateString("es-ES", { day: "numeric", month: "short", year: "numeric" });
 }
 
-/* -------------------- Summary panel -------------------- */
-function SummaryPanel({
-  docId: _docId,
-  page,
-  onJumpToShape,
-}: {
-  docId: string;
-  page: { id: string; shapes: Shape[] };
-  onJumpToShape: (id: string) => void;
-}) {
-  const people = useDiagramStore((s) => s.people);
-  const updateShape = useDiagramStore((s) => s.updateShape);
-  const addShapeDoc = useDiagramStore((s) => s.addShapeDoc);
-  const updateShapeDoc = useDiagramStore((s) => s.updateShapeDoc);
-  const entries = page.shapes
-    .flatMap((s) =>
-      (s.improvementEntries ?? []).map((e) => ({ shape: s, entry: e })),
-    )
-    .sort((a, b) => b.entry.date - a.entry.date);
+/* -------------------- Summary helpers -------------------- */
 
-  // ----- Smart alerts -----
-  type Alert = {
-    id: string;
-    icon: string;
-    title: string;
-    explanation: string;
-    shapes: Shape[];
-    tone: "red" | "amber" | "blue";
-  };
-  const alerts: Alert[] = [];
-  const shapes = page.shapes.filter((s) => s.type !== "text" && s.type !== "sticky" && s.type !== "container");
+type SummaryAlert = {
+  id: string; // unique across pages
+  kind: string;
+  icon: string;
+  title: string;
+  explanation: string;
+  shapes: Shape[];
+  tone: "red" | "amber" | "blue";
+  pageId: string;
+  pageName: string;
+};
+
+type SummaryEntry = {
+  shape: Shape;
+  entry: { id: string; text: string; categories: ImprovementCategory[]; date: number };
+  pageId: string;
+  pageName: string;
+};
+
+type MissingItem = { shape: Shape; pageId: string; pageName: string };
+
+type PageSummaryData = {
+  page: Page;
+  alerts: SummaryAlert[];
+  entries: SummaryEntry[];
+  missingGroups: Map<string, Shape[]>;
+  noStateShapes: Shape[];
+};
+
+const MISSING_UNSPEC = "Sin tipo definido";
+
+function computePageSummary(page: Page, people: Person[]): PageSummaryData {
   const personName = (id: string) => people.find((p) => p.id === id)?.name ?? "Sin nombre";
-
-  // 🔴 Proceso huérfano
-  const orphan = shapes.filter((s) => (s.responsableIds ?? []).length === 0 && !s.responsable);
-  if (orphan.length > 0)
+  const shapes = page.shapes.filter(
+    (s) => s.type !== "text" && s.type !== "sticky" && s.type !== "container",
+  );
+  const alerts: SummaryAlert[] = [];
+  const push = (
+    kind: string,
+    icon: string,
+    title: string,
+    explanation: string,
+    ss: Shape[],
+    tone: "red" | "amber" | "blue",
+  ) =>
     alerts.push({
-      id: "orphan",
-      icon: "🔴",
-      title: "Proceso huérfano",
-      explanation: "Etapas sin responsable asignado.",
-      shapes: orphan,
-      tone: "red",
+      id: `${page.id}:${kind}`,
+      kind,
+      icon,
+      title,
+      explanation,
+      shapes: ss,
+      tone,
+      pageId: page.id,
+      pageName: page.name,
     });
 
-  // ⚠️ Cuello de botella — persona en 3+ etapas
+  const orphan = shapes.filter((s) => (s.responsableIds ?? []).length === 0 && !s.responsable);
+  if (orphan.length > 0) push("orphan", "🔴", "Proceso huérfano", "Etapas sin responsable asignado.", orphan, "red");
+
   const ownerCount = new Map<string, Shape[]>();
-  for (const s of shapes) {
-    for (const id of s.responsableIds ?? []) {
-      if (!ownerCount.has(id)) ownerCount.set(id, []);
-      ownerCount.get(id)!.push(s);
-    }
+  for (const s of shapes) for (const id of s.responsableIds ?? []) {
+    if (!ownerCount.has(id)) ownerCount.set(id, []);
+    ownerCount.get(id)!.push(s);
   }
   const bottleneck = Array.from(ownerCount.entries()).filter(([, ss]) => ss.length >= 3);
   if (bottleneck.length > 0) {
     const set = new Set<Shape>();
     bottleneck.forEach(([, ss]) => ss.forEach((s) => set.add(s)));
-    alerts.push({
-      id: "bottleneck",
-      icon: "⚠️",
-      title: "Cuello de botella",
-      explanation:
-        bottleneck.map(([id, ss]) => `${personName(id)} (${ss.length})`).join(", "),
-      shapes: Array.from(set),
-      tone: "amber",
-    });
+    push("bottleneck", "⚠️", "Cuello de botella",
+      bottleneck.map(([id, ss]) => `${personName(id)} (${ss.length})`).join(", "),
+      Array.from(set), "amber");
   }
 
-  // 📋 Urgente sin documentar
   const urgentNoDoc = shapes.filter(
-    (s) =>
-      s.prioridad === "urgente" &&
-      s.noStandardDoc &&
-      (s.documents ?? []).length === 0,
+    (s) => s.prioridad === "urgente" && s.noStandardDoc && (s.documents ?? []).length === 0,
   );
-  if (urgentNoDoc.length > 0)
-    alerts.push({
-      id: "urgent-nodoc",
-      icon: "📋",
-      title: "Urgente sin documentar",
-      explanation: "Prioridad urgente sin documentos cargados.",
-      shapes: urgentNoDoc,
-      tone: "red",
-    });
+  if (urgentNoDoc.length > 0) push("urgent-nodoc", "📋", "Urgente sin documentar", "Prioridad urgente sin documentos cargados.", urgentNoDoc, "red");
 
-  // 🔗 Cadena rota — etapas consecutivas (por X) con diagnostico roto
   const ordered = [...shapes].sort((a, b) => a.x - b.x);
   const chain: Shape[] = [];
   for (let i = 0; i < ordered.length - 1; i++) {
@@ -2274,34 +2269,16 @@ function SummaryPanel({
       if (!chain.includes(ordered[i + 1])) chain.push(ordered[i + 1]);
     }
   }
-  if (chain.length > 0)
-    alerts.push({
-      id: "chain",
-      icon: "🔗",
-      title: "Cadena rota",
-      explanation: "Etapas consecutivas con diagnóstico Roto.",
-      shapes: chain,
-      tone: "red",
-    });
+  if (chain.length > 0) push("chain", "🔗", "Cadena rota", "Etapas consecutivas con diagnóstico Roto.", chain, "red");
 
-  // 👤 Single point of failure
   const spof = shapes.filter(
     (s) =>
       (s.responsableIds ?? []).length === 1 &&
       (s.documents ?? []).length === 0 &&
       (s.diagnostico === "roto" || s.diagnostico === "sin_definir" || !s.diagnostico),
   );
-  if (spof.length > 0)
-    alerts.push({
-      id: "spof",
-      icon: "👤",
-      title: "Single point of failure",
-      explanation: "Una sola persona, sin documentación y diagnóstico inestable.",
-      shapes: spof,
-      tone: "red",
-    });
+  if (spof.length > 0) push("spof", "👤", "Single point of failure", "Una sola persona, sin documentación y diagnóstico inestable.", spof, "red");
 
-  // 👤 Sobrecarga con gaps — persona dueña de 2+ etapas con doc faltante
   const overloadMap = new Map<string, Shape[]>();
   for (const s of shapes) {
     if (!s.noStandardDoc) continue;
@@ -2314,25 +2291,324 @@ function SummaryPanel({
   if (overload.length > 0) {
     const set = new Set<Shape>();
     overload.forEach(([, ss]) => ss.forEach((s) => set.add(s)));
-    alerts.push({
-      id: "overload",
-      icon: "👤",
-      title: "Sobrecarga con gaps",
-      explanation: overload
-        .map(([id, ss]) => `${personName(id)} (${ss.length})`)
-        .join(", "),
-      shapes: Array.from(set),
-      tone: "amber",
-    });
+    push("overload", "👤", "Sobrecarga con gaps",
+      overload.map(([id, ss]) => `${personName(id)} (${ss.length})`).join(", "),
+      Array.from(set), "amber");
   }
 
-  const toneAccent = (tone: Alert["tone"]) =>
-    tone === "red" ? "#DC2626" : tone === "amber" ? "#F59E0B" : "#3B82F6";
+  const entries: SummaryEntry[] = page.shapes
+    .flatMap((s) =>
+      (s.improvementEntries ?? []).map((e) => ({ shape: s, entry: e, pageId: page.id, pageName: page.name })),
+    )
+    .sort((a, b) => b.entry.date - a.entry.date);
+
+  const missingGroups = new Map<string, Shape[]>();
+  for (const s of page.shapes.filter((x) => x.noStandardDoc)) {
+    const types = s.missingDocTypes ?? [];
+    const keys = types.length > 0 ? types : [MISSING_UNSPEC];
+    for (const k of keys) {
+      if (!missingGroups.has(k)) missingGroups.set(k, []);
+      missingGroups.get(k)!.push(s);
+    }
+  }
+
+  const noStateShapes = page.shapes.filter(
+    (s) =>
+      s.type !== "text" &&
+      s.type !== "sticky" &&
+      s.type !== "container" &&
+      (!s.diagnostico || s.diagnostico === "sin_definir") &&
+      !s.prioridad,
+  );
+
+  return { page, alerts, entries, missingGroups, noStateShapes };
+}
+
+const toneAccent = (tone: SummaryAlert["tone"]) =>
+  tone === "red" ? "#DC2626" : tone === "amber" ? "#F59E0B" : "#3B82F6";
+
+function ViewTabs({ value, onChange }: { value: "general" | "perProcess"; onChange: (v: "general" | "perProcess") => void }) {
+  const tabCls = (active: boolean) =>
+    "rounded-full px-3 py-1 text-[11px] font-medium transition-colors " +
+    (active
+      ? "bg-[#5B6CF8] text-white"
+      : "border border-[#E5E7EB] text-[#6B7280] hover:bg-[#F3F4F6]");
+  return (
+    <div className="flex items-center gap-1.5">
+      <button className={tabCls(value === "general")} onClick={() => onChange("general")}>
+        General
+      </button>
+      <button className={tabCls(value === "perProcess")} onClick={() => onChange("perProcess")}>
+        Por proceso
+      </button>
+    </div>
+  );
+}
+
+/* -------------------- Summary panel -------------------- */
+function SummaryPanel({
+  docId,
+  doc,
+  mainPageId,
+  onJumpToShape,
+}: {
+  docId: string;
+  doc: DiagramDocument;
+  mainPageId: string;
+  onJumpToShape: (shapeId: string, pageId: string) => void;
+}) {
+  const people = useDiagramStore((s) => s.people);
+  const updateShape = useDiagramStore((s) => s.updateShape);
+  const addShapeDoc = useDiagramStore((s) => s.addShapeDoc);
+  const updateShapeDoc = useDiagramStore((s) => s.updateShapeDoc);
+
+  const pagesData = useMemo(
+    () => doc.pages.map((p) => computePageSummary(p, people)),
+    [doc.pages, people],
+  );
+
+  const allAlerts = pagesData.flatMap((pd) => pd.alerts);
+  const allEntries = pagesData
+    .flatMap((pd) => pd.entries)
+    .sort((a, b) => b.entry.date - a.entry.date);
+  const aggMissing = new Map<string, MissingItem[]>();
+  for (const pd of pagesData) {
+    pd.missingGroups.forEach((ss, type) => {
+      if (!aggMissing.has(type)) aggMissing.set(type, []);
+      ss.forEach((s) =>
+        aggMissing.get(type)!.push({ shape: s, pageId: pd.page.id, pageName: pd.page.name }),
+      );
+    });
+  }
 
   const sectionHeader =
     "mb-3 mt-4 text-[12px] font-semibold uppercase tracking-wider text-[#9CA3AF] first:mt-0";
 
   const [fullscreen, setFullscreen] = useState(false);
+  const [view, setView] = useState<"general" | "perProcess">("general");
+  const [openGroups, setOpenGroups] = useState<Record<string, boolean>>({});
+  const isGroupOpen = (pid: string) => openGroups[pid] ?? true;
+  const toggleGroup = (pid: string) =>
+    setOpenGroups((g) => ({ ...g, [pid]: !isGroupOpen(pid) }));
+
+  const PageTag = ({ pageId, pageName }: { pageId: string; pageName: string }) =>
+    pageId === mainPageId ? null : (
+      <div className="mb-1.5 mt-0.5 inline-flex items-center rounded bg-[#F3F4F6] px-1.5 py-0.5 text-[10px] font-medium text-[#6B7280]">
+        Sub-proceso: {pageName}
+      </div>
+    );
+
+  const renderAlert = (a: SummaryAlert) => (
+    <li
+      key={a.id}
+      className="rounded-md border border-[#EBEBEB] bg-white p-4 shadow-sm"
+      style={{ borderLeft: `3px solid ${toneAccent(a.tone)}` }}
+    >
+      <div className="mb-1 flex items-center gap-1.5 text-[13px] font-semibold text-[#111827]">
+        <span>{a.icon}</span>
+        <span>{a.title}</span>
+      </div>
+      <PageTag pageId={a.pageId} pageName={a.pageName} />
+      <div className="mb-2 text-[12px] leading-relaxed text-[#4B5563]">{a.explanation}</div>
+      <div className="flex flex-wrap gap-1.5">
+        {a.shapes.map((s) => (
+          <button
+            key={s.id}
+            onClick={() => onJumpToShape(s.id, a.pageId)}
+            className="inline-flex max-w-full items-center rounded-full bg-[#F3F4F6] px-2 py-0.5 text-[11px] font-medium text-[#374151] hover:bg-[#E5E7EB]"
+          >
+            <span className="truncate">{s.title || s.text || "Sin título"}</span>
+          </button>
+        ))}
+      </div>
+    </li>
+  );
+
+  const renderEntry = (it: SummaryEntry) => (
+    <li
+      key={`${it.pageId}:${it.entry.id}`}
+      className="rounded-lg border border-[#EBEBEB] bg-white p-4 transition-colors hover:border-[#5B6CF8]"
+    >
+      <button
+        onClick={() => onJumpToShape(it.shape.id, it.pageId)}
+        className="mb-2 inline-flex max-w-full items-center gap-1 rounded-full bg-[#EEF0FF] px-2 py-0.5 text-[10px] font-medium text-[#5B6CF8] hover:bg-[#DDE2FF]"
+      >
+        <span
+          className="h-1.5 w-1.5 shrink-0 rounded-full"
+          style={{ background: DIAGNOSTICO_META[it.shape.diagnostico ?? "sin_definir"].bg }}
+        />
+        <span className="truncate">{it.shape.title || it.shape.text}</span>
+      </button>
+      <PageTag pageId={it.pageId} pageName={it.pageName} />
+      <div className="break-words text-[12px] leading-relaxed text-[#111827]">{it.entry.text}</div>
+      {it.entry.categories.length > 0 && (
+        <div className="mt-2 flex flex-wrap gap-1">
+          {it.entry.categories.map((c) => {
+            const m = CATEGORY_META[c];
+            return (
+              <span
+                key={c}
+                className="inline-flex items-center gap-0.5 rounded-full px-1.5 py-0.5 text-[9px] font-medium"
+                style={{ background: m.bg, color: m.fg }}
+              >
+                <span>{m.icon}</span>
+                {m.label}
+              </span>
+            );
+          })}
+        </div>
+      )}
+      <div className="mt-2 text-[10px] text-[#9CA3AF]">{formatDate(it.entry.date)}</div>
+    </li>
+  );
+
+  const renderMissingItem = (s: Shape, pageId: string, pageName: string) => (
+    <li key={`${pageId}:${s.id}`}>
+      <button
+        onClick={() => onJumpToShape(s.id, pageId)}
+        className="flex w-full items-center gap-2 rounded-md border border-[#EBEBEB] bg-white px-3 py-2 text-left text-[12px] text-[#111827] hover:border-[#9CA3AF]"
+      >
+        <FileText className="h-3.5 w-3.5 shrink-0 text-[#9CA3AF]" />
+        <span className="flex-1 truncate">{s.title || s.text || "Sin título"}</span>
+        {pageId !== mainPageId && (
+          <span className="rounded bg-[#F3F4F6] px-1.5 py-0.5 text-[10px] text-[#6B7280]">
+            {pageName}
+          </span>
+        )}
+      </button>
+    </li>
+  );
+
+  const generalContent = (
+    <>
+      <div>
+        <div className={sectionHeader}>⚠️ Alertas</div>
+        {allAlerts.length === 0 ? (
+          <div className="rounded-md border border-[#BBF7D0] bg-[#F0FDF4] p-4 text-center text-xs text-[#166534]">
+            ✅ Sin alertas detectadas
+          </div>
+        ) : (
+          <ul className="flex flex-col gap-3">{allAlerts.map(renderAlert)}</ul>
+        )}
+      </div>
+
+      <div className="my-6 h-px bg-[#EBEBEB]" />
+
+      <div>
+        <div className={sectionHeader}>Oportunidades de mejora</div>
+        {allEntries.length === 0 ? (
+          <div className="rounded-md border border-dashed border-[#E5E7EB] p-4 text-center text-xs text-[#9CA3AF]">
+            Aún no hay oportunidades de mejora.
+          </div>
+        ) : (
+          <ul className="flex flex-col gap-2.5">{allEntries.map(renderEntry)}</ul>
+        )}
+      </div>
+
+      <div className="my-6 h-px bg-[#EBEBEB]" />
+
+      <div>
+        <div className={cn(sectionHeader, "flex items-center gap-1.5")}>
+          <FileText className="h-3.5 w-3.5" />
+          <span>Documentación faltante</span>
+        </div>
+        {aggMissing.size === 0 ? (
+          <div className="rounded-md border border-dashed border-[#E5E7EB] p-4 text-center text-xs text-[#9CA3AF]">
+            Todas las etapas tienen documentación.
+          </div>
+        ) : (
+          <div className="flex flex-col gap-4">
+            {Array.from(aggMissing.entries()).map(([type, items]) => (
+              <div key={type}>
+                <div className="mb-2 flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wider text-[#9CA3AF]">
+                  <span>{type === MISSING_UNSPEC ? type : `${type} faltante`}</span>
+                  <span className="inline-flex h-4 min-w-[16px] items-center justify-center rounded-full bg-[#F3F4F6] px-1 text-[10px] font-semibold text-[#6B7280]">
+                    {items.length}
+                  </span>
+                </div>
+                <ul className="flex flex-col gap-2">
+                  {items.map((it) => renderMissingItem(it.shape, it.pageId, it.pageName))}
+                </ul>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    </>
+  );
+
+  const perProcessContent = (
+    <div className="flex flex-col gap-5">
+      {pagesData.map((pd) => {
+        const hasContent =
+          pd.alerts.length > 0 ||
+          pd.entries.length > 0 ||
+          pd.missingGroups.size > 0;
+        const open = isGroupOpen(pd.page.id);
+        const isMain = pd.page.id === mainPageId;
+        return (
+          <div key={pd.page.id} className="rounded-md border border-[#EBEBEB] bg-[#FAFAFB]">
+            <button
+              onClick={() => toggleGroup(pd.page.id)}
+              className="flex w-full items-center justify-between gap-2 px-3 py-2 text-left"
+            >
+              <div className="flex min-w-0 items-center gap-2">
+                <span className="text-[12px] text-[#6B7280]">{open ? "▼" : "▶"}</span>
+                <span className="truncate text-[13px] font-semibold text-[#111827]">
+                  {isMain ? pd.page.name : `Sub-proceso: ${pd.page.name}`}
+                </span>
+              </div>
+              <span className="text-[10px] text-[#9CA3AF]">
+                {pd.alerts.length}⚠ · {pd.entries.length}● · {Array.from(pd.missingGroups.values()).reduce((n, s) => n + s.length, 0)}📄
+              </span>
+            </button>
+            {open && (
+              <div className="border-t border-[#EBEBEB] p-3">
+                {!hasContent && (
+                  <div className="text-center text-[11px] text-[#9CA3AF]">Nada por resumir.</div>
+                )}
+                {pd.alerts.length > 0 && (
+                  <>
+                    <div className={sectionHeader}>⚠️ Alertas</div>
+                    <ul className="flex flex-col gap-3">{pd.alerts.map(renderAlert)}</ul>
+                  </>
+                )}
+                {pd.entries.length > 0 && (
+                  <>
+                    <div className={sectionHeader}>Oportunidades de mejora</div>
+                    <ul className="flex flex-col gap-2.5">{pd.entries.map(renderEntry)}</ul>
+                  </>
+                )}
+                {pd.missingGroups.size > 0 && (
+                  <>
+                    <div className={cn(sectionHeader, "flex items-center gap-1.5")}>
+                      <FileText className="h-3.5 w-3.5" />
+                      <span>Documentación faltante</span>
+                    </div>
+                    <div className="flex flex-col gap-4">
+                      {Array.from(pd.missingGroups.entries()).map(([type, ss]) => (
+                        <div key={type}>
+                          <div className="mb-2 flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wider text-[#9CA3AF]">
+                            <span>{type === MISSING_UNSPEC ? type : `${type} faltante`}</span>
+                            <span className="inline-flex h-4 min-w-[16px] items-center justify-center rounded-full bg-[#F3F4F6] px-1 text-[10px] font-semibold text-[#6B7280]">
+                              {ss.length}
+                            </span>
+                          </div>
+                          <ul className="flex flex-col gap-2">
+                            {ss.map((s) => renderMissingItem(s, pd.page.id, pd.page.name))}
+                          </ul>
+                        </div>
+                      ))}
+                    </div>
+                  </>
+                )}
+              </div>
+            )}
+          </div>
+        );
+      })}
+    </div>
+  );
 
   return (
     <div className="flex h-full flex-col">
@@ -2350,194 +2626,37 @@ function SummaryPanel({
         <p className="mt-1 text-[11px] text-[#6B7280]">
           Todas las mejoras propuestas en el proceso
         </p>
+        <div className="mt-3">
+          <ViewTabs value={view} onChange={setView} />
+        </div>
       </div>
       <div className="flex-1 overflow-y-auto px-5 py-4">
-        {/* Alertas */}
-        <div>
-          <div className={sectionHeader}>⚠️ Alertas</div>
-          {alerts.length === 0 ? (
-            <div className="rounded-md border border-[#BBF7D0] bg-[#F0FDF4] p-4 text-center text-xs text-[#166534]">
-              ✅ Sin alertas detectadas
-            </div>
-          ) : (
-            <ul className="flex flex-col gap-3">
-              {alerts.map((a) => (
-                <li
-                  key={a.id}
-                  className="rounded-md border border-[#EBEBEB] bg-white p-4 shadow-sm"
-                  style={{ borderLeft: `3px solid ${toneAccent(a.tone)}` }}
-                >
-                  <div className="mb-1 flex items-center gap-1.5 text-[13px] font-semibold text-[#111827]">
-                    <span>{a.icon}</span>
-                    <span>{a.title}</span>
-                  </div>
-                  <div className="mb-2 text-[12px] leading-relaxed text-[#4B5563]">
-                    {a.explanation}
-                  </div>
-                  <div className="flex flex-wrap gap-1.5">
-                    {a.shapes.map((s) => (
-                      <button
-                        key={s.id}
-                        onClick={() => onJumpToShape(s.id)}
-                        className="inline-flex max-w-full items-center rounded-full bg-[#F3F4F6] px-2 py-0.5 text-[11px] font-medium text-[#374151] hover:bg-[#E5E7EB]"
-                      >
-                        <span className="truncate">{s.title || s.text || "Sin título"}</span>
-                      </button>
-                    ))}
-                  </div>
-                </li>
-              ))}
-            </ul>
-          )}
-        </div>
-
-        <div className="my-6 h-px bg-[#EBEBEB]" />
-
-        <div>
-          <div className={sectionHeader}>Oportunidades de mejora</div>
-          {entries.length === 0 ? (
-            <div className="rounded-md border border-dashed border-[#E5E7EB] p-4 text-center text-xs text-[#9CA3AF]">
-              Aún no hay oportunidades de mejora.
-            </div>
-          ) : (
-            <ul className="flex flex-col gap-2.5">
-              {entries.map(({ shape, entry }) => (
-                <li
-                  key={entry.id}
-                  className="rounded-lg border border-[#EBEBEB] bg-white p-4 transition-colors hover:border-[#5B6CF8]"
-                >
-                  <button
-                    onClick={() => onJumpToShape(shape.id)}
-                    className="mb-2 inline-flex max-w-full items-center gap-1 rounded-full bg-[#EEF0FF] px-2 py-0.5 text-[10px] font-medium text-[#5B6CF8] hover:bg-[#DDE2FF]"
-                  >
-                    <span
-                      className="h-1.5 w-1.5 shrink-0 rounded-full"
-                      style={{
-                        background:
-                          DIAGNOSTICO_META[shape.diagnostico ?? "sin_definir"].bg,
-                      }}
-                    />
-                    <span className="truncate">{shape.title || shape.text}</span>
-                  </button>
-                  <div className="break-words text-[12px] leading-relaxed text-[#111827]">
-                    {entry.text}
-                  </div>
-                  {entry.categories.length > 0 && (
-                    <div className="mt-2 flex flex-wrap gap-1">
-                      {entry.categories.map((c) => {
-                        const m = CATEGORY_META[c];
-                        return (
-                          <span
-                            key={c}
-                            className="inline-flex items-center gap-0.5 rounded-full px-1.5 py-0.5 text-[9px] font-medium"
-                            style={{ background: m.bg, color: m.fg }}
-                          >
-                            <span>{m.icon}</span>
-                            {m.label}
-                          </span>
-                        );
-                      })}
-                    </div>
-                  )}
-                  <div className="mt-2 text-[10px] text-[#9CA3AF]">{formatDate(entry.date)}</div>
-                </li>
-              ))}
-            </ul>
-          )}
-        </div>
-
-        <div className="my-6 h-px bg-[#EBEBEB]" />
-
-        {/* Documentación faltante */}
-        <div>
-          <div className={cn(sectionHeader, "flex items-center gap-1.5")}>
-            <FileText className="h-3.5 w-3.5" />
-            <span>Documentación faltante</span>
-          </div>
-          {(() => {
-            const missing = page.shapes.filter((s) => s.noStandardDoc);
-            if (missing.length === 0) {
-              return (
-                <div className="rounded-md border border-dashed border-[#E5E7EB] p-4 text-center text-xs text-[#9CA3AF]">
-                  Todas las etapas tienen documentación.
-                </div>
-              );
-            }
-            const groups = new Map<string, Shape[]>();
-            const UNSPEC = "Sin tipo definido";
-            for (const s of missing) {
-              const types = s.missingDocTypes ?? [];
-              const keys = types.length > 0 ? types : [UNSPEC];
-              for (const k of keys) {
-                if (!groups.has(k)) groups.set(k, []);
-                groups.get(k)!.push(s);
-              }
-            }
-            return (
-              <div className="flex flex-col gap-4">
-                {Array.from(groups.entries()).map(([type, shapes]) => (
-                  <div key={type}>
-                    <div className="mb-2 flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wider text-[#9CA3AF]">
-                      <span>
-                        {type === "Sin tipo definido" ? type : `${type} faltante`}
-                      </span>
-                      <span className="inline-flex h-4 min-w-[16px] items-center justify-center rounded-full bg-[#F3F4F6] px-1 text-[10px] font-semibold text-[#6B7280]">
-                        {shapes.length}
-                      </span>
-                    </div>
-                    <ul className="flex flex-col gap-2">
-                      {shapes.map((s) => (
-                        <li key={s.id}>
-                          <button
-                            onClick={() => onJumpToShape(s.id)}
-                            className="flex w-full items-center gap-2 rounded-md border border-[#EBEBEB] bg-white px-3 py-2 text-left text-[12px] text-[#111827] hover:border-[#9CA3AF]"
-                          >
-                            <FileText className="h-3.5 w-3.5 shrink-0 text-[#9CA3AF]" />
-                            <span className="truncate">
-                              {s.title || s.text || "Sin título"}
-                            </span>
-                          </button>
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                ))}
-              </div>
-            );
-          })()}
-        </div>
+        {view === "general" ? generalContent : perProcessContent}
       </div>
-
 
       {fullscreen && typeof document !== "undefined" &&
         createPortal(
           <FullSummaryModal
-            page={page}
+            pagesData={pagesData}
+            mainPageId={mainPageId}
             people={people}
-            alerts={alerts}
-            entries={entries}
             onClose={() => setFullscreen(false)}
-            onJumpToShape={(id) => {
+            onJumpToShape={(id, pid) => {
               setFullscreen(false);
-              onJumpToShape(id);
+              onJumpToShape(id, pid);
             }}
-            onSetDiag={(sid, d) => updateShape(_docId, page.id, sid, { diagnostico: d })}
-            onSetPrio={(sid, p) => updateShape(_docId, page.id, sid, { prioridad: p })}
-            onCreateDoc={(sid, type) => {
-              addShapeDoc(_docId, page.id, sid);
-              // The new doc has Playbook by default; patch the latest one's type.
-              const s = page.shapes.find((x) => x.id === sid);
-              const after = s?.documents ?? [];
-              // Schedule a microtask to update doc type once store updates settle.
+            onSetDiag={(pid, sid, d) => updateShape(docId, pid, sid, { diagnostico: d })}
+            onSetPrio={(pid, sid, p) => updateShape(docId, pid, sid, { prioridad: p })}
+            onCreateDoc={(pid, sid, type) => {
+              addShapeDoc(docId, pid, sid);
               setTimeout(() => {
                 const fresh = useDiagramStore.getState()
-                  .documents.find((d) => d.id === _docId)
-                  ?.pages.find((p) => p.id === page.id)
+                  .documents.find((d) => d.id === docId)
+                  ?.pages.find((p) => p.id === pid)
                   ?.shapes.find((x) => x.id === sid);
                 const last = fresh?.documents?.[fresh.documents.length - 1];
-                if (last) updateShapeDoc(_docId, page.id, sid, last.id, { docType: type as DocType });
+                if (last) updateShapeDoc(docId, pid, sid, last.id, { docType: type });
               }, 0);
-              void after;
             }}
           />,
           document.body,
@@ -2549,68 +2668,54 @@ function SummaryPanel({
 
 
 
-interface FullSummaryAlert {
-  id: string;
-  icon: string;
-  title: string;
-  explanation: string;
-  shapes: Shape[];
-  tone: "red" | "amber" | "blue";
-}
-
 type SelItem =
   | { kind: "alert"; id: string }
-  | { kind: "improvement"; id: string }
-  | { kind: "missing"; type: string }
-  | { kind: "nostate"; shapeId: string };
+  | { kind: "improvement"; id: string; pageId: string }
+  | { kind: "missing"; type: string; pageId?: string }
+  | { kind: "nostate"; shapeId: string; pageId: string };
 
 function FullSummaryModal({
-  page,
+  pagesData,
+  mainPageId,
   people,
-  alerts,
-  entries,
   onClose,
   onJumpToShape,
   onSetDiag,
   onSetPrio,
   onCreateDoc,
 }: {
-  page: { id: string; shapes: Shape[] };
+  pagesData: PageSummaryData[];
+  mainPageId: string;
   people: Person[];
-  alerts: FullSummaryAlert[];
-  entries: { shape: Shape; entry: { id: string; text: string; categories: ImprovementCategory[]; date: number } }[];
   onClose: () => void;
-  onJumpToShape: (id: string) => void;
-  onSetDiag: (shapeId: string, d: Diagnostico) => void;
-  onSetPrio: (shapeId: string, p: Prioridad) => void;
-  onCreateDoc: (shapeId: string, type: DocType) => void;
+  onJumpToShape: (shapeId: string, pageId: string) => void;
+  onSetDiag: (pageId: string, shapeId: string, d: Diagnostico) => void;
+  onSetPrio: (pageId: string, shapeId: string, p: Prioridad) => void;
+  onCreateDoc: (pageId: string, shapeId: string, type: DocType) => void;
 }) {
-  // Build missing-doc groups
-  const missingGroups = new Map<string, Shape[]>();
-  const UNSPEC = "Sin tipo definido";
-  for (const s of page.shapes.filter((x) => x.noStandardDoc)) {
-    const types = s.missingDocTypes ?? [];
-    const keys = types.length > 0 ? types : [UNSPEC];
-    for (const k of keys) {
-      if (!missingGroups.has(k)) missingGroups.set(k, []);
-      missingGroups.get(k)!.push(s);
-    }
+  const [view, setView] = useState<"general" | "perProcess">("general");
+  const allAlerts = pagesData.flatMap((pd) => pd.alerts);
+  const allEntries = pagesData
+    .flatMap((pd) => pd.entries)
+    .sort((a, b) => b.entry.date - a.entry.date);
+  const aggMissing = new Map<string, MissingItem[]>();
+  for (const pd of pagesData) {
+    pd.missingGroups.forEach((ss, type) => {
+      if (!aggMissing.has(type)) aggMissing.set(type, []);
+      ss.forEach((s) =>
+        aggMissing.get(type)!.push({ shape: s, pageId: pd.page.id, pageName: pd.page.name }),
+      );
+    });
   }
-
-  const noStateShapes = page.shapes.filter(
-    (s) =>
-      s.type !== "text" &&
-      s.type !== "sticky" &&
-      s.type !== "container" &&
-      (!s.diagnostico || s.diagnostico === "sin_definir") &&
-      !s.prioridad,
+  const allNoState = pagesData.flatMap((pd) =>
+    pd.noStateShapes.map((s) => ({ shape: s, pageId: pd.page.id, pageName: pd.page.name })),
   );
 
   const [sel, setSel] = useState<SelItem | null>(
-    alerts[0]
-      ? { kind: "alert", id: alerts[0].id }
-      : entries[0]
-        ? { kind: "improvement", id: entries[0].entry.id }
+    allAlerts[0]
+      ? { kind: "alert", id: allAlerts[0].id }
+      : allEntries[0]
+        ? { kind: "improvement", id: allEntries[0].entry.id, pageId: allEntries[0].pageId }
         : null,
   );
   const [notes, setNotes] = useState<Record<string, string>>({});
@@ -2641,6 +2746,13 @@ function FullSummaryModal({
     </div>
   );
 
+  const PageBadge = ({ pageId, pageName }: { pageId: string; pageName: string }) =>
+    pageId === mainPageId ? null : (
+      <span className="rounded bg-[#F3F4F6] px-1.5 py-0.5 text-[10px] text-[#6B7280]">
+        Sub: {pageName}
+      </span>
+    );
+
   const Row = ({
     active,
     onClick,
@@ -2666,26 +2778,69 @@ function FullSummaryModal({
   const groupHdr =
     "mb-1 mt-4 px-1 text-[11px] font-semibold uppercase tracking-wider text-[#9CA3AF] first:mt-0";
 
+  const renderAlertRow = (a: SummaryAlert) => (
+    <Row
+      key={a.id}
+      active={sel?.kind === "alert" && sel.id === a.id}
+      onClick={() => setSel({ kind: "alert", id: a.id })}
+    >
+      <span>{a.icon}</span>
+      <span className="flex-1 truncate">{a.title}</span>
+      <PageBadge pageId={a.pageId} pageName={a.pageName} />
+      <span className="text-[10px] text-[#9CA3AF]">{a.shapes.length}</span>
+    </Row>
+  );
+
+  const renderEntryRow = (it: SummaryEntry) => {
+    const dot = DIAGNOSTICO_META[it.shape.diagnostico ?? "sin_definir"];
+    return (
+      <Row
+        key={`${it.pageId}:${it.entry.id}`}
+        active={sel?.kind === "improvement" && sel.id === it.entry.id}
+        onClick={() => setSel({ kind: "improvement", id: it.entry.id, pageId: it.pageId })}
+      >
+        <span className="h-2 w-2 shrink-0 rounded-full" style={{ background: dot.bg }} />
+        <span className="rounded-full bg-[#EEF0FF] px-1.5 py-0.5 text-[10px] font-medium text-[#5B6CF8]">
+          {it.shape.title || it.shape.text}
+        </span>
+        <span className="flex-1 truncate text-[11px] text-[#6B7280]">{it.entry.text}</span>
+        <PageBadge pageId={it.pageId} pageName={it.pageName} />
+      </Row>
+    );
+  };
+
   const selectedAlert =
-    sel?.kind === "alert" ? alerts.find((a) => a.id === sel.id) : null;
+    sel?.kind === "alert" ? allAlerts.find((a) => a.id === sel.id) : null;
   const selectedEntry =
-    sel?.kind === "improvement"
-      ? entries.find((e) => e.entry.id === sel.id)
-      : null;
+    sel?.kind === "improvement" ? allEntries.find((e) => e.entry.id === sel.id) : null;
   const selectedMissing =
     sel?.kind === "missing"
-      ? { type: sel.type, shapes: missingGroups.get(sel.type) ?? [] }
+      ? {
+          type: sel.type,
+          items: sel.pageId
+            ? (pagesData.find((p) => p.page.id === sel.pageId)?.missingGroups.get(sel.type) ?? []).map((s) => ({
+                shape: s,
+                pageId: sel.pageId!,
+                pageName: pagesData.find((p) => p.page.id === sel.pageId)?.page.name ?? "",
+              }))
+            : (aggMissing.get(sel.type) ?? []),
+        }
       : null;
   const selectedNoState =
     sel?.kind === "nostate"
-      ? page.shapes.find((s) => s.id === sel.shapeId)
+      ? allNoState.find((n) => n.shape.id === sel.shapeId && n.pageId === sel.pageId)
       : null;
 
   const selShapeId =
     selectedEntry?.shape.id ??
-    selectedMissing?.shapes[0]?.id ??
-    selectedNoState?.id ??
+    selectedMissing?.items[0]?.shape.id ??
+    selectedNoState?.shape.id ??
     selectedAlert?.shapes[0]?.id;
+  const selPageId =
+    selectedEntry?.pageId ??
+    selectedMissing?.items[0]?.pageId ??
+    selectedNoState?.pageId ??
+    selectedAlert?.pageId;
 
   return (
     <div
@@ -2698,11 +2853,9 @@ function FullSummaryModal({
         flexDirection: "column",
       }}
     >
-      {/* Header */}
       <div className="flex h-12 shrink-0 items-center justify-between border-b border-[#EBEBEB] px-5">
-        <div className="text-[14px] font-semibold text-[#111827]">
-          Resumen de cambios
-        </div>
+        <div className="text-[14px] font-semibold text-[#111827]">Resumen de cambios</div>
+        <ViewTabs value={view} onChange={setView} />
         <button
           onClick={onClose}
           className="flex h-8 w-8 items-center justify-center rounded text-[#6B7280] hover:bg-[#F3F4F6]"
@@ -2714,110 +2867,133 @@ function FullSummaryModal({
 
       <div className="flex min-h-0 flex-1">
         {/* Left list */}
-        <div
-          className="overflow-y-auto border-r border-[#EBEBEB] p-3"
-          style={{ width: "35%" }}
-        >
-          {alerts.length > 0 && (
+        <div className="overflow-y-auto border-r border-[#EBEBEB] p-3" style={{ width: "35%" }}>
+          {view === "general" ? (
             <>
-              <div className={groupHdr}>Alertas</div>
-              {alerts.map((a) => (
-                <Row
-                  key={a.id}
-                  active={sel?.kind === "alert" && sel.id === a.id}
-                  onClick={() => setSel({ kind: "alert", id: a.id })}
-                >
-                  <span>{a.icon}</span>
-                  <span className="flex-1 truncate">{a.title}</span>
-                  <span className="text-[10px] text-[#9CA3AF]">
-                    {a.shapes.length}
-                  </span>
-                </Row>
-              ))}
+              {allAlerts.length > 0 && (
+                <>
+                  <div className={groupHdr}>Alertas</div>
+                  {allAlerts.map(renderAlertRow)}
+                </>
+              )}
+              {allEntries.length > 0 && (
+                <>
+                  <div className={groupHdr}>Oportunidades de mejora</div>
+                  {allEntries.map(renderEntryRow)}
+                </>
+              )}
+              {aggMissing.size > 0 && (
+                <>
+                  <div className={groupHdr}>Documentación faltante</div>
+                  {Array.from(aggMissing.entries()).map(([type, items]) => (
+                    <Row
+                      key={type}
+                      active={sel?.kind === "missing" && sel.type === type && !sel.pageId}
+                      onClick={() => setSel({ kind: "missing", type })}
+                    >
+                      <FileText className="h-3.5 w-3.5 text-[#9CA3AF]" />
+                      <span className="flex-1 truncate">
+                        {type === MISSING_UNSPEC ? type : `${type} faltante`}
+                      </span>
+                      <span className="text-[10px] text-[#9CA3AF]">{items.length}</span>
+                    </Row>
+                  ))}
+                </>
+              )}
+              {allNoState.length > 0 && (
+                <>
+                  <div className={groupHdr}>Sin estado</div>
+                  {allNoState.map((n) => (
+                    <Row
+                      key={`${n.pageId}:${n.shape.id}`}
+                      active={
+                        sel?.kind === "nostate" &&
+                        sel.shapeId === n.shape.id &&
+                        sel.pageId === n.pageId
+                      }
+                      onClick={() => setSel({ kind: "nostate", shapeId: n.shape.id, pageId: n.pageId })}
+                    >
+                      <span>⚫</span>
+                      <span className="flex-1 truncate">
+                        {n.shape.title || n.shape.text || "Sin título"}
+                      </span>
+                      <PageBadge pageId={n.pageId} pageName={n.pageName} />
+                    </Row>
+                  ))}
+                </>
+              )}
+              {allAlerts.length === 0 &&
+                allEntries.length === 0 &&
+                aggMissing.size === 0 &&
+                allNoState.length === 0 && (
+                  <div className="p-6 text-center text-[12px] text-[#9CA3AF]">
+                    Nada por resumir todavía.
+                  </div>
+                )}
             </>
-          )}
-
-          {entries.length > 0 && (
+          ) : (
             <>
-              <div className={groupHdr}>Oportunidades de mejora</div>
-              {entries.map(({ shape, entry }) => {
-                const dot = DIAGNOSTICO_META[shape.diagnostico ?? "sin_definir"];
+              {pagesData.map((pd) => {
+                const isMain = pd.page.id === mainPageId;
+                const missingTotal = Array.from(pd.missingGroups.values()).reduce(
+                  (n, ss) => n + ss.length,
+                  0,
+                );
+                const hasContent =
+                  pd.alerts.length > 0 ||
+                  pd.entries.length > 0 ||
+                  pd.missingGroups.size > 0 ||
+                  pd.noStateShapes.length > 0;
+                if (!hasContent) return null;
                 return (
-                  <Row
-                    key={entry.id}
-                    active={sel?.kind === "improvement" && sel.id === entry.id}
-                    onClick={() => setSel({ kind: "improvement", id: entry.id })}
-                  >
-                    <span
-                      className="h-2 w-2 shrink-0 rounded-full"
-                      style={{ background: dot.bg }}
-                    />
-                    <span className="rounded-full bg-[#EEF0FF] px-1.5 py-0.5 text-[10px] font-medium text-[#5B6CF8]">
-                      {shape.title || shape.text}
-                    </span>
-                    <span className="flex-1 truncate text-[11px] text-[#6B7280]">
-                      {entry.text}
-                    </span>
-                  </Row>
+                  <div key={pd.page.id} className="mb-3">
+                    <div className="mb-1 px-1 text-[11px] font-semibold uppercase tracking-wider text-[#111827]">
+                      {isMain ? pd.page.name : `Sub-proceso: ${pd.page.name}`}
+                      <span className="ml-1 text-[10px] font-normal text-[#9CA3AF]">
+                        ({pd.alerts.length}⚠ · {pd.entries.length}● · {missingTotal}📄)
+                      </span>
+                    </div>
+                    {pd.alerts.map(renderAlertRow)}
+                    {pd.entries.map(renderEntryRow)}
+                    {Array.from(pd.missingGroups.entries()).map(([type, ss]) => (
+                      <Row
+                        key={`${pd.page.id}:${type}`}
+                        active={sel?.kind === "missing" && sel.type === type && sel.pageId === pd.page.id}
+                        onClick={() => setSel({ kind: "missing", type, pageId: pd.page.id })}
+                      >
+                        <FileText className="h-3.5 w-3.5 text-[#9CA3AF]" />
+                        <span className="flex-1 truncate">
+                          {type === MISSING_UNSPEC ? type : `${type} faltante`}
+                        </span>
+                        <span className="text-[10px] text-[#9CA3AF]">{ss.length}</span>
+                      </Row>
+                    ))}
+                    {pd.noStateShapes.map((s) => (
+                      <Row
+                        key={`${pd.page.id}:ns:${s.id}`}
+                        active={
+                          sel?.kind === "nostate" &&
+                          sel.shapeId === s.id &&
+                          sel.pageId === pd.page.id
+                        }
+                        onClick={() => setSel({ kind: "nostate", shapeId: s.id, pageId: pd.page.id })}
+                      >
+                        <span>⚫</span>
+                        <span className="flex-1 truncate">{s.title || s.text || "Sin título"}</span>
+                      </Row>
+                    ))}
+                  </div>
                 );
               })}
             </>
           )}
-
-          {missingGroups.size > 0 && (
-            <>
-              <div className={groupHdr}>Documentación faltante</div>
-              {Array.from(missingGroups.entries()).map(([type, ss]) => (
-                <Row
-                  key={type}
-                  active={sel?.kind === "missing" && sel.type === type}
-                  onClick={() => setSel({ kind: "missing", type })}
-                >
-                  <FileText className="h-3.5 w-3.5 text-[#9CA3AF]" />
-                  <span className="flex-1 truncate">
-                    {type === UNSPEC ? type : `${type} faltante`}
-                  </span>
-                  <span className="text-[10px] text-[#9CA3AF]">{ss.length}</span>
-                </Row>
-              ))}
-            </>
-          )}
-
-          {noStateShapes.length > 0 && (
-            <>
-              <div className={groupHdr}>Sin estado</div>
-              {noStateShapes.map((s) => (
-                <Row
-                  key={s.id}
-                  active={sel?.kind === "nostate" && sel.shapeId === s.id}
-                  onClick={() => setSel({ kind: "nostate", shapeId: s.id })}
-                >
-                  <span>⚫</span>
-                  <span className="flex-1 truncate">
-                    {s.title || s.text || "Sin título"}
-                  </span>
-                </Row>
-              ))}
-            </>
-          )}
-
-          {alerts.length === 0 &&
-            entries.length === 0 &&
-            missingGroups.size === 0 &&
-            noStateShapes.length === 0 && (
-              <div className="p-6 text-center text-[12px] text-[#9CA3AF]">
-                Nada por resumir todavía.
-              </div>
-            )}
         </div>
 
         {/* Right detail */}
         <div className="flex min-w-0 flex-1 flex-col">
           <div className="min-h-0 flex-1 overflow-y-auto p-8">
             {!sel && (
-              <div className="text-[12px] text-[#9CA3AF]">
-                Seleccioná un ítem a la izquierda.
-              </div>
+              <div className="text-[12px] text-[#9CA3AF]">Seleccioná un ítem a la izquierda.</div>
             )}
 
             {selectedAlert && (
@@ -2825,6 +3001,7 @@ function FullSummaryModal({
                 <div className="flex items-center gap-2 text-[18px] font-bold text-[#111827]">
                   <span className="text-[22px]">{selectedAlert.icon}</span>
                   {selectedAlert.title}
+                  <PageBadge pageId={selectedAlert.pageId} pageName={selectedAlert.pageName} />
                 </div>
                 <div className="text-[13px] leading-relaxed text-[#4B5563]">
                   {selectedAlert.explanation}
@@ -2839,7 +3016,7 @@ function FullSummaryModal({
                         className="flex items-center gap-3 rounded-md border border-[#EBEBEB] bg-white p-3"
                       >
                         <button
-                          onClick={() => onJumpToShape(s.id)}
+                          onClick={() => onJumpToShape(s.id, selectedAlert.pageId)}
                           className="flex-1 truncate text-left text-[13px] font-medium text-[#111827] hover:underline"
                         >
                           {s.title || s.text || "Sin título"}
@@ -2881,8 +3058,11 @@ function FullSummaryModal({
 
             {selectedEntry && (
               <div className="space-y-4">
-                <div className="inline-flex items-center rounded-full bg-[#EEF0FF] px-3 py-1 text-[12px] font-medium text-[#5B6CF8]">
-                  {selectedEntry.shape.title || selectedEntry.shape.text}
+                <div className="flex items-center gap-2">
+                  <div className="inline-flex items-center rounded-full bg-[#EEF0FF] px-3 py-1 text-[12px] font-medium text-[#5B6CF8]">
+                    {selectedEntry.shape.title || selectedEntry.shape.text}
+                  </div>
+                  <PageBadge pageId={selectedEntry.pageId} pageName={selectedEntry.pageName} />
                 </div>
                 <div className="text-[16px] leading-relaxed text-[#111827]">
                   {selectedEntry.entry.text}
@@ -2928,28 +3108,29 @@ function FullSummaryModal({
             {selectedMissing && (
               <div className="space-y-4">
                 <div className="text-[18px] font-bold text-[#111827]">
-                  {selectedMissing.type === UNSPEC
+                  {selectedMissing.type === MISSING_UNSPEC
                     ? selectedMissing.type
                     : `${selectedMissing.type} faltante`}
                 </div>
                 <div className="space-y-2">
-                  {selectedMissing.shapes.map((s) => (
+                  {selectedMissing.items.map((it) => (
                     <div
-                      key={s.id}
+                      key={`${it.pageId}:${it.shape.id}`}
                       className="flex items-center gap-3 rounded-md border border-[#EBEBEB] bg-white p-3"
                     >
                       <button
-                        onClick={() => onJumpToShape(s.id)}
+                        onClick={() => onJumpToShape(it.shape.id, it.pageId)}
                         className="flex-1 truncate text-left text-[13px] font-medium text-[#111827] hover:underline"
                       >
-                        {s.title || s.text || "Sin título"}
+                        {it.shape.title || it.shape.text || "Sin título"}
                       </button>
-                      <Avatars ids={s.responsableIds ?? []} />
-                      {selectedMissing.type !== UNSPEC && (
+                      <PageBadge pageId={it.pageId} pageName={it.pageName} />
+                      <Avatars ids={it.shape.responsableIds ?? []} />
+                      {selectedMissing.type !== MISSING_UNSPEC && (
                         <button
                           onClick={() => {
-                            onCreateDoc(s.id, selectedMissing.type as DocType);
-                            onJumpToShape(s.id);
+                            onCreateDoc(it.pageId, it.shape.id, selectedMissing.type as DocType);
+                            onJumpToShape(it.shape.id, it.pageId);
                           }}
                           className="flex items-center gap-1 rounded-md bg-[#5B6CF8] px-2.5 py-1 text-[11px] font-medium text-white hover:bg-[#4F5DE0]"
                         >
@@ -2964,16 +3145,17 @@ function FullSummaryModal({
 
             {selectedNoState && (
               <div className="space-y-4">
-                <div className="text-[18px] font-bold text-[#111827]">
-                  {selectedNoState.title || selectedNoState.text || "Sin título"}
+                <div className="flex items-center gap-2 text-[18px] font-bold text-[#111827]">
+                  {selectedNoState.shape.title || selectedNoState.shape.text || "Sin título"}
+                  <PageBadge pageId={selectedNoState.pageId} pageName={selectedNoState.pageName} />
                 </div>
                 <div className="flex flex-wrap items-center gap-4">
                   <label className="flex flex-col gap-1 text-[11px] font-semibold uppercase tracking-wider text-[#6B7280]">
                     Diagnóstico
                     <select
-                      value={selectedNoState.diagnostico ?? "sin_definir"}
+                      value={selectedNoState.shape.diagnostico ?? "sin_definir"}
                       onChange={(e) =>
-                        onSetDiag(selectedNoState.id, e.target.value as Diagnostico)
+                        onSetDiag(selectedNoState.pageId, selectedNoState.shape.id, e.target.value as Diagnostico)
                       }
                       className="rounded-md border border-[#EBEBEB] bg-white px-2 py-1 text-[13px] font-normal normal-case tracking-normal text-[#111827]"
                     >
@@ -2987,9 +3169,9 @@ function FullSummaryModal({
                   <label className="flex flex-col gap-1 text-[11px] font-semibold uppercase tracking-wider text-[#6B7280]">
                     Prioridad
                     <select
-                      value={selectedNoState.prioridad ?? ""}
+                      value={selectedNoState.shape.prioridad ?? ""}
                       onChange={(e) =>
-                        onSetPrio(selectedNoState.id, e.target.value as Prioridad)
+                        onSetPrio(selectedNoState.pageId, selectedNoState.shape.id, e.target.value as Prioridad)
                       }
                       className="rounded-md border border-[#EBEBEB] bg-white px-2 py-1 text-[13px] font-normal normal-case tracking-normal text-[#111827]"
                     >
@@ -3006,10 +3188,10 @@ function FullSummaryModal({
             )}
           </div>
 
-          {selShapeId && (
+          {selShapeId && selPageId && (
             <div className="flex shrink-0 items-center justify-end border-t border-[#EBEBEB] bg-[#FAFAFA] px-6 py-3">
               <button
-                onClick={() => onJumpToShape(selShapeId)}
+                onClick={() => onJumpToShape(selShapeId, selPageId)}
                 className="rounded-md bg-[#5B6CF8] px-3 py-1.5 text-[13px] font-medium text-white hover:bg-[#4F5DE0]"
               >
                 Ir a la shape →
