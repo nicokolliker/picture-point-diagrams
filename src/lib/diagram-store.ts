@@ -500,9 +500,10 @@ export const useDiagramStore = create<State>()(
             // Quota exceeded — try without blobs already stripped by partialize,
             // last resort: drop documents entirely to keep people/settings.
             try {
+              const v = value as { state: Record<string, unknown>; version?: number };
               const minimal = {
-                ...value,
-                state: { ...(value as { state: unknown }).state, documents: [] },
+                ...v,
+                state: { ...v.state, documents: [] },
               };
               localStorage.setItem(name, JSON.stringify(minimal));
               console.warn("[flowit] localStorage quota exceeded, dropped documents", err);
