@@ -2894,10 +2894,19 @@ function FullSummaryModal({
       active={sel?.kind === "alert" && sel.id === a.id}
       onClick={() => setSel({ kind: "alert", id: a.id })}
     >
-      <span>{a.icon}</span>
-      <span className="flex-1 truncate">{a.title}</span>
+      <span
+        className="h-2 w-2 shrink-0 rounded-full"
+        style={{ background: toneAccent(a.tone) }}
+      />
+      <span className="text-[13px]">{a.icon}</span>
+      <span className="flex-1 truncate font-medium">{a.title}</span>
       <PageBadge pageId={a.pageId} pageName={a.pageName} />
-      <span className="text-[10px] text-[#9CA3AF]">{a.shapes.length}</span>
+      <span
+        className="inline-flex h-4 min-w-[16px] items-center justify-center rounded-full px-1 text-[10px] font-semibold"
+        style={{ background: `${toneAccent(a.tone)}1A`, color: toneAccent(a.tone) }}
+      >
+        {a.shapes.length}
+      </span>
     </Row>
   );
 
@@ -2910,7 +2919,7 @@ function FullSummaryModal({
         onClick={() => setSel({ kind: "improvement", id: it.entry.id, pageId: it.pageId })}
       >
         <span className="h-2 w-2 shrink-0 rounded-full" style={{ background: dot.bg }} />
-        <span className="rounded-full bg-[#EEF0FF] px-1.5 py-0.5 text-[10px] font-medium text-[#5B6CF8]">
+        <span className="max-w-[120px] truncate rounded-full bg-[#EEF0FF] px-1.5 py-0.5 text-[10px] font-medium text-[#5B6CF8]">
           {it.shape.title || it.shape.text}
         </span>
         <span className="flex-1 truncate text-[11px] text-[#6B7280]">{it.entry.text}</span>
