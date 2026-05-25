@@ -43,6 +43,7 @@ import {
   Expand,
   Shuffle,
   SlidersHorizontal,
+  Sparkles,
 } from "lucide-react";
 import {
   Popover,
@@ -68,6 +69,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { useDiagramStore, makeDefaultShape } from "@/lib/diagram-store";
+import { CaptureProcessModal } from "@/components/CaptureProcessModal";
 import { edgePoint, GRID, shapeCenter, snap } from "@/lib/geometry";
 import type {
   Connector,
@@ -208,6 +210,7 @@ function EditorPage() {
   );
 
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const [captureOpen, setCaptureOpen] = useState(false);
   useEffect(() => {
     if (pendingSelectRef.current && page) {
       const id = pendingSelectRef.current;
@@ -376,6 +379,12 @@ function EditorPage() {
             className="flex h-7 w-7 items-center justify-center rounded-md hover:bg-[#F3F4F6]"
           >
             <Maximize2 className="h-4 w-4" />
+          </button>
+          <button
+            onClick={() => setCaptureOpen(true)}
+            className="inline-flex items-center gap-1.5 rounded-md bg-[#5B6CF8] px-3 py-1.5 text-sm text-white hover:bg-[#4856E0]"
+          >
+            <Sparkles className="h-4 w-4" /> Capturar proceso
           </button>
           <Button className="h-8 bg-[#5B6CF8] hover:bg-[#4856E0] text-white">
             <Share2 className="h-4 w-4" />
@@ -579,6 +588,8 @@ function EditorPage() {
           />
         );
       })}
+
+      <CaptureProcessModal open={captureOpen} onClose={() => setCaptureOpen(false)} />
 
       <Link to="/editor" className="hidden" aria-hidden />
     </div>

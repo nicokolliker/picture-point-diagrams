@@ -37,6 +37,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuLabel,
 } from "@/components/ui/dropdown-menu";
+import { CaptureProcessModal } from "@/components/CaptureProcessModal";
 
 export const Route = createFileRoute("/home")({
   head: () => ({
@@ -71,6 +72,7 @@ function HomePage() {
   const [showNew, setShowNew] = useState(false);
   const [renamingId, setRenamingId] = useState<string | null>(null);
   const [renameValue, setRenameValue] = useState("");
+  const [captureOpen, setCaptureOpen] = useState(false);
 
   useEffect(() => {
     ensureSeed();
@@ -115,12 +117,12 @@ function HomePage() {
           />
         </div>
         <div className="flex items-center gap-2">
-          <Link
-            to="/import"
-            className="inline-flex items-center gap-1.5 rounded-md border border-[#EBEBEB] px-3 py-1.5 text-sm text-[#4B5563] hover:bg-[#F3F4F6]"
+          <button
+            onClick={() => setCaptureOpen(true)}
+            className="inline-flex items-center gap-1.5 rounded-md bg-[#5B6CF8] px-3 py-1.5 text-sm text-white hover:bg-[#4856E0]"
           >
-            <Sparkles className="h-4 w-4 text-[#5B6CF8]" /> Granola
-          </Link>
+            <Sparkles className="h-4 w-4" /> Capturar proceso
+          </button>
           <Link
             to="/approvals"
             className="inline-flex items-center gap-1.5 rounded-md border border-[#EBEBEB] px-3 py-1.5 text-sm text-[#4B5563] hover:bg-[#F3F4F6]"
@@ -340,6 +342,8 @@ function HomePage() {
           </div>
         </DialogContent>
       </Dialog>
+
+      <CaptureProcessModal open={captureOpen} onClose={() => setCaptureOpen(false)} />
 
       <Link to="/home" className="hidden" aria-hidden />
     </div>
