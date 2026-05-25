@@ -4204,6 +4204,8 @@ function CanvasArea({
   onSubProcessIconClick,
   subPanelStates,
   rightPanelOpen,
+  onOpenProperties,
+  propertiesOpenFor,
 }: CanvasProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const overlayRef = useRef<HTMLDivElement>(null);
