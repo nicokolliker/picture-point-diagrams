@@ -851,7 +851,7 @@ function ToggleBtn({
     <button
       onClick={onClick}
       className={cn(
-        "flex h-7 w-7 items-center justify-center rounded hover:bg-[#F3F4F6]",
+        "flex h-6 w-6 items-center justify-center rounded hover:bg-[#F3F4F6]",
         active && "bg-[#EEF0FF] text-[#5B6CF8]",
       )}
     >
