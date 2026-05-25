@@ -663,88 +663,146 @@ function FormatBar({
   const cornerIcon =
     shape.cornerStyle === "sharp" ? "▢" : shape.cornerStyle === "rounded" ? "▣" : "⬭";
   const opacity = shape.opacity ?? 1;
+
   return (
     <div className="flex flex-nowrap items-center gap-0.5 whitespace-nowrap rounded-md border border-[#EBEBEB] bg-white px-1 py-0.5 shadow-sm">
-      <Select value={shape.fontFamily} onValueChange={(v) => onChange({ fontFamily: v })}>
-        <SelectTrigger className="h-6 w-[78px] px-1.5 text-[11px]" style={{ fontFamily: shape.fontFamily }}>
-          <SelectValue />
-        </SelectTrigger>
-        <SelectContent>
-          {FONTS.map((f) => (
-            <SelectItem key={f} value={f} style={{ fontFamily: f }}>
-              {f}
-            </SelectItem>
-          ))}
-        </SelectContent>
-      </Select>
-      <Select
-        value={String(shape.fontSize)}
-        onValueChange={(v) => onChange({ fontSize: Number(v) })}
-      >
-        <SelectTrigger className="h-6 w-[44px] px-1 text-[11px]">
-          <SelectValue />
-        </SelectTrigger>
-        <SelectContent>
-          {[10, 12, 14, 16, 18, 20, 24].map((f) => (
-            <SelectItem key={f} value={String(f)}>
-              {f}
-            </SelectItem>
-          ))}
-        </SelectContent>
-      </Select>
-      <ToggleBtn active={shape.bold} onClick={() => onChange({ bold: !shape.bold })}>
-        <Bold className="h-3 w-3" />
-      </ToggleBtn>
-      <ToggleBtn active={shape.italic} onClick={() => onChange({ italic: !shape.italic })}>
-        <Italic className="h-3 w-3" />
-      </ToggleBtn>
-      <ToggleBtn active={shape.underline} onClick={() => onChange({ underline: !shape.underline })}>
-        <Underline className="h-3 w-3" />
-      </ToggleBtn>
-      <input
-        type="color"
-        value={shape.textColor}
-        onChange={(e) => onChange({ textColor: e.target.value })}
-        className="h-5 w-5 cursor-pointer rounded border border-[#EBEBEB]"
-        title="Text color"
-      />
+      {/* Fill */}
+      <ColorSwatchPicker label="Fill" value={shape.fill} onChange={(c) => onChange({ fill: c })} />
+
+      {/* Border (color + style + weight popover) */}
+      <Popover>
+        <PopoverTrigger asChild>
+          <button
+            className="flex h-6 items-center justify-center rounded border border-[#EBEBEB] px-1 hover:bg-[#F3F4F6]"
+            title="Border"
+          >
+            <span
+              className="h-3.5 w-3.5 rounded-sm"
+              style={{
+                border: `2px ${shape.borderStyle ?? "solid"} ${shape.borderColor ?? "#D0D0D0"}`,
+                background: "transparent",
+              }}
+            />
+          </button>
+        </PopoverTrigger>
+        <PopoverContent className="w-auto p-2 space-y-2" align="start">
+          <div className="text-[10px] uppercase tracking-wide text-[#9CA3AF]">Color</div>
+          <div className="grid grid-cols-6 gap-1">
+            {SWATCHES.map((c) => (
+              <button
+                key={c}
+                onClick={() => onChange({ borderColor: c })}
+                className={cn(
+                  "h-6 w-6 rounded border",
+                  (shape.borderColor ?? "").toLowerCase() === c.toLowerCase()
+                    ? "border-[#5B6CF8] ring-1 ring-[#5B6CF8]"
+                    : "border-[#D0D0D0]",
+                )}
+                style={{ background: c }}
+              />
+            ))}
+          </div>
+          <div className="flex gap-2">
+            <div className="flex-1">
+              <div className="mb-1 text-[10px] uppercase tracking-wide text-[#9CA3AF]">Style</div>
+              <Select
+                value={shape.borderStyle}
+                onValueChange={(v) => onChange({ borderStyle: v as Shape["borderStyle"] })}
+              >
+                <SelectTrigger className="h-7 text-[11px]"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="solid">Solid</SelectItem>
+                  <SelectItem value="dashed">Dashed</SelectItem>
+                  <SelectItem value="dotted">Dotted</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="w-16">
+              <div className="mb-1 text-[10px] uppercase tracking-wide text-[#9CA3AF]">Weight</div>
+              <Select
+                value={String(shape.borderWeight)}
+                onValueChange={(v) => onChange({ borderWeight: Number(v) as 1 | 2 | 3 })}
+              >
+                <SelectTrigger className="h-7 text-[11px]"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="1">1px</SelectItem>
+                  <SelectItem value="2">2px</SelectItem>
+                  <SelectItem value="3">3px</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+        </PopoverContent>
+      </Popover>
+
       <div className="mx-0.5 h-4 w-px bg-[#EBEBEB]" />
-      <ToggleBtn active={shape.align === "left"} onClick={() => onChange({ align: "left" })}>
-        <AlignLeft className="h-3 w-3" />
-      </ToggleBtn>
-      <ToggleBtn active={shape.align === "center"} onClick={() => onChange({ align: "center" })}>
-        <AlignCenter className="h-3 w-3" />
-      </ToggleBtn>
-      <ToggleBtn active={shape.align === "right"} onClick={() => onChange({ align: "right" })}>
-        <AlignRight className="h-3 w-3" />
-      </ToggleBtn>
-      <div className="mx-0.5 h-4 w-px bg-[#EBEBEB]" />
-      <Select
-        value={shape.borderStyle}
-        onValueChange={(v) => onChange({ borderStyle: v as Shape["borderStyle"] })}
-      >
-        <SelectTrigger className="h-6 w-[58px] px-1 text-[11px]">
-          <SelectValue />
-        </SelectTrigger>
-        <SelectContent>
-          <SelectItem value="solid">Solid</SelectItem>
-          <SelectItem value="dashed">Dashed</SelectItem>
-          <SelectItem value="dotted">Dotted</SelectItem>
-        </SelectContent>
-      </Select>
-      <Select
-        value={String(shape.borderWeight)}
-        onValueChange={(v) => onChange({ borderWeight: Number(v) as 1 | 2 | 3 })}
-      >
-        <SelectTrigger className="h-6 w-[42px] px-1 text-[11px]">
-          <SelectValue />
-        </SelectTrigger>
-        <SelectContent>
-          <SelectItem value="1">1px</SelectItem>
-          <SelectItem value="2">2px</SelectItem>
-          <SelectItem value="3">3px</SelectItem>
-        </SelectContent>
-      </Select>
+
+      {/* Text (font + size + B/I/U + align + color) */}
+      <Popover>
+        <PopoverTrigger asChild>
+          <button
+            className="flex h-6 w-6 items-center justify-center rounded hover:bg-[#F3F4F6]"
+            title="Text"
+            style={{ color: shape.textColor }}
+          >
+            <span className="text-[13px] font-semibold leading-none">A</span>
+          </button>
+        </PopoverTrigger>
+        <PopoverContent className="w-64 p-2 space-y-2" align="start">
+          <div className="flex gap-1">
+            <Select value={shape.fontFamily} onValueChange={(v) => onChange({ fontFamily: v })}>
+              <SelectTrigger className="h-7 flex-1 text-[11px]" style={{ fontFamily: shape.fontFamily }}>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {FONTS.map((f) => (
+                  <SelectItem key={f} value={f} style={{ fontFamily: f }}>{f}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <Select value={String(shape.fontSize)} onValueChange={(v) => onChange({ fontSize: Number(v) })}>
+              <SelectTrigger className="h-7 w-14 text-[11px]"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                {[10, 12, 14, 16, 18, 20, 24].map((f) => (
+                  <SelectItem key={f} value={String(f)}>{f}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="flex items-center gap-0.5">
+            <ToggleBtn active={shape.bold} onClick={() => onChange({ bold: !shape.bold })}>
+              <Bold className="h-3 w-3" />
+            </ToggleBtn>
+            <ToggleBtn active={shape.italic} onClick={() => onChange({ italic: !shape.italic })}>
+              <Italic className="h-3 w-3" />
+            </ToggleBtn>
+            <ToggleBtn active={shape.underline} onClick={() => onChange({ underline: !shape.underline })}>
+              <Underline className="h-3 w-3" />
+            </ToggleBtn>
+            <div className="mx-1 h-4 w-px bg-[#EBEBEB]" />
+            <ToggleBtn active={shape.align === "left"} onClick={() => onChange({ align: "left" })}>
+              <AlignLeft className="h-3 w-3" />
+            </ToggleBtn>
+            <ToggleBtn active={shape.align === "center"} onClick={() => onChange({ align: "center" })}>
+              <AlignCenter className="h-3 w-3" />
+            </ToggleBtn>
+            <ToggleBtn active={shape.align === "right"} onClick={() => onChange({ align: "right" })}>
+              <AlignRight className="h-3 w-3" />
+            </ToggleBtn>
+            <div className="ml-auto flex items-center gap-1">
+              <span className="text-[10px] text-[#9CA3AF]">Color</span>
+              <input
+                type="color"
+                value={shape.textColor}
+                onChange={(e) => onChange({ textColor: e.target.value })}
+                className="h-5 w-5 cursor-pointer rounded border border-[#EBEBEB]"
+              />
+            </div>
+          </div>
+        </PopoverContent>
+      </Popover>
+
+      {/* Corner cycle */}
       <button
         onClick={cycleCorner}
         title={`Corners: ${shape.cornerStyle}`}
@@ -752,32 +810,41 @@ function FormatBar({
       >
         {cornerIcon}
       </button>
-      <div className="mx-0.5 h-4 w-px bg-[#EBEBEB]" />
-      <ColorSwatchPicker label="Fill" value={shape.fill} onChange={(c) => onChange({ fill: c })} />
-      <ColorSwatchPicker
-        label="Border"
-        value={shape.borderColor ?? "#D0D0D0"}
-        onChange={(c) => onChange({ borderColor: c })}
-      />
+
+      {/* Shadow toggle */}
       <ToggleBtn active={!!shape.shadow} onClick={() => onChange({ shadow: !shape.shadow })}>
         <span title="Shadow" className="text-[11px] leading-none">☐</span>
       </ToggleBtn>
-      <div className="flex items-center gap-1 rounded border border-[#EBEBEB] px-1 py-0.5" title="Opacity">
-        <input
-          type="range"
-          min={10}
-          max={100}
-          value={Math.round(opacity * 100)}
-          onChange={(e) => onChange({ opacity: Number(e.target.value) / 100 })}
-          className="h-1 w-10 cursor-pointer accent-[#5B6CF8]"
-        />
-        <span className="w-6 text-right text-[10px] tabular-nums text-[#6B7280]">
-          {Math.round(opacity * 100)}%
-        </span>
-      </div>
+
+      {/* Opacity popover */}
+      <Popover>
+        <PopoverTrigger asChild>
+          <button
+            className="flex h-6 min-w-[34px] items-center justify-center rounded px-1 text-[10px] tabular-nums text-[#6B7280] hover:bg-[#F3F4F6]"
+            title="Opacity"
+          >
+            {Math.round(opacity * 100)}%
+          </button>
+        </PopoverTrigger>
+        <PopoverContent className="w-48 p-2" align="start">
+          <div className="mb-1 flex items-center justify-between text-[10px] text-[#9CA3AF]">
+            <span>Opacity</span>
+            <span className="tabular-nums">{Math.round(opacity * 100)}%</span>
+          </div>
+          <input
+            type="range"
+            min={10}
+            max={100}
+            value={Math.round(opacity * 100)}
+            onChange={(e) => onChange({ opacity: Number(e.target.value) / 100 })}
+            className="h-1 w-full cursor-pointer accent-[#5B6CF8]"
+          />
+        </PopoverContent>
+      </Popover>
     </div>
   );
 }
+
 
 const SWATCHES = [
   "#FFFFFF", "#000000", "#6B7280", "#D0D0D0",
