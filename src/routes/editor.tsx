@@ -5070,7 +5070,7 @@ function ShapeNode({
         dy: (pos.top - shapeInOverlayRef.current.top) / z,
       };
     }
-  }, [pinned, popupPos, dragPos]);
+  }, [pinned, popupPos, dragPos, zoom]);
 
   const onDragHandleDown = useCallback(
     (e: React.PointerEvent<HTMLDivElement>) => {
