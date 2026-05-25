@@ -5093,6 +5093,7 @@ function SubProcessModal({
               unpinShape={unpinShape}
               onSubProcessIconClick={onSubProcessIconClick}
               subPanelStates={subPanelStates}
+              rightPanelOpen={selectedIds.length === 1}
             />
           </div>
           {(() => {
