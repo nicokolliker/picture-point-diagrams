@@ -687,21 +687,26 @@ function FormatBar({
         </PopoverTrigger>
         <PopoverContent className="w-auto p-2 space-y-2" align="start">
           <div className="text-[10px] uppercase tracking-wide text-[#9CA3AF]">Color</div>
-          <div className="grid grid-cols-6 gap-1">
-            {SWATCHES.map((c) => (
-              <button
-                key={c}
-                onClick={() => onChange({ borderColor: c })}
-                className={cn(
-                  "h-6 w-6 rounded border",
-                  (shape.borderColor ?? "").toLowerCase() === c.toLowerCase()
-                    ? "border-[#5B6CF8] ring-1 ring-[#5B6CF8]"
-                    : "border-[#D0D0D0]",
-                )}
-                style={{ background: c }}
-              />
+          <div className="space-y-0.5">
+            {COLOR_RAMPS.map((ramp) => (
+              <div key={ramp.name} className="flex gap-0.5">
+                {ramp.colors.map((c) => (
+                  <button
+                    key={c}
+                    onClick={() => onChange({ borderColor: c })}
+                    className={cn(
+                      "h-5 w-5 rounded-sm border transition-transform hover:scale-110",
+                      (shape.borderColor ?? "").toLowerCase() === c.toLowerCase()
+                        ? "border-[#5B6CF8] ring-1 ring-[#5B6CF8]"
+                        : "border-[#E5E7EB]",
+                    )}
+                    style={{ background: c }}
+                  />
+                ))}
+              </div>
             ))}
           </div>
+
           <div className="flex gap-2">
             <div className="flex-1">
               <div className="mb-1 text-[10px] uppercase tracking-wide text-[#9CA3AF]">Style</div>
