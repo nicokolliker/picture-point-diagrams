@@ -798,14 +798,13 @@ function ColorSwatchPicker({
     <Popover>
       <PopoverTrigger asChild>
         <button
-          className="flex h-7 items-center gap-1 rounded border border-[#EBEBEB] px-1.5 text-[11px] text-[#374151] hover:bg-[#F3F4F6]"
+          className="flex h-6 items-center justify-center rounded border border-[#EBEBEB] px-1 hover:bg-[#F3F4F6]"
           title={`${label} color`}
         >
           <span
-            className="h-4 w-4 rounded border border-[#D0D0D0]"
+            className="h-3.5 w-3.5 rounded-sm border border-[#D0D0D0]"
             style={{ background: value }}
           />
-          <span>{label}</span>
         </button>
       </PopoverTrigger>
       <PopoverContent className="w-auto p-2" align="start">
