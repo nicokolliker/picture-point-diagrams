@@ -209,6 +209,7 @@ function EditorPage() {
   );
 
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const [captureOpen, setCaptureOpen] = useState(false);
   useEffect(() => {
     if (pendingSelectRef.current && page) {
       const id = pendingSelectRef.current;
