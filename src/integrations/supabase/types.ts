@@ -14,16 +14,207 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      approvals: {
+        Row: {
+          approver_id: string
+          comment: string | null
+          created_at: string
+          decision: Database["public"]["Enums"]["approval_decision"]
+          id: string
+          request_id: string
+        }
+        Insert: {
+          approver_id: string
+          comment?: string | null
+          created_at?: string
+          decision: Database["public"]["Enums"]["approval_decision"]
+          id?: string
+          request_id: string
+        }
+        Update: {
+          approver_id?: string
+          comment?: string | null
+          created_at?: string
+          decision?: Database["public"]["Enums"]["approval_decision"]
+          id?: string
+          request_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "approvals_request_id_fkey"
+            columns: ["request_id"]
+            isOneToOne: false
+            referencedRelation: "publish_requests"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      doc_approvers: {
+        Row: {
+          created_at: string
+          doc_id: string
+          id: string
+          required_count: number
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          doc_id: string
+          id?: string
+          required_count?: number
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          doc_id?: string
+          id?: string
+          required_count?: number
+          user_id?: string
+        }
+        Relationships: []
+      }
+      granola_imports: {
+        Row: {
+          created_at: string
+          error: string | null
+          generated_doc_id: string | null
+          id: string
+          note_id: string
+          note_title: string | null
+          status: Database["public"]["Enums"]["import_status"]
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          error?: string | null
+          generated_doc_id?: string | null
+          id?: string
+          note_id: string
+          note_title?: string | null
+          status?: Database["public"]["Enums"]["import_status"]
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          error?: string | null
+          generated_doc_id?: string | null
+          id?: string
+          note_id?: string
+          note_title?: string | null
+          status?: Database["public"]["Enums"]["import_status"]
+          user_id?: string
+        }
+        Relationships: []
+      }
+      profiles: {
+        Row: {
+          avatar_url: string | null
+          created_at: string
+          display_name: string | null
+          email: string
+          id: string
+          updated_at: string
+        }
+        Insert: {
+          avatar_url?: string | null
+          created_at?: string
+          display_name?: string | null
+          email: string
+          id: string
+          updated_at?: string
+        }
+        Update: {
+          avatar_url?: string | null
+          created_at?: string
+          display_name?: string | null
+          email?: string
+          id?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      publish_requests: {
+        Row: {
+          created_at: string
+          doc_id: string
+          doc_name: string
+          id: string
+          note: string | null
+          requested_by: string
+          required_approvals: number
+          resolved_at: string | null
+          snapshot: Json
+          status: Database["public"]["Enums"]["request_status"]
+          version_number: number
+        }
+        Insert: {
+          created_at?: string
+          doc_id: string
+          doc_name: string
+          id?: string
+          note?: string | null
+          requested_by: string
+          required_approvals?: number
+          resolved_at?: string | null
+          snapshot: Json
+          status?: Database["public"]["Enums"]["request_status"]
+          version_number?: number
+        }
+        Update: {
+          created_at?: string
+          doc_id?: string
+          doc_name?: string
+          id?: string
+          note?: string | null
+          requested_by?: string
+          required_approvals?: number
+          resolved_at?: string | null
+          snapshot?: Json
+          status?: Database["public"]["Enums"]["request_status"]
+          version_number?: number
+        }
+        Relationships: []
+      }
+      user_roles: {
+        Row: {
+          created_at: string
+          id: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          role?: Database["public"]["Enums"]["app_role"]
+          user_id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      has_role: {
+        Args: {
+          _role: Database["public"]["Enums"]["app_role"]
+          _user_id: string
+        }
+        Returns: boolean
+      }
+      is_admin: { Args: { _user_id: string }; Returns: boolean }
     }
     Enums: {
-      [_ in never]: never
+      app_role: "super_admin" | "admin" | "editor" | "viewer"
+      approval_decision: "approve" | "reject"
+      import_status: "pending" | "generating" | "ready" | "failed"
+      request_status: "pending" | "approved" | "rejected" | "cancelled"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -150,6 +341,11 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {},
+    Enums: {
+      app_role: ["super_admin", "admin", "editor", "viewer"],
+      approval_decision: ["approve", "reject"],
+      import_status: ["pending", "generating", "ready", "failed"],
+      request_status: ["pending", "approved", "rejected", "cancelled"],
+    },
   },
 } as const
