@@ -5064,9 +5064,10 @@ function ShapeNode({
     if (!pinned) return;
     const pos = dragPos ?? popupPos;
     if (pos && shapeInOverlayRef.current && !pinnedAnchorRef.current) {
+      const z = zoom || 1;
       pinnedAnchorRef.current = {
-        dx: pos.left - shapeInOverlayRef.current.left,
-        dy: pos.top - shapeInOverlayRef.current.top,
+        dx: (pos.left - shapeInOverlayRef.current.left) / z,
+        dy: (pos.top - shapeInOverlayRef.current.top) / z,
       };
     }
   }, [pinned, popupPos, dragPos]);
