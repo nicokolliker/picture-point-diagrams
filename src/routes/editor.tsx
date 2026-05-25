@@ -4071,7 +4071,8 @@ function ShapeNode({
   const [showPopup, setShowPopup] = useState(false);
   const hoverTimer = useRef<number | null>(null);
   const hideTimer = useRef<number | null>(null);
-  const nodeRef = useRef<HTMLDivElement>(null);
+  const nodeRef = useRef<HTMLDivElement | null>(null);
+  const [renderedH, setRenderedH] = useState(shape.height);
   const [popupPos, setPopupPos] = useState<{ left: number; top: number } | null>(null);
   const [popupSide, setPopupSide] = useState<"top" | "bottom" | "left" | "right" | null>(null);
   const mouseRef = useRef<{ x: number; y: number }>({ x: 0, y: 0 });
