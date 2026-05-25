@@ -114,8 +114,48 @@ function HomePage() {
             className="h-9 pl-9"
           />
         </div>
-        <div className="flex items-center gap-3" />
-      </header>
+        <div className="flex items-center gap-2">
+          <Link
+            to="/import"
+            className="inline-flex items-center gap-1.5 rounded-md border border-[#EBEBEB] px-3 py-1.5 text-sm text-[#4B5563] hover:bg-[#F3F4F6]"
+          >
+            <Sparkles className="h-4 w-4 text-[#5B6CF8]" /> Granola
+          </Link>
+          <Link
+            to="/approvals"
+            className="inline-flex items-center gap-1.5 rounded-md border border-[#EBEBEB] px-3 py-1.5 text-sm text-[#4B5563] hover:bg-[#F3F4F6]"
+          >
+            Approvals
+          </Link>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <button className="flex h-8 w-8 items-center justify-center rounded-full bg-[#5B6CF8] text-xs font-semibold text-white">
+                {(user?.email ?? "?").slice(0, 1).toUpperCase()}
+              </button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-56">
+              <DropdownMenuLabel>{user?.email}</DropdownMenuLabel>
+              <DropdownMenuSeparator />
+              {isAdmin && (
+                <DropdownMenuItem onSelect={() => navigate({ to: "/admin" })}>
+                  Admin panel
+                </DropdownMenuItem>
+              )}
+              <DropdownMenuItem onSelect={() => navigate({ to: "/approvals" })}>
+                My approvals
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem
+                onSelect={async () => {
+                  await signOut();
+                  navigate({ to: "/login" });
+                }}
+              >
+                Sign out
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
 
       <div className="flex flex-1 overflow-hidden">
         {/* Left sidebar */}
