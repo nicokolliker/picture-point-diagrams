@@ -4092,9 +4092,14 @@ function ShapeNode({
     if (!rect) return;
     const POP_W = pinned ? popupSize?.w ?? 320 : 280;
     const POP_H = pinned ? popupSize?.h ?? 380 : 200;
-    const GAP = 12;
+    const GAP = 8;
     const pad = 8;
     void pan;
+    // Account for app chrome: left sidebar (~370px) and right panel when open (~320px).
+    const LEFT_SIDEBAR_W = 370;
+    const RIGHT_PANEL_W = rightPanelOpen ? 320 : 0;
+    const leftBound = LEFT_SIDEBAR_W + pad;
+    const rightBound = window.innerWidth - RIGHT_PANEL_W - pad;
 
     const canvasOffsetX = rect.left - shape.x * zoom;
     const canvasOffsetY = rect.top - shape.y * zoom;
@@ -4119,7 +4124,7 @@ function ShapeNode({
     };
 
     const clampL = (l: number) =>
-      Math.max(pad, Math.min(l, window.innerWidth - POP_W - pad));
+      Math.max(leftBound, Math.min(l, rightBound - POP_W));
     const clampT = (t: number) =>
       Math.max(pad, Math.min(t, window.innerHeight - POP_H - pad));
 
@@ -4138,7 +4143,7 @@ function ShapeNode({
     const best = candidates[0];
     setPopupPos({ left: best.l, top: best.t });
     setPopupSide(best.name as "top" | "bottom" | "left" | "right");
-  }, [shape, allShapes, pan, zoom, popupSize, pinned]);
+  }, [shape, allShapes, pan, zoom, popupSize, pinned, rightPanelOpen]);
 
   const onResizePopupDown = useCallback(
     (e: React.PointerEvent<HTMLDivElement>) => {
