@@ -2829,6 +2829,28 @@ function FullSummaryModal({
         : null,
   );
   const [notes, setNotes] = useState<Record<string, string>>({});
+  const [openGroups, setOpenGroups] = useState<Record<string, boolean>>({});
+  const isGroupOpen = (pid: string) => openGroups[pid] ?? true;
+  const toggleGroup = (pid: string) =>
+    setOpenGroups((g) => ({ ...g, [pid]: !isGroupOpen(pid) }));
+  const computeProgress = (pd: ReturnType<typeof computePageSummary>) => {
+    const total = pd.page.shapes.length;
+    if (total === 0) return 1;
+    const flagged = new Set<string>();
+    pd.alerts.forEach((a) => a.shapes.forEach((s) => flagged.add(s.id)));
+    pd.missingGroups.forEach((ss) => ss.forEach((s) => flagged.add(s.id)));
+    return Math.max(0, (total - flagged.size) / total);
+  };
+  const ProgressBar = ({ value }: { value: number }) => {
+    const filled = Math.round(value * 10);
+    return (
+      <span className="font-mono text-[10px] tracking-tight text-[#10B981]">
+        {"█".repeat(filled)}
+        <span className="text-[#E5E7EB]">{"░".repeat(10 - filled)}</span>
+        <span className="ml-1 text-[#6B7280]">{Math.round(value * 100)}%</span>
+      </span>
+    );
+  };
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -2894,10 +2916,19 @@ function FullSummaryModal({
       active={sel?.kind === "alert" && sel.id === a.id}
       onClick={() => setSel({ kind: "alert", id: a.id })}
     >
-      <span>{a.icon}</span>
-      <span className="flex-1 truncate">{a.title}</span>
+      <span
+        className="h-2 w-2 shrink-0 rounded-full"
+        style={{ background: toneAccent(a.tone) }}
+      />
+      <span className="text-[13px]">{a.icon}</span>
+      <span className="flex-1 truncate font-medium">{a.title}</span>
       <PageBadge pageId={a.pageId} pageName={a.pageName} />
-      <span className="text-[10px] text-[#9CA3AF]">{a.shapes.length}</span>
+      <span
+        className="inline-flex h-4 min-w-[16px] items-center justify-center rounded-full px-1 text-[10px] font-semibold"
+        style={{ background: `${toneAccent(a.tone)}1A`, color: toneAccent(a.tone) }}
+      >
+        {a.shapes.length}
+      </span>
     </Row>
   );
 
@@ -2910,7 +2941,7 @@ function FullSummaryModal({
         onClick={() => setSel({ kind: "improvement", id: it.entry.id, pageId: it.pageId })}
       >
         <span className="h-2 w-2 shrink-0 rounded-full" style={{ background: dot.bg }} />
-        <span className="rounded-full bg-[#EEF0FF] px-1.5 py-0.5 text-[10px] font-medium text-[#5B6CF8]">
+        <span className="max-w-[120px] truncate rounded-full bg-[#EEF0FF] px-1.5 py-0.5 text-[10px] font-medium text-[#5B6CF8]">
           {it.shape.title || it.shape.text}
         </span>
         <span className="flex-1 truncate text-[11px] text-[#6B7280]">{it.entry.text}</span>
@@ -2963,8 +2994,24 @@ function FullSummaryModal({
         flexDirection: "column",
       }}
     >
-      <div className="flex h-12 shrink-0 items-center justify-between border-b border-[#EBEBEB] px-5">
+      <div className="flex h-12 shrink-0 items-center gap-4 border-b border-[#EBEBEB] px-5">
         <div className="text-[14px] font-semibold text-[#111827]">Resumen de cambios</div>
+        <div className="flex items-center gap-2">
+          {[
+            { label: "Alertas", value: allAlerts.length, color: "#DC2626", bg: "#FEF2F2" },
+            { label: "Mejoras", value: allEntries.length, color: "#5B6CF8", bg: "#EEF0FF" },
+            { label: "Docs", value: aggMissing.size, color: "#D97706", bg: "#FFFBEB" },
+          ].map((s) => (
+            <div
+              key={s.label}
+              className="flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-semibold"
+              style={{ background: s.bg, color: s.color }}
+            >
+              {s.value} {s.label}
+            </div>
+          ))}
+        </div>
+        <div className="flex-1" />
         <ViewTabs value={view} onChange={setView} />
         <button
           onClick={onClose}
@@ -3055,43 +3102,78 @@ function FullSummaryModal({
                   pd.missingGroups.size > 0 ||
                   pd.noStateShapes.length > 0;
                 if (!hasContent) return null;
+                const open = isGroupOpen(pd.page.id);
+                const progress = computeProgress(pd);
                 return (
-                  <div key={pd.page.id} className="mb-3">
-                    <div className="mb-1 px-1 text-[11px] font-semibold uppercase tracking-wider text-[#111827]">
-                      {isMain ? pd.page.name : `Sub-proceso: ${pd.page.name}`}
-                      <span className="ml-1 text-[10px] font-normal text-[#9CA3AF]">
-                        ({pd.alerts.length}⚠ · {pd.entries.length}● · {missingTotal}📄)
-                      </span>
-                    </div>
-                    {pd.alerts.map(renderAlertRow)}
-                    {pd.entries.map(renderEntryRow)}
-                    {Array.from(pd.missingGroups.entries()).map(([type, ss]) => (
-                      <Row
-                        key={`${pd.page.id}:${type}`}
-                        active={sel?.kind === "missing" && sel.type === type && sel.pageId === pd.page.id}
-                        onClick={() => setSel({ kind: "missing", type, pageId: pd.page.id })}
-                      >
-                        <FileText className="h-3.5 w-3.5 text-[#9CA3AF]" />
-                        <span className="flex-1 truncate">
-                          {type === MISSING_UNSPEC ? type : `${type} faltante`}
+                  <div
+                    key={pd.page.id}
+                    className="mb-3 rounded-md border border-[#EBEBEB] bg-[#FAFAFB]"
+                  >
+                    <button
+                      onClick={() => toggleGroup(pd.page.id)}
+                      className="flex w-full items-center justify-between gap-2 px-3 py-2 text-left"
+                    >
+                      <div className="flex min-w-0 flex-1 items-center gap-2">
+                        <span className="text-[12px] text-[#6B7280]">{open ? "▼" : "▶"}</span>
+                        <span className="truncate text-[12px] font-semibold text-[#111827]">
+                          {pd.page.name}
                         </span>
-                        <span className="text-[10px] text-[#9CA3AF]">{ss.length}</span>
-                      </Row>
-                    ))}
-                    {pd.noStateShapes.map((s) => (
-                      <Row
-                        key={`${pd.page.id}:ns:${s.id}`}
-                        active={
-                          sel?.kind === "nostate" &&
-                          sel.shapeId === s.id &&
-                          sel.pageId === pd.page.id
-                        }
-                        onClick={() => setSel({ kind: "nostate", shapeId: s.id, pageId: pd.page.id })}
-                      >
-                        <span>⚫</span>
-                        <span className="flex-1 truncate">{s.title || s.text || "Sin título"}</span>
-                      </Row>
-                    ))}
+                        {!isMain && (
+                          <span className="rounded bg-[#F3F4F6] px-1.5 py-0.5 text-[10px] font-medium text-[#6B7280]">
+                            Sub-proceso
+                          </span>
+                        )}
+                      </div>
+                      <ProgressBar value={progress} />
+                    </button>
+                    <div className="flex items-center gap-3 px-3 pb-2 text-[10px] text-[#6B7280]">
+                      <span>⚠ {pd.alerts.length}</span>
+                      <span>● {pd.entries.length}</span>
+                      <span>📄 {missingTotal}</span>
+                    </div>
+                    {open && (
+                      <div className="border-t border-[#EBEBEB] bg-white p-2">
+                        {pd.alerts.map(renderAlertRow)}
+                        {pd.entries.map(renderEntryRow)}
+                        {Array.from(pd.missingGroups.entries()).map(([type, ss]) => (
+                          <Row
+                            key={`${pd.page.id}:${type}`}
+                            active={
+                              sel?.kind === "missing" &&
+                              sel.type === type &&
+                              sel.pageId === pd.page.id
+                            }
+                            onClick={() =>
+                              setSel({ kind: "missing", type, pageId: pd.page.id })
+                            }
+                          >
+                            <FileText className="h-3.5 w-3.5 text-[#9CA3AF]" />
+                            <span className="flex-1 truncate">
+                              {type === MISSING_UNSPEC ? type : `${type} faltante`}
+                            </span>
+                            <span className="text-[10px] text-[#9CA3AF]">{ss.length}</span>
+                          </Row>
+                        ))}
+                        {pd.noStateShapes.map((s) => (
+                          <Row
+                            key={`${pd.page.id}:ns:${s.id}`}
+                            active={
+                              sel?.kind === "nostate" &&
+                              sel.shapeId === s.id &&
+                              sel.pageId === pd.page.id
+                            }
+                            onClick={() =>
+                              setSel({ kind: "nostate", shapeId: s.id, pageId: pd.page.id })
+                            }
+                          >
+                            <span>⚫</span>
+                            <span className="flex-1 truncate">
+                              {s.title || s.text || "Sin título"}
+                            </span>
+                          </Row>
+                        ))}
+                      </div>
+                    )}
                   </div>
                 );
               })}
@@ -4071,7 +4153,8 @@ function ShapeNode({
   const [showPopup, setShowPopup] = useState(false);
   const hoverTimer = useRef<number | null>(null);
   const hideTimer = useRef<number | null>(null);
-  const nodeRef = useRef<HTMLDivElement>(null);
+  const nodeRef = useRef<HTMLDivElement | null>(null);
+  const [renderedH, setRenderedH] = useState(shape.height);
   const [popupPos, setPopupPos] = useState<{ left: number; top: number } | null>(null);
   const [popupSide, setPopupSide] = useState<"top" | "bottom" | "left" | "right" | null>(null);
   const mouseRef = useRef<{ x: number; y: number }>({ x: 0, y: 0 });
@@ -4171,13 +4254,11 @@ function ShapeNode({
     const POP_W = pinned ? popupSize?.w ?? 320 : 280;
     const POP_H = pinned ? popupSize?.h ?? 380 : 200;
     const GAP = 8;
-    const pad = 8;
     void pan;
-    // Account for app chrome: left sidebar (~370px) and right panel when open (~320px).
-    const LEFT_SIDEBAR_W = 370;
-    const RIGHT_PANEL_W = rightPanelOpen ? 320 : 0;
-    const leftBound = LEFT_SIDEBAR_W + pad;
-    const rightBound = window.innerWidth - RIGHT_PANEL_W - pad;
+    // Account for app chrome: left shapes sidebar and right properties panel.
+    const LEFT_W = 370;
+    const RIGHT_W = rightPanelOpen ? 320 : 0;
+    const TOP_H = 48;
 
     const canvasOffsetX = rect.left - shape.x * zoom;
     const canvasOffsetY = rect.top - shape.y * zoom;
@@ -4202,9 +4283,9 @@ function ShapeNode({
     };
 
     const clampL = (l: number) =>
-      Math.max(leftBound, Math.min(l, rightBound - POP_W));
+      Math.max(LEFT_W + 8, Math.min(l, window.innerWidth - RIGHT_W - POP_W - 8));
     const clampT = (t: number) =>
-      Math.max(pad, Math.min(t, window.innerHeight - POP_H - pad));
+      Math.max(TOP_H + 8, Math.min(t, window.innerHeight - POP_H - 8));
 
     const raw = [
       { name: "right", l: rect.right + GAP, t: clampT(rect.top) },
@@ -4295,8 +4376,8 @@ function ShapeNode({
   // Each pill ≈ 18px tall + 4px gap, plus 8px breathing room above
   const pillsArea = pillsCount > 0 ? pillsCount * 18 + (pillsCount - 1) * 4 + 8 : 0;
   const basePad = 16;
-  const padBottom = shape.type === "text" ? basePad : basePad + pillsArea;
-  const minH = shape.type === "text" ? undefined : 56 + pillsArea;
+  const padBottom = basePad;
+  const minH = shape.type === "text" ? undefined : 80;
 
   const style: CSSProperties = {
     position: "absolute",
@@ -4423,7 +4504,7 @@ function ShapeNode({
             left: shape.x - 2,
             top: shape.y - 2,
             width: shape.width + 4,
-            height: shape.height + 4,
+            height: renderedH + 4,
             zIndex: 9999,
             pointerEvents: "none",
           }}
@@ -4507,7 +4588,13 @@ function ShapeNode({
       <ContextMenu>
         <ContextMenuTrigger asChild>
           <div
-            ref={nodeRef}
+            ref={(el) => {
+              nodeRef.current = el;
+              if (el) {
+                const h = el.offsetHeight;
+                if (Math.abs(h - renderedH) > 2) setRenderedH(h);
+              }
+            }}
             data-shape-id={shape.id}
             style={style}
             onPointerDown={(e) => {
