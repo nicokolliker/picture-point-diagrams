@@ -70,10 +70,12 @@ import { edgePoint, GRID, shapeCenter, snap } from "@/lib/geometry";
 import type {
   Connector,
   Diagnostico,
+  DiagramDocument,
   DocEntry,
   DocType,
   ImprovementCategory,
   MissingDocType,
+  Page,
   Person,
   Prioridad,
   Shape,
