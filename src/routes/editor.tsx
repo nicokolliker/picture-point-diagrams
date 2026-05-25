@@ -221,6 +221,14 @@ function EditorPage() {
   const [renaming, setRenaming] = useState(false);
   const [renameVal, setRenameVal] = useState("");
   const [pinnedIds, setPinnedIds] = useState<string[]>([]);
+  const [propertiesOpenFor, setPropertiesOpenFor] = useState<string | null>(null);
+  // Close properties panel when selection changes to a different shape (or none).
+  useEffect(() => {
+    if (!propertiesOpenFor) return;
+    if (selectedIds.length !== 1 || selectedIds[0] !== propertiesOpenFor) {
+      setPropertiesOpenFor(null);
+    }
+  }, [selectedIds, propertiesOpenFor]);
   const [summaryWidth, setSummaryWidth] = useState<number>(() => {
     if (typeof window === "undefined") return 340;
     const v = Number(window.localStorage.getItem("flowitSummaryWidth"));
