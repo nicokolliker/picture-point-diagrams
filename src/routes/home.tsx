@@ -32,6 +32,11 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { useDiagramStore } from "@/lib/diagram-store";
 import { cn } from "@/lib/utils";
+import { useAuth, signOut } from "@/lib/auth";
+import {
+  DropdownMenuSeparator,
+  DropdownMenuLabel,
+} from "@/components/ui/dropdown-menu";
 
 export const Route = createFileRoute("/home")({
   head: () => ({
