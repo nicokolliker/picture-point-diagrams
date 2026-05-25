@@ -22,6 +22,10 @@ function BootstrapPage() {
 
   const onSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (password.length < 8) {
+      toast.error("La contraseña debe tener al menos 8 caracteres.");
+      return;
+    }
     setBusy(true);
     try {
       await bootstrap({ data: { email, password } });
