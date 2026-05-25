@@ -156,6 +156,7 @@ function HomePage() {
             </DropdownMenuContent>
           </DropdownMenu>
         </div>
+      </header>
 
       <div className="flex flex-1 overflow-hidden">
         {/* Left sidebar */}
