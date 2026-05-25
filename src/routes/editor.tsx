@@ -355,17 +355,8 @@ function EditorPage() {
         {/* Format controls when shape selected */}
         <div className="ml-2 flex flex-1 items-center justify-center gap-1">
           <UndoRedoButtons />
-          {selectedShape && (
-            <FormatBar
-              shape={selectedShape}
-              onChange={(patch) =>
-                useDiagramStore
-                  .getState()
-                  .updateShape(doc.id, page.id, selectedShape.id, patch)
-              }
-            />
-          )}
         </div>
+
 
         <div className="flex items-center gap-2">
           <span className="text-xs text-[#6B7280] tabular-nums">{Math.round(zoom * 100)}%</span>
