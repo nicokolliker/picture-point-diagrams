@@ -3564,7 +3564,7 @@ function CanvasArea({
                 useDiagramStore.getState().addShape(docId, page.id, copy);
               }
             }}
-            onSubProcessIconClick={() => onSubProcessIconClick(s)}
+            onSubProcessIconClick={(rect) => onSubProcessIconClick(s, rect)}
             subPanelState={subPanelStates[s.id]}
           />
         ))}
