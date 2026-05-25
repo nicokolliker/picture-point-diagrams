@@ -3037,7 +3037,11 @@ function SummaryPanel({
           <div
             key={pd.page.id}
             className="rounded-md border border-[#EBEBEB] bg-white"
-            style={{ marginLeft: isMain ? 0 : 12 }}
+            style={
+              isMain
+                ? { marginLeft: 0 }
+                : { marginLeft: 16, borderLeft: "2px solid #E0E7FF" }
+            }
           >
             <button
               onClick={() => toggleGroup(`page:${pd.page.id}`)}
