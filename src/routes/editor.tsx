@@ -4310,6 +4310,8 @@ function ShapeNode({
   const [popupSize, setPopupSize] = useState<{ w: number; h: number } | null>(null);
 
   const computePos = useCallback(() => {
+    // Pinned popup is frozen in place — never reposition once pinned.
+    if (pinned && popupPos) return;
     const overlay = overlayRef.current;
     const node = nodeRef.current;
     if (!overlay || !node) return;
@@ -4331,7 +4333,7 @@ function ShapeNode({
 
     const POP_W = pinned ? popupSize?.w ?? 320 : 280;
     const POP_H = pinned ? popupSize?.h ?? 380 : 200;
-    const GAP = 10;
+    const GAP = 24;
     const pad = 8;
     const OW = overlayRect.width;
     const OH = overlayRect.height;
