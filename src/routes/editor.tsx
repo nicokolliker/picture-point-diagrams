@@ -4146,6 +4146,7 @@ function ShapeNode({
   zoom,
   pan,
   allShapes,
+  overlayRef,
   pinned,
   onPin,
   onUnpin,
