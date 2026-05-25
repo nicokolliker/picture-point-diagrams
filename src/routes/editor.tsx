@@ -158,43 +158,38 @@ function EditorPage() {
 
   const page = doc?.pages.find((p) => p.id === currentPageId) ?? doc?.pages[0];
 
-  // Floating sub-process panels (one per shape with an open panel).
-  const [subPanels, setSubPanels] = useState<
-    Array<{ shapeId: string; pageId: string; sourcePageId: string; minimized: boolean }>
+  // Stack of open sub-process modals (each rendered with zoom animation + dim overlay).
+  const [subModals, setSubModals] = useState<
+    Array<{ shapeId: string; pageId: string; sourcePageId: string; originRect: DOMRect; closing?: boolean }>
   >([]);
   const openSubProcessPanel = useCallback(
-    (shape: Shape, sourcePageId: string) => {
+    (shape: Shape, sourcePageId: string, originRect: DOMRect) => {
       let pid = shape.subProcessPageId;
       if (!pid) {
         pid = useDiagramStore
           .getState()
           .createSubProcess(doc!.id, sourcePageId, shape.id);
       }
-      setSubPanels((prev) => {
-        const existing = prev.find((p) => p.shapeId === shape.id);
-        if (existing) {
-          return prev.map((p) =>
-            p.shapeId === shape.id ? { ...p, minimized: false } : p,
-          );
-        }
-        return [...prev, { shapeId: shape.id, pageId: pid!, sourcePageId, minimized: false }];
+      setSubModals((prev) => {
+        if (prev.some((p) => p.shapeId === shape.id)) return prev;
+        return [...prev, { shapeId: shape.id, pageId: pid!, sourcePageId, originRect }];
       });
     },
     [doc],
   );
   const closeSubProcessPanel = useCallback((shapeId: string) => {
-    setSubPanels((prev) => prev.filter((p) => p.shapeId !== shapeId));
-  }, []);
-  const toggleMinimizeSubPanel = useCallback((shapeId: string) => {
-    setSubPanels((prev) =>
-      prev.map((p) => (p.shapeId === shapeId ? { ...p, minimized: !p.minimized } : p)),
+    setSubModals((prev) =>
+      prev.map((p) => (p.shapeId === shapeId ? { ...p, closing: true } : p)),
     );
+    window.setTimeout(() => {
+      setSubModals((prev) => prev.filter((p) => p.shapeId !== shapeId));
+    }, 260);
   }, []);
   const subPanelStates = useMemo(() => {
     const m: Record<string, "open" | "minimized"> = {};
-    for (const p of subPanels) m[p.shapeId] = p.minimized ? "minimized" : "open";
+    for (const p of subModals) if (!p.closing) m[p.shapeId] = "open";
     return m;
-  }, [subPanels]);
+  }, [subModals]);
 
   // Apply a pending shape selection after a page-change navigation.
   const pendingSelectRef = useRef<string | null>(null);
