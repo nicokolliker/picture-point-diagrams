@@ -3985,6 +3985,7 @@ function ShapeNode({
   onContextAction,
   onSubProcessIconClick,
   subPanelState,
+  rightPanelOpen,
 }: ShapeNodeProps) {
 
   const [hovered, setHovered] = useState(false);
