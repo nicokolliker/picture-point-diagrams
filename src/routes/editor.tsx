@@ -489,6 +489,7 @@ function EditorPage() {
           unpinShape={unpinShape}
           onSubProcessIconClick={(shape, rect) => openSubProcessPanel(shape, page.id, rect)}
           subPanelStates={subPanelStates}
+          rightPanelOpen={!!selectedShape}
         />
 
         {/* Right panel */}
@@ -646,15 +647,28 @@ function FormatBar({
   shape: Shape;
   onChange: (patch: Partial<Shape>) => void;
 }) {
+  const FONTS = ["Inter", "Poppins", "Georgia", "Courier New", "Arial", "Roboto Mono"];
+  const cycleCorner = () => {
+    const next: Shape["cornerStyle"] =
+      shape.cornerStyle === "sharp"
+        ? "rounded"
+        : shape.cornerStyle === "rounded"
+          ? "pill"
+          : "sharp";
+    onChange({ cornerStyle: next });
+  };
+  const cornerIcon =
+    shape.cornerStyle === "sharp" ? "▢" : shape.cornerStyle === "rounded" ? "▣" : "⬭";
+  const opacity = shape.opacity ?? 1;
   return (
-    <div className="flex items-center gap-1 rounded-md border border-[#EBEBEB] bg-white p-1">
+    <div className="flex flex-wrap items-center gap-1 rounded-md border border-[#EBEBEB] bg-white p-1">
       <Select value={shape.fontFamily} onValueChange={(v) => onChange({ fontFamily: v })}>
-        <SelectTrigger className="h-7 w-[90px] text-xs">
+        <SelectTrigger className="h-7 w-[110px] text-xs" style={{ fontFamily: shape.fontFamily }}>
           <SelectValue />
         </SelectTrigger>
         <SelectContent>
-          {["Inter", "Arial", "Georgia", "Monospace"].map((f) => (
-            <SelectItem key={f} value={f}>
+          {FONTS.map((f) => (
+            <SelectItem key={f} value={f} style={{ fontFamily: f }}>
               {f}
             </SelectItem>
           ))}
@@ -739,18 +753,13 @@ function FormatBar({
           <SelectItem value="3">3px</SelectItem>
         </SelectContent>
       </Select>
-      <Select
-        value={shape.cornerStyle}
-        onValueChange={(v) => onChange({ cornerStyle: v as Shape["cornerStyle"] })}
+      <button
+        onClick={cycleCorner}
+        title={`Corners: ${shape.cornerStyle}`}
+        className="flex h-7 w-8 items-center justify-center rounded text-[14px] text-[#374151] hover:bg-[#F3F4F6]"
       >
-        <SelectTrigger className="h-7 w-[80px] text-xs">
-          <SelectValue />
-        </SelectTrigger>
-        <SelectContent>
-          <SelectItem value="sharp">Sharp</SelectItem>
-          <SelectItem value="rounded">Rounded</SelectItem>
-        </SelectContent>
-      </Select>
+        {cornerIcon}
+      </button>
       <div className="mx-1 h-5 w-px bg-[#EBEBEB]" />
       <ColorSwatchPicker
         label="Fill"
@@ -762,6 +771,25 @@ function FormatBar({
         value={shape.borderColor ?? "#D0D0D0"}
         onChange={(c) => onChange({ borderColor: c })}
       />
+      <ToggleBtn
+        active={!!shape.shadow}
+        onClick={() => onChange({ shadow: !shape.shadow })}
+      >
+        <span title="Shadow" className="text-[12px] leading-none">☐</span>
+      </ToggleBtn>
+      <div className="flex items-center gap-1 rounded border border-[#EBEBEB] px-1.5 py-0.5" title="Opacity">
+        <input
+          type="range"
+          min={10}
+          max={100}
+          value={Math.round(opacity * 100)}
+          onChange={(e) => onChange({ opacity: Number(e.target.value) / 100 })}
+          className="h-1 w-16 cursor-pointer accent-[#5B6CF8]"
+        />
+        <span className="w-7 text-right text-[10px] tabular-nums text-[#6B7280]">
+          {Math.round(opacity * 100)}%
+        </span>
+      </div>
     </div>
   );
 }
@@ -2484,8 +2512,91 @@ function SummaryPanel({
     </li>
   );
 
+  // Aggregate counts for stat bar.
+  const totalAlerts = allAlerts.length;
+  const totalImprovements = allEntries.length;
+  const totalMissing = Array.from(aggMissing.values()).reduce((n, a) => n + a.length, 0);
+
+  const StatBar = () => (
+    <div className="mb-4 grid grid-cols-3 gap-2">
+      {[
+        { label: "Alertas", value: totalAlerts, color: "#DC2626", bg: "#FEF2F2", icon: "⚠️" },
+        { label: "Mejoras", value: totalImprovements, color: "#5B6CF8", bg: "#EEF0FF", icon: "●" },
+        { label: "Docs", value: totalMissing, color: "#D97706", bg: "#FFFBEB", icon: "📄" },
+      ].map((s) => (
+        <div
+          key={s.label}
+          className="flex flex-col items-center justify-center rounded-md border border-[#EBEBEB] py-2"
+          style={{ background: s.bg }}
+        >
+          <div className="text-[16px] font-bold tabular-nums" style={{ color: s.color }}>
+            {s.value}
+          </div>
+          <div className="mt-0.5 flex items-center gap-1 text-[10px] font-medium uppercase tracking-wider text-[#6B7280]">
+            <span>{s.icon}</span>
+            <span>{s.label}</span>
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+
+  const DocTypeCard = ({ type, items }: { type: string; items: MissingItem[] }) => (
+    <div className="rounded-lg border border-[#EBEBEB] bg-white p-3">
+      <div className="mb-2 flex items-center justify-between gap-2">
+        <div className="flex min-w-0 items-center gap-1.5">
+          <FileText className="h-3.5 w-3.5 shrink-0 text-[#D97706]" />
+          <span className="truncate text-[12px] font-semibold text-[#111827]">{type}</span>
+        </div>
+        <span className="inline-flex h-5 min-w-[20px] items-center justify-center rounded-full bg-[#FEF3C7] px-1.5 text-[10px] font-semibold text-[#92400E]">
+          {items.length}
+        </span>
+      </div>
+      <ul className="flex flex-col gap-1">
+        {items.map((it) => (
+          <li key={`${it.pageId}:${it.shape.id}`}>
+            <button
+              onClick={() => onJumpToShape(it.shape.id, it.pageId)}
+              className="flex w-full items-center gap-1.5 rounded px-1.5 py-1 text-left text-[11px] text-[#374151] hover:bg-[#F3F4F6]"
+            >
+              <span className="h-1 w-1 shrink-0 rounded-full bg-[#9CA3AF]" />
+              <span className="flex-1 truncate">
+                {it.shape.title || it.shape.text || "Sin título"}
+              </span>
+              {it.pageId !== mainPageId && (
+                <span className="rounded bg-[#F3F4F6] px-1 text-[9px] text-[#6B7280]">
+                  {it.pageName}
+                </span>
+              )}
+            </button>
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+
+  const computeProgress = (pd: ReturnType<typeof computePageSummary>) => {
+    const total = pd.page.shapes.length;
+    if (total === 0) return 1;
+    const flagged = new Set<string>();
+    pd.alerts.forEach((a) => a.shapes.forEach((s) => flagged.add(s.id)));
+    pd.missingGroups.forEach((ss) => ss.forEach((s) => flagged.add(s.id)));
+    return Math.max(0, (total - flagged.size) / total);
+  };
+  const ProgressBar = ({ value }: { value: number }) => {
+    const filled = Math.round(value * 10);
+    return (
+      <span className="font-mono text-[10px] tracking-tight text-[#10B981]">
+        {"█".repeat(filled)}
+        <span className="text-[#E5E7EB]">{"░".repeat(10 - filled)}</span>
+        <span className="ml-1 text-[#6B7280]">{Math.round(value * 100)}%</span>
+      </span>
+    );
+  };
+
   const generalContent = (
     <>
+      <StatBar />
       <div>
         <div className={sectionHeader}>⚠️ Alertas</div>
         {allAlerts.length === 0 ? (
@@ -2522,19 +2633,9 @@ function SummaryPanel({
             Todas las etapas tienen documentación.
           </div>
         ) : (
-          <div className="flex flex-col gap-4">
+          <div className="grid grid-cols-1 gap-2.5 xl:grid-cols-2">
             {Array.from(aggMissing.entries()).map(([type, items]) => (
-              <div key={type}>
-                <div className="mb-2 flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wider text-[#9CA3AF]">
-                  <span>{type === MISSING_UNSPEC ? type : `${type} faltante`}</span>
-                  <span className="inline-flex h-4 min-w-[16px] items-center justify-center rounded-full bg-[#F3F4F6] px-1 text-[10px] font-semibold text-[#6B7280]">
-                    {items.length}
-                  </span>
-                </div>
-                <ul className="flex flex-col gap-2">
-                  {items.map((it) => renderMissingItem(it.shape, it.pageId, it.pageName))}
-                </ul>
-              </div>
+              <DocTypeCard key={type} type={type} items={items} />
             ))}
           </div>
         )}
@@ -2551,22 +2652,26 @@ function SummaryPanel({
           pd.missingGroups.size > 0;
         const open = isGroupOpen(pd.page.id);
         const isMain = pd.page.id === mainPageId;
+        const progress = computeProgress(pd);
         return (
           <div key={pd.page.id} className="rounded-md border border-[#EBEBEB] bg-[#FAFAFB]">
             <button
               onClick={() => toggleGroup(pd.page.id)}
               className="flex w-full items-center justify-between gap-2 px-3 py-2 text-left"
             >
-              <div className="flex min-w-0 items-center gap-2">
+              <div className="flex min-w-0 flex-1 items-center gap-2">
                 <span className="text-[12px] text-[#6B7280]">{open ? "▼" : "▶"}</span>
                 <span className="truncate text-[13px] font-semibold text-[#111827]">
                   {isMain ? pd.page.name : `Sub-proceso: ${pd.page.name}`}
                 </span>
               </div>
-              <span className="text-[10px] text-[#9CA3AF]">
-                {pd.alerts.length}⚠ · {pd.entries.length}● · {Array.from(pd.missingGroups.values()).reduce((n, s) => n + s.length, 0)}📄
-              </span>
+              <ProgressBar value={progress} />
             </button>
+            <div className="flex items-center gap-2 px-3 pb-2 text-[10px] text-[#6B7280]">
+              <span>⚠ {pd.alerts.length}</span>
+              <span>● {pd.entries.length}</span>
+              <span>📄 {Array.from(pd.missingGroups.values()).reduce((n, s) => n + s.length, 0)}</span>
+            </div>
             {open && (
               <div className="border-t border-[#EBEBEB] p-3">
                 {!hasContent && (
@@ -3224,6 +3329,7 @@ interface CanvasProps {
   unpinShape: (id: string) => void;
   onSubProcessIconClick: (shape: Shape, originRect: DOMRect) => void;
   subPanelStates: Record<string, "open" | "minimized">;
+  rightPanelOpen?: boolean;
 }
 
 function CanvasArea({
@@ -3240,6 +3346,7 @@ function CanvasArea({
   unpinShape,
   onSubProcessIconClick,
   subPanelStates,
+  rightPanelOpen,
 }: CanvasProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const [spaceDown, setSpaceDown] = useState(false);
@@ -3645,6 +3752,7 @@ function CanvasArea({
             zoom={zoom}
             pan={pan}
             allShapes={page.shapes}
+            rightPanelOpen={rightPanelOpen}
             pinned={pinnedIds.includes(s.id)}
             onPin={() => pinShape(s.id)}
             onUnpin={() => unpinShape(s.id)}
@@ -3929,6 +4037,7 @@ interface ShapeNodeProps {
   ) => void;
   onSubProcessIconClick: (originRect: DOMRect) => void;
   subPanelState?: "open" | "minimized";
+  rightPanelOpen?: boolean;
 }
 
 
@@ -3954,6 +4063,7 @@ function ShapeNode({
   onContextAction,
   onSubProcessIconClick,
   subPanelState,
+  rightPanelOpen,
 }: ShapeNodeProps) {
 
   const [hovered, setHovered] = useState(false);
@@ -4060,9 +4170,14 @@ function ShapeNode({
     if (!rect) return;
     const POP_W = pinned ? popupSize?.w ?? 320 : 280;
     const POP_H = pinned ? popupSize?.h ?? 380 : 200;
-    const GAP = 12;
+    const GAP = 8;
     const pad = 8;
     void pan;
+    // Account for app chrome: left sidebar (~370px) and right panel when open (~320px).
+    const LEFT_SIDEBAR_W = 370;
+    const RIGHT_PANEL_W = rightPanelOpen ? 320 : 0;
+    const leftBound = LEFT_SIDEBAR_W + pad;
+    const rightBound = window.innerWidth - RIGHT_PANEL_W - pad;
 
     const canvasOffsetX = rect.left - shape.x * zoom;
     const canvasOffsetY = rect.top - shape.y * zoom;
@@ -4087,7 +4202,7 @@ function ShapeNode({
     };
 
     const clampL = (l: number) =>
-      Math.max(pad, Math.min(l, window.innerWidth - POP_W - pad));
+      Math.max(leftBound, Math.min(l, rightBound - POP_W));
     const clampT = (t: number) =>
       Math.max(pad, Math.min(t, window.innerHeight - POP_H - pad));
 
@@ -4106,7 +4221,7 @@ function ShapeNode({
     const best = candidates[0];
     setPopupPos({ left: best.l, top: best.t });
     setPopupSide(best.name as "top" | "bottom" | "left" | "right");
-  }, [shape, allShapes, pan, zoom, popupSize, pinned]);
+  }, [shape, allShapes, pan, zoom, popupSize, pinned, rightPanelOpen]);
 
   const onResizePopupDown = useCallback(
     (e: React.PointerEvent<HTMLDivElement>) => {
@@ -4192,7 +4307,12 @@ function ShapeNode({
     minHeight: minH,
     background: shape.fill,
     border: `${shape.borderWeight}px ${shape.borderStyle} ${shape.borderColor ?? "#D0D0D0"}`,
-    borderRadius: shape.cornerStyle === "rounded" ? 8 : 0,
+    borderRadius:
+      shape.cornerStyle === "pill"
+        ? 9999
+        : shape.cornerStyle === "rounded"
+          ? 8
+          : 0,
     padding: `${basePad}px ${basePad}px ${padBottom}px ${basePad}px`,
     display: "flex",
     alignItems: "center",
@@ -4207,6 +4327,8 @@ function ShapeNode({
     textAlign: shape.align,
     boxSizing: "border-box",
     cursor: "move",
+    opacity: shape.opacity ?? 1,
+    boxShadow: shape.shadow ? "0 4px 12px rgba(0,0,0,0.12)" : undefined,
     transition: "border-color 100ms ease-out, box-shadow 150ms ease-out",
   };
 
@@ -4311,7 +4433,7 @@ function ShapeNode({
             className="absolute inset-0"
             style={{
               border: "2px solid #5B6CF8",
-              borderRadius: shape.cornerStyle === "rounded" ? 10 : 0,
+              borderRadius: shape.cornerStyle === "pill" ? 9999 : shape.cornerStyle === "rounded" ? 10 : 0,
               pointerEvents: "none",
             }}
           />
@@ -4975,6 +5097,8 @@ function SubProcessModal({
       />
       {/* Modal */}
       <div
+        onPointerDown={(e) => e.stopPropagation()}
+        onClick={(e) => e.stopPropagation()}
         style={{
           position: "fixed",
           background: "white",
@@ -5048,6 +5172,7 @@ function SubProcessModal({
               unpinShape={unpinShape}
               onSubProcessIconClick={onSubProcessIconClick}
               subPanelStates={subPanelStates}
+              rightPanelOpen={selectedIds.length === 1}
             />
           </div>
           {(() => {
