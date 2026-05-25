@@ -14,11 +14,28 @@ export const Route = createFileRoute("/login")({
 
 function LoginPage() {
   const navigate = useNavigate();
-  const [mode, setMode] = useState<"signin" | "signup">("signin");
+  const [mode, setMode] = useState<"signin" | "signup" | "forgot">("signin");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [name, setName] = useState("");
   const [busy, setBusy] = useState(false);
+
+  const onForgot = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setBusy(true);
+    try {
+      const { error } = await supabase.auth.resetPasswordForEmail(email, {
+        redirectTo: window.location.origin + "/reset-password",
+      });
+      if (error) throw error;
+      toast.success("Te enviamos un email con el link para restablecer tu contraseña.");
+      setMode("signin");
+    } catch (err: any) {
+      toast.error(err.message ?? "No se pudo enviar el email.");
+    } finally {
+      setBusy(false);
+    }
+  };
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => {
@@ -76,54 +93,95 @@ function LoginPage() {
           <span className="text-lg font-semibold">FlowIt</span>
         </div>
         <h1 className="text-xl font-semibold">
-          {mode === "signin" ? "Sign in to FlowIt" : "Create your account"}
+          {mode === "signin"
+            ? "Sign in to FlowIt"
+            : mode === "signup"
+            ? "Create your account"
+            : "Recuperar contraseña"}
         </h1>
         <p className="mt-1 text-sm text-[#6B7280]">
-          {mode === "signin" ? "Welcome back." : "Get started in seconds."}
+          {mode === "signin"
+            ? "Welcome back."
+            : mode === "signup"
+            ? "Get started in seconds."
+            : "Te vamos a enviar un link a tu email."}
         </p>
 
-        <Button
-          type="button"
-          variant="outline"
-          className="mt-6 w-full"
-          onClick={onGoogle}
-          disabled={busy}
-        >
-          Continue with Google
-        </Button>
+        {mode !== "forgot" && (
+          <>
+            <Button
+              type="button"
+              variant="outline"
+              className="mt-6 w-full"
+              onClick={onGoogle}
+              disabled={busy}
+            >
+              Continue with Google
+            </Button>
 
-        <div className="my-4 flex items-center gap-2 text-xs text-[#9CA3AF]">
-          <div className="h-px flex-1 bg-[#EBEBEB]" />
-          or
-          <div className="h-px flex-1 bg-[#EBEBEB]" />
-        </div>
-
-        <form onSubmit={onSubmit} className="space-y-3">
-          {mode === "signup" && (
-            <div>
-              <Label htmlFor="name">Name</Label>
-              <Input id="name" value={name} onChange={(e) => setName(e.target.value)} />
+            <div className="my-4 flex items-center gap-2 text-xs text-[#9CA3AF]">
+              <div className="h-px flex-1 bg-[#EBEBEB]" />
+              or
+              <div className="h-px flex-1 bg-[#EBEBEB]" />
             </div>
-          )}
-          <div>
-            <Label htmlFor="email">Email</Label>
-            <Input id="email" type="email" required value={email} onChange={(e) => setEmail(e.target.value)} />
-          </div>
-          <div>
-            <Label htmlFor="password">Password</Label>
-            <Input id="password" type="password" required minLength={6} value={password} onChange={(e) => setPassword(e.target.value)} />
-          </div>
-          <Button type="submit" className="w-full bg-[#5B6CF8] hover:bg-[#4856E0]" disabled={busy}>
-            {mode === "signin" ? "Sign in" : "Create account"}
-          </Button>
-        </form>
+          </>
+        )}
+
+        {mode === "forgot" ? (
+          <form onSubmit={onForgot} className="mt-6 space-y-3">
+            <div>
+              <Label htmlFor="email">Email</Label>
+              <Input id="email" type="email" required value={email} onChange={(e) => setEmail(e.target.value)} />
+            </div>
+            <Button type="submit" className="w-full bg-[#5B6CF8] hover:bg-[#4856E0]" disabled={busy}>
+              Enviar link de recuperación
+            </Button>
+          </form>
+        ) : (
+          <form onSubmit={onSubmit} className="space-y-3">
+            {mode === "signup" && (
+              <div>
+                <Label htmlFor="name">Name</Label>
+                <Input id="name" value={name} onChange={(e) => setName(e.target.value)} />
+              </div>
+            )}
+            <div>
+              <Label htmlFor="email">Email</Label>
+              <Input id="email" type="email" required value={email} onChange={(e) => setEmail(e.target.value)} />
+            </div>
+            <div>
+              <div className="flex items-center justify-between">
+                <Label htmlFor="password">Password</Label>
+                {mode === "signin" && (
+                  <button
+                    type="button"
+                    onClick={() => setMode("forgot")}
+                    className="text-xs text-[#5B6CF8] hover:underline"
+                  >
+                    ¿Olvidaste tu contraseña?
+                  </button>
+                )}
+              </div>
+              <Input id="password" type="password" required minLength={6} value={password} onChange={(e) => setPassword(e.target.value)} />
+            </div>
+            <Button type="submit" className="w-full bg-[#5B6CF8] hover:bg-[#4856E0]" disabled={busy}>
+              {mode === "signin" ? "Sign in" : "Create account"}
+            </Button>
+          </form>
+        )}
 
         <button
           type="button"
-          onClick={() => setMode(mode === "signin" ? "signup" : "signin")}
+          onClick={() =>
+            setMode(mode === "signin" ? "signup" : "signin")
+          }
           className="mt-4 w-full text-sm text-[#5B6CF8] hover:underline"
         >
-          {mode === "signin" ? "Need an account? Sign up" : "Have an account? Sign in"}
+          {mode === "signin"
+            ? "Need an account? Sign up"
+            : mode === "signup"
+            ? "Have an account? Sign in"
+            : "Volver al inicio de sesión"}
         </button>
       </div>
     </div>
