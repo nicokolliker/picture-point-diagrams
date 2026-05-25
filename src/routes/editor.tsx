@@ -489,6 +489,7 @@ function EditorPage() {
           unpinShape={unpinShape}
           onSubProcessIconClick={(shape, rect) => openSubProcessPanel(shape, page.id, rect)}
           subPanelStates={subPanelStates}
+          rightPanelOpen={!!selectedShape}
         />
 
         {/* Right panel */}
