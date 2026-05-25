@@ -2429,7 +2429,7 @@ function buildAggregations(pagesData: PageSummaryData[]) {
 function hashColor(id: string) {
   let h = 0;
   for (let i = 0; i < id.length; i++) h = (h * 31 + id.charCodeAt(i)) >>> 0;
-  return `hsl(${h % 360}, 60%, 48%)`;
+  return `hsl(${h % 360}, 58%, 42%)`;
 }
 
 function PersonAvatar({ person, size = 32 }: { person: { id: string; name: string }; size?: number }) {
@@ -2450,6 +2450,7 @@ function PersonAvatar({ person, size = 32 }: { person: { id: string; name: strin
 }
 
 function LoadBar({ pct }: { pct: number }) {
+  if (pct <= 0) return null;
   const color = pct > 80 ? "#DC2626" : pct > 50 ? "#F59E0B" : "#5B6CF8";
   return (
     <div className="h-1 w-full overflow-hidden rounded-full bg-[#F3F4F6]">
@@ -2458,15 +2459,28 @@ function LoadBar({ pct }: { pct: number }) {
   );
 }
 
-function ProgressMeter({ value }: { value: number }) {
+function ProgressMeter({ value, compact = false }: { value: number; compact?: boolean }) {
   const color = value > 0.7 ? "#16A34A" : value >= 0.4 ? "#F59E0B" : "#DC2626";
+  const pct = Math.round(value * 100);
+  if (compact) {
+    return (
+      <div className="flex flex-col gap-1 w-full">
+        <div className="h-1.5 w-full overflow-hidden rounded-full bg-[#F3F4F6]">
+          <div className="h-full rounded-full" style={{ width: `${pct}%`, background: color }} />
+        </div>
+        <span className="text-[10px] font-medium tabular-nums" style={{ color }}>
+          {pct}% saludable
+        </span>
+      </div>
+    );
+  }
   return (
     <div className="flex items-center gap-2">
       <div className="h-1.5 w-24 overflow-hidden rounded-full bg-[#F3F4F6]">
-        <div className="h-full rounded-full" style={{ width: `${Math.round(value * 100)}%`, background: color }} />
+        <div className="h-full rounded-full" style={{ width: `${pct}%`, background: color }} />
       </div>
       <span className="text-[10px] font-medium tabular-nums" style={{ color }}>
-        {Math.round(value * 100)}% saludable
+        {pct}% saludable
       </span>
     </div>
   );
@@ -2545,18 +2559,18 @@ function SummaryPanel({
     <div className="mb-4 grid grid-cols-3 gap-2">
       {[
         { label: "Alertas", value: totalAlerts, color: "#DC2626", bg: "#FEF2F2" },
-        { label: "Oportunidades", value: totalImprovements, color: "#5B6CF8", bg: "#EEF0FF" },
-        { label: "Docs faltantes", value: totalMissing, color: "#D97706", bg: "#FFFBEB" },
+        { label: "Oport.", value: totalImprovements, color: "#5B6CF8", bg: "#EEF0FF" },
+        { label: "Docs", value: totalMissing, color: "#D97706", bg: "#FFFBEB" },
       ].map((s) => (
         <div
           key={s.label}
           className="flex flex-col items-center justify-center rounded-md border border-[#EBEBEB] py-2"
           style={{ background: s.bg }}
         >
-          <div className="text-[16px] font-bold tabular-nums" style={{ color: s.color }}>
+          <div className="text-[16px] font-bold tabular-nums leading-none" style={{ color: s.color }}>
             {s.value}
           </div>
-          <div className="mt-0.5 text-center text-[9px] font-medium uppercase tracking-wider text-[#6B7280]">
+          <div className="mt-1 text-center text-[9px] font-medium uppercase tracking-wider text-[#6B7280]">
             {s.label}
           </div>
         </div>
@@ -2567,7 +2581,7 @@ function SummaryPanel({
   const ShapePill = ({ s, pageId }: { s: Shape; pageId: string }) => (
     <button
       onClick={() => onJumpToShape(s.id, pageId)}
-      className="inline-flex max-w-full items-center rounded-full bg-[#F3F4F6] px-2 py-0.5 text-[11px] font-medium text-[#374151] hover:bg-[#E5E7EB]"
+      className="inline-flex max-w-[140px] items-center rounded-full bg-[#F3F4F6] px-2 py-0.5 text-[11px] font-medium text-[#374151] hover:bg-[#E5E7EB]"
     >
       <span className="truncate">{s.title || s.text || "Sin título"}</span>
     </button>
@@ -3023,7 +3037,11 @@ function SummaryPanel({
           <div
             key={pd.page.id}
             className="rounded-md border border-[#EBEBEB] bg-white"
-            style={{ marginLeft: isMain ? 0 : 12 }}
+            style={
+              isMain
+                ? { marginLeft: 0 }
+                : { marginLeft: 16, borderLeft: "2px solid #E0E7FF" }
+            }
           >
             <button
               onClick={() => toggleGroup(`page:${pd.page.id}`)}
@@ -3036,7 +3054,7 @@ function SummaryPanel({
                 </span>
               </div>
               <div className="mt-1.5">
-                <ProgressMeter value={progress} />
+                <ProgressMeter value={progress} compact />
               </div>
               <div className="mt-1 flex items-center gap-3 text-[10px] text-[#6B7280]">
                 <span>⚠ {pd.alerts.length} alertas</span>
