@@ -3959,6 +3959,7 @@ interface ShapeNodeProps {
   ) => void;
   onSubProcessIconClick: (originRect: DOMRect) => void;
   subPanelState?: "open" | "minimized";
+  rightPanelOpen?: boolean;
 }
 
 
