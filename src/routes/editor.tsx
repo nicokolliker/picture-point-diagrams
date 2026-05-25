@@ -455,9 +455,14 @@ function EditorPage() {
             {activeTab === "summary" && (
               <SummaryPanel
                 docId={doc.id}
-                page={page}
-                onJumpToShape={(id) => setSelectedIds([id])}
+                doc={doc}
+                mainPageId={doc.pages[0]?.id ?? page.id}
+                onJumpToShape={(id, pid) => {
+                  if (pid && pid !== page.id) goToPage(pid, id);
+                  else setSelectedIds([id]);
+                }}
               />
+
             )}
             {activeTab === "summary" && (
               <div
