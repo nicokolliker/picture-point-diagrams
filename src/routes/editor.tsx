@@ -6106,7 +6106,7 @@ function SubProcessModal({
           className="flex h-11 shrink-0 items-center gap-2 border-b border-[#EBEBEB] px-3 select-none"
         >
           <div className="flex h-[18px] w-[18px] items-center justify-center rounded-[4px] bg-[#5B6CF8] text-[12px] font-semibold leading-none text-white">
-            ⊞
+            <Shuffle className="h-3 w-3" />
           </div>
           <input
             value={nameVal}
