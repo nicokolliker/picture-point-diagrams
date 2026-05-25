@@ -342,6 +342,8 @@ function HomePage() {
         </DialogContent>
       </Dialog>
 
+      <CaptureProcessModal open={captureOpen} onClose={() => setCaptureOpen(false)} />
+
       <Link to="/home" className="hidden" aria-hidden />
     </div>
   );
