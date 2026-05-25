@@ -588,6 +588,8 @@ function EditorPage() {
         );
       })}
 
+      <CaptureProcessModal open={captureOpen} onClose={() => setCaptureOpen(false)} />
+
       <Link to="/editor" className="hidden" aria-hidden />
     </div>
   );
