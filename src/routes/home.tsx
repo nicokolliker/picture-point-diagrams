@@ -37,6 +37,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuLabel,
 } from "@/components/ui/dropdown-menu";
+import { CaptureProcessModal } from "@/components/CaptureProcessModal";
 
 export const Route = createFileRoute("/home")({
   head: () => ({
