@@ -5648,7 +5648,8 @@ function ShapeNode({
           }}
           title={shape.subProcessPageId ? "Abrir sub-proceso" : "Crear sub-proceso"}
         >
-          ⊞
+          <Shuffle className="h-3 w-3" />
+
         </button>
       )}
 
