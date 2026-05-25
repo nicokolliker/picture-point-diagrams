@@ -97,8 +97,10 @@ export interface Shape {
   borderStyle: "solid" | "dashed" | "dotted";
   borderWeight: 1 | 2 | 3;
   borderColor?: string;
-  cornerStyle: "sharp" | "rounded";
+  cornerStyle: "sharp" | "rounded" | "pill";
   fill: string;
+  opacity?: number;
+  shadow?: boolean;
   z: number;
   subProcessPageId?: string;
 }
