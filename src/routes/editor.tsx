@@ -5020,6 +5020,8 @@ function SubProcessModal({
       />
       {/* Modal */}
       <div
+        onPointerDown={(e) => e.stopPropagation()}
+        onClick={(e) => e.stopPropagation()}
         style={{
           position: "fixed",
           background: "white",
