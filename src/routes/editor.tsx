@@ -490,11 +490,13 @@ function EditorPage() {
           unpinShape={unpinShape}
           onSubProcessIconClick={(shape, rect) => openSubProcessPanel(shape, page.id, rect)}
           subPanelStates={subPanelStates}
-          rightPanelOpen={!!selectedShape}
+          rightPanelOpen={!!selectedShape && propertiesOpenFor === selectedShape.id}
+          onOpenProperties={(id) => setPropertiesOpenFor(id)}
+          propertiesOpenFor={propertiesOpenFor}
         />
 
-        {/* Right panel */}
-        {selectedShape && (
+        {/* Right panel — only opens via the properties icon on the shape */}
+        {selectedShape && propertiesOpenFor === selectedShape.id && (
           <RightPanel
             docId={doc.id}
             pageId={page.id}
@@ -504,7 +506,7 @@ function EditorPage() {
                 .getState()
                 .updateShape(doc.id, page.id, selectedShape.id, patch)
             }
-            onClose={() => setSelectedIds([])}
+            onClose={() => setPropertiesOpenFor(null)}
           />
         )}
       </div>
