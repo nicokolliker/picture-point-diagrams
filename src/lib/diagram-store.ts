@@ -96,7 +96,7 @@ function mutPage(
 export const useDiagramStore = create<State>()(
   persist(
     (set, get) => {
-      const MAX_HIST = 50;
+      const MAX_HIST = 20;
       const commit = (newDocs: DiagramDocument[]) => {
         const cur = get().documents;
         const past = [...get().past, cur];
