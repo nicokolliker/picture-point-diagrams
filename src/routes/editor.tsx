@@ -4715,6 +4715,8 @@ function CanvasArea({
             }}
             onSubProcessIconClick={(rect) => onSubProcessIconClick(s, rect)}
             subPanelState={subPanelStates[s.id]}
+            onOpenProperties={() => onOpenProperties?.(s.id)}
+            propertiesOpen={propertiesOpenFor === s.id}
           />
         ))}
 
