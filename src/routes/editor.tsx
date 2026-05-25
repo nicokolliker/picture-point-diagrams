@@ -5250,9 +5250,10 @@ function ShapeNode({
     // If pinned, slide the popup along with the shape so it stays anchored
     // to the shape rather than to the viewport when the canvas pans/zooms.
     if (pinned && pinnedAnchorRef.current) {
+      const z = zoom || 1;
       const next = {
-        left: newRect.left + pinnedAnchorRef.current.dx,
-        top: newRect.top + pinnedAnchorRef.current.dy,
+        left: newRect.left + pinnedAnchorRef.current.dx * z,
+        top: newRect.top + pinnedAnchorRef.current.dy * z,
       };
       setPopupPos(next);
       setDragPos(null);
