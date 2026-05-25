@@ -447,7 +447,79 @@ export const useDiagramStore = create<State>()(
         ),
     });
     },
-    { name: "flowit-store" },
+    {
+      name: "flowit-store",
+      partialize: (state) => {
+        // Strip large base64 blobs and history from persisted state to avoid
+        // QuotaExceededError. Keep all structural metadata.
+        const stripDocs = (docs: DiagramDocument[]): DiagramDocument[] =>
+          docs.map((d) => ({
+            ...d,
+            pages: d.pages.map((p) => ({
+              ...p,
+              shapes: p.shapes.map((s) => {
+                const { imageDataUrl, documents, ...rest } = s as Shape & {
+                  imageDataUrl?: string;
+                  documents?: DocEntry[];
+                };
+                return {
+                  ...rest,
+                  ...(documents
+                    ? {
+                        documents: documents.map((doc) => {
+                          const { fileDataUrl, ...docRest } = doc as DocEntry & {
+                            fileDataUrl?: string;
+                          };
+                          return docRest as DocEntry;
+                        }),
+                      }
+                    : {}),
+                } as Shape;
+              }),
+            })),
+          }));
+        return {
+          documents: stripDocs(state.documents),
+          people: state.people,
+          // intentionally drop: uploads, past, future
+        } as Partial<State>;
+      },
+      storage: {
+        getItem: (name) => {
+          try {
+            const raw = localStorage.getItem(name);
+            return raw ? JSON.parse(raw) : null;
+          } catch {
+            return null;
+          }
+        },
+        setItem: (name, value) => {
+          try {
+            localStorage.setItem(name, JSON.stringify(value));
+          } catch (err) {
+            // Quota exceeded — try without blobs already stripped by partialize,
+            // last resort: drop documents entirely to keep people/settings.
+            try {
+              const minimal = {
+                ...value,
+                state: { ...(value as { state: unknown }).state, documents: [] },
+              };
+              localStorage.setItem(name, JSON.stringify(minimal));
+              console.warn("[flowit] localStorage quota exceeded, dropped documents", err);
+            } catch (err2) {
+              console.error("[flowit] localStorage write failed", err2);
+            }
+          }
+        },
+        removeItem: (name) => {
+          try {
+            localStorage.removeItem(name);
+          } catch {
+            /* noop */
+          }
+        },
+      },
+    },
   ),
 );
 
