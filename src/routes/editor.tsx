@@ -3747,7 +3747,7 @@ interface ShapeNodeProps {
   onContextAction: (
     a: "editText" | "delete" | "front" | "back" | "duplicate" | "assignImage",
   ) => void;
-  onSubProcessIconClick: () => void;
+  onSubProcessIconClick: (originRect: DOMRect) => void;
   subPanelState?: "open" | "minimized";
 }
 
