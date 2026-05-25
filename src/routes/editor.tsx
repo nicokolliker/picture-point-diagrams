@@ -5019,6 +5019,8 @@ function ShapeNode({
             />
           )}
         </div>
+        </>,
+        overlayRef.current,
       )}
 
       {editingText && useSvgOutline && typeof document !== "undefined" && (() => {
