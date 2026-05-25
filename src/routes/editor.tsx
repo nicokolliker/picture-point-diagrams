@@ -4185,6 +4185,8 @@ interface CanvasProps {
   onSubProcessIconClick: (shape: Shape, originRect: DOMRect) => void;
   subPanelStates: Record<string, "open" | "minimized">;
   rightPanelOpen?: boolean;
+  onOpenProperties?: (id: string) => void;
+  propertiesOpenFor?: string | null;
 }
 
 function CanvasArea({
