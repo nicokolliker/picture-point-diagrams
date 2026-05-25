@@ -2450,6 +2450,7 @@ function PersonAvatar({ person, size = 32 }: { person: { id: string; name: strin
 }
 
 function LoadBar({ pct }: { pct: number }) {
+  if (pct <= 0) return null;
   const color = pct > 80 ? "#DC2626" : pct > 50 ? "#F59E0B" : "#5B6CF8";
   return (
     <div className="h-1 w-full overflow-hidden rounded-full bg-[#F3F4F6]">
@@ -2458,15 +2459,28 @@ function LoadBar({ pct }: { pct: number }) {
   );
 }
 
-function ProgressMeter({ value }: { value: number }) {
+function ProgressMeter({ value, compact = false }: { value: number; compact?: boolean }) {
   const color = value > 0.7 ? "#16A34A" : value >= 0.4 ? "#F59E0B" : "#DC2626";
+  const pct = Math.round(value * 100);
+  if (compact) {
+    return (
+      <div className="flex flex-col gap-1 w-full">
+        <div className="h-1.5 w-full overflow-hidden rounded-full bg-[#F3F4F6]">
+          <div className="h-full rounded-full" style={{ width: `${pct}%`, background: color }} />
+        </div>
+        <span className="text-[10px] font-medium tabular-nums" style={{ color }}>
+          {pct}% saludable
+        </span>
+      </div>
+    );
+  }
   return (
     <div className="flex items-center gap-2">
       <div className="h-1.5 w-24 overflow-hidden rounded-full bg-[#F3F4F6]">
-        <div className="h-full rounded-full" style={{ width: `${Math.round(value * 100)}%`, background: color }} />
+        <div className="h-full rounded-full" style={{ width: `${pct}%`, background: color }} />
       </div>
       <span className="text-[10px] font-medium tabular-nums" style={{ color }}>
-        {Math.round(value * 100)}% saludable
+        {pct}% saludable
       </span>
     </div>
   );
