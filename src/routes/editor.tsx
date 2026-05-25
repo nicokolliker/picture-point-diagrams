@@ -4876,6 +4876,8 @@ function CanvasArea({
                 top,
                 transform: "translate(-50%, -100%)",
                 pointerEvents: "auto",
+                width: "max-content",
+                maxWidth: "none",
                 filter: "drop-shadow(0 6px 16px rgba(0,0,0,0.12))",
               }}
               onPointerDown={(e) => e.stopPropagation()}
