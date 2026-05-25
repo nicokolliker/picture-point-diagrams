@@ -4296,8 +4296,8 @@ function ShapeNode({
   // Each pill ≈ 18px tall + 4px gap, plus 8px breathing room above
   const pillsArea = pillsCount > 0 ? pillsCount * 18 + (pillsCount - 1) * 4 + 8 : 0;
   const basePad = 16;
-  const padBottom = shape.type === "text" ? basePad : basePad + pillsArea;
-  const minH = shape.type === "text" ? undefined : 56 + pillsArea;
+  const padBottom = basePad;
+  const minH = shape.type === "text" ? undefined : 80;
 
   const style: CSSProperties = {
     position: "absolute",
