@@ -71,6 +71,7 @@ function HomePage() {
   const [showNew, setShowNew] = useState(false);
   const [renamingId, setRenamingId] = useState<string | null>(null);
   const [renameValue, setRenameValue] = useState("");
+  const [captureOpen, setCaptureOpen] = useState(false);
 
   useEffect(() => {
     ensureSeed();
