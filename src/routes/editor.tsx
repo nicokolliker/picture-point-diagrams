@@ -4172,13 +4172,11 @@ function ShapeNode({
     const POP_W = pinned ? popupSize?.w ?? 320 : 280;
     const POP_H = pinned ? popupSize?.h ?? 380 : 200;
     const GAP = 8;
-    const pad = 8;
     void pan;
-    // Account for app chrome: left sidebar (~370px) and right panel when open (~320px).
-    const LEFT_SIDEBAR_W = 370;
-    const RIGHT_PANEL_W = rightPanelOpen ? 320 : 0;
-    const leftBound = LEFT_SIDEBAR_W + pad;
-    const rightBound = window.innerWidth - RIGHT_PANEL_W - pad;
+    // Account for app chrome: left shapes sidebar and right properties panel.
+    const LEFT_W = 370;
+    const RIGHT_W = rightPanelOpen ? 320 : 0;
+    const TOP_H = 48;
 
     const canvasOffsetX = rect.left - shape.x * zoom;
     const canvasOffsetY = rect.top - shape.y * zoom;
@@ -4203,9 +4201,9 @@ function ShapeNode({
     };
 
     const clampL = (l: number) =>
-      Math.max(leftBound, Math.min(l, rightBound - POP_W));
+      Math.max(LEFT_W + 8, Math.min(l, window.innerWidth - RIGHT_W - POP_W - 8));
     const clampT = (t: number) =>
-      Math.max(pad, Math.min(t, window.innerHeight - POP_H - pad));
+      Math.max(TOP_H + 8, Math.min(t, window.innerHeight - POP_H - 8));
 
     const raw = [
       { name: "right", l: rect.right + GAP, t: clampT(rect.top) },
