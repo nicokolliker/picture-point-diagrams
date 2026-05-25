@@ -4863,6 +4863,23 @@ function SubProcessModal({
               subPanelStates={subPanelStates}
             />
           </div>
+          {(() => {
+            const sel = selectedIds.length === 1
+              ? page.shapes.find((s) => s.id === selectedIds[0])
+              : null;
+            if (!sel) return null;
+            return (
+              <RightPanel
+                docId={docId}
+                pageId={page.id}
+                shape={sel}
+                onChange={(patch) =>
+                  useDiagramStore.getState().updateShape(docId, page.id, sel.id, patch)
+                }
+                onClose={() => setSelectedIds([])}
+              />
+            );
+          })()}
         </div>
       </div>
     </>,
