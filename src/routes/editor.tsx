@@ -480,7 +480,7 @@ function EditorPage() {
           pinnedIds={pinnedIds}
           pinShape={pinShape}
           unpinShape={unpinShape}
-          onSubProcessIconClick={(shape) => openSubProcessPanel(shape, page.id)}
+          onSubProcessIconClick={(shape, rect) => openSubProcessPanel(shape, page.id, rect)}
           subPanelStates={subPanelStates}
         />
 
