@@ -508,7 +508,7 @@ function EditorPage() {
         )}
       </div>
 
-      <PinnedConnectorsOverlay pinnedIds={pinnedIds} />
+      {/* PinnedConnectorsOverlay removed — connector lines now live inside each CanvasArea's popup-overlay */}
 
       {/* Sub-process modals (zoom-in from shape with dim overlay) */}
       {subModals.map((modal, idx) => {
@@ -3431,6 +3431,7 @@ function CanvasArea({
   rightPanelOpen,
 }: CanvasProps) {
   const containerRef = useRef<HTMLDivElement>(null);
+  const overlayRef = useRef<HTMLDivElement>(null);
   const [spaceDown, setSpaceDown] = useState(false);
   const panRef = useRef<{ startX: number; startY: number; panX: number; panY: number } | null>(null);
   const [dragging, setDragging] = useState<{
@@ -3834,6 +3835,7 @@ function CanvasArea({
             zoom={zoom}
             pan={pan}
             allShapes={page.shapes}
+            overlayRef={overlayRef}
             rightPanelOpen={rightPanelOpen}
             pinned={pinnedIds.includes(s.id)}
             onPin={() => pinShape(s.id)}
@@ -4085,12 +4087,67 @@ function CanvasArea({
       </div>
 
 
+      {/* Popup overlay — bounded exactly to the canvas area.
+          Popups & connector lines portaled here use position:absolute,
+          so they are physically incapable of overlapping sidebars. */}
+      <div
+        ref={overlayRef}
+        style={{
+          position: "absolute",
+          inset: 0,
+          pointerEvents: "none",
+          zIndex: 50,
+          overflow: "visible",
+        }}
+      />
 
       {/* Hint */}
       <div className="pointer-events-none absolute bottom-3 left-3 rounded-md bg-white/90 px-2 py-1 text-[11px] text-[#6B7280] shadow-sm">
         Hold <kbd className="rounded bg-[#F3F4F6] px-1">Space</kbd> + drag to pan · Two-finger scroll to pan · <kbd className="rounded bg-[#F3F4F6] px-1">⌘</kbd> + scroll to zoom · Hover shapes for preview
       </div>
     </div>
+  );
+}
+
+/* -------------------- Popup connector line (overlay-relative coords, no DOM polling) -------------------- */
+function ConnectorLine({
+  shape,
+  popup,
+  side,
+}: {
+  shape: { left: number; top: number; right: number; bottom: number; width: number; height: number };
+  popup: { left: number; top: number; width: number; height: number };
+  side: "top" | "bottom" | "left" | "right";
+}) {
+  let sx = 0, sy = 0, ex = 0, ey = 0;
+  if (side === "right") {
+    sx = shape.right; sy = shape.top + shape.height / 2;
+    ex = popup.left; ey = popup.top + popup.height / 2;
+  } else if (side === "left") {
+    sx = shape.left; sy = shape.top + shape.height / 2;
+    ex = popup.left + popup.width; ey = popup.top + popup.height / 2;
+  } else if (side === "bottom") {
+    sx = shape.left + shape.width / 2; sy = shape.bottom;
+    ex = popup.left + popup.width / 2; ey = popup.top;
+  } else {
+    sx = shape.left + shape.width / 2; sy = shape.top;
+    ex = popup.left + popup.width / 2; ey = popup.top + popup.height;
+  }
+  const off = 60;
+  const horiz = side === "right" || side === "left";
+  const c1x = horiz ? sx + (side === "right" ? off : -off) : sx;
+  const c1y = horiz ? sy : sy + (side === "bottom" ? off : -off);
+  const c2x = horiz ? ex + (side === "right" ? -off : off) : ex;
+  const c2y = horiz ? ey : ey + (side === "bottom" ? -off : off);
+  return (
+    <path
+      d={`M ${sx},${sy} C ${c1x},${c1y} ${c2x},${c2y} ${ex},${ey}`}
+      fill="none"
+      stroke="#CCCCCC"
+      strokeOpacity={0.6}
+      strokeWidth={1}
+      strokeDasharray="4,4"
+    />
   );
 }
 
@@ -4102,6 +4159,7 @@ interface ShapeNodeProps {
   zoom: number;
   pan: { x: number; y: number };
   allShapes: Shape[];
+  overlayRef: React.RefObject<HTMLDivElement | null>;
   pinned: boolean;
   onPin: () => void;
   onUnpin: () => void;
@@ -4130,6 +4188,7 @@ function ShapeNode({
   zoom,
   pan,
   allShapes,
+  overlayRef,
   pinned,
   onPin,
   onUnpin,
@@ -4157,6 +4216,8 @@ function ShapeNode({
   const [renderedH, setRenderedH] = useState(shape.height);
   const [popupPos, setPopupPos] = useState<{ left: number; top: number } | null>(null);
   const [popupSide, setPopupSide] = useState<"top" | "bottom" | "left" | "right" | null>(null);
+  const shapeInOverlayRef = useRef<{ left: number; top: number; right: number; bottom: number; width: number; height: number } | null>(null);
+  const [, forceConnectorTick] = useState(0);
   const mouseRef = useRef<{ x: number; y: number }>({ x: 0, y: 0 });
   const [qaEdge, setQaEdge] = useState<"top" | "bottom" | "left" | "right">("bottom");
   const [dragPos, setDragPos] = useState<{ left: number; top: number } | null>(null);
@@ -4249,20 +4310,38 @@ function ShapeNode({
   const [popupSize, setPopupSize] = useState<{ w: number; h: number } | null>(null);
 
   const computePos = useCallback(() => {
-    const rect = nodeRef.current?.getBoundingClientRect();
-    if (!rect) return;
+    const overlay = overlayRef.current;
+    const node = nodeRef.current;
+    if (!overlay || !node) return;
+    const overlayRect = overlay.getBoundingClientRect();
+    const rect = node.getBoundingClientRect();
+    void pan;
+    void rightPanelOpen;
+
+    // Convert shape screen position → overlay-relative position.
+    const shapeInOverlay = {
+      left: rect.left - overlayRect.left,
+      top: rect.top - overlayRect.top,
+      right: rect.right - overlayRect.left,
+      bottom: rect.bottom - overlayRect.top,
+      width: rect.width,
+      height: rect.height,
+    };
+    shapeInOverlayRef.current = shapeInOverlay;
+
     const POP_W = pinned ? popupSize?.w ?? 320 : 280;
     const POP_H = pinned ? popupSize?.h ?? 380 : 200;
-    const GAP = 8;
-    void pan;
-    // Account for app chrome: left shapes sidebar and right properties panel.
-    const LEFT_W = 370;
-    const RIGHT_W = rightPanelOpen ? 320 : 0;
-    const TOP_H = 48;
+    const GAP = 10;
+    const pad = 8;
+    const OW = overlayRect.width;
+    const OH = overlayRect.height;
 
-    const canvasOffsetX = rect.left - shape.x * zoom;
-    const canvasOffsetY = rect.top - shape.y * zoom;
+    const clampL = (l: number) => Math.max(pad, Math.min(l, OW - POP_W - pad));
+    const clampT = (t: number) => Math.max(pad, Math.min(t, OH - POP_H - pad));
 
+    // Other shapes, in overlay-relative coordinates, for overlap scoring.
+    const canvasOffsetX = rect.left - shape.x * zoom - overlayRect.left;
+    const canvasOffsetY = rect.top - shape.y * zoom - overlayRect.top;
     const otherRects = allShapes
       .filter((s) => s.id !== shape.id)
       .map((s) => ({
@@ -4271,7 +4350,6 @@ function ShapeNode({
         right: (s.x + s.width) * zoom + canvasOffsetX,
         bottom: (s.y + s.height) * zoom + canvasOffsetY,
       }));
-
     const overlapScore = (pl: number, pt: number) => {
       const pr = pl + POP_W;
       const pb = pt + POP_H;
@@ -4282,27 +4360,34 @@ function ShapeNode({
       }, 0);
     };
 
-    const clampL = (l: number) =>
-      Math.max(LEFT_W + 8, Math.min(l, window.innerWidth - RIGHT_W - POP_W - 8));
-    const clampT = (t: number) =>
-      Math.max(TOP_H + 8, Math.min(t, window.innerHeight - POP_H - 8));
-
     const raw = [
-      { name: "right", l: rect.right + GAP, t: clampT(rect.top) },
-      { name: "left", l: rect.left - POP_W - GAP, t: clampT(rect.top) },
-      { name: "bottom", l: clampL(rect.left), t: rect.bottom + GAP },
-      { name: "top", l: clampL(rect.left), t: rect.top - POP_H - GAP },
+      { name: "right", l: shapeInOverlay.right + GAP, t: clampT(shapeInOverlay.top) },
+      { name: "left", l: shapeInOverlay.left - POP_W - GAP, t: clampT(shapeInOverlay.top) },
+      { name: "bottom", l: clampL(shapeInOverlay.left), t: shapeInOverlay.bottom + GAP },
+      { name: "top", l: clampL(shapeInOverlay.left), t: shapeInOverlay.top - POP_H - GAP },
     ];
+    const fits = raw.filter(
+      (s) =>
+        s.l >= pad &&
+        s.t >= pad &&
+        s.l + POP_W <= OW - pad &&
+        s.t + POP_H <= OH - pad,
+    );
+    const pool = (fits.length > 0 ? fits : raw).map((c) => ({
+      ...c,
+      l: clampL(c.l),
+      t: clampT(c.t),
+    }));
     const priority: Record<string, number> = { right: 0, left: 1, bottom: 2, top: 3 };
-    const candidates = raw
-      .map((c) => ({ ...c, l: clampL(c.l), t: clampT(c.t) }))
+    const best = pool
       .map((c) => ({ ...c, score: overlapScore(c.l, c.t) }))
-      .sort((a, b) => a.score - b.score || priority[a.name] - priority[b.name]);
+      .sort((a, b) => a.score - b.score || priority[a.name] - priority[b.name])[0];
 
-    const best = candidates[0];
     setPopupPos({ left: best.l, top: best.t });
     setPopupSide(best.name as "top" | "bottom" | "left" | "right");
-  }, [shape, allShapes, pan, zoom, popupSize, pinned, rightPanelOpen]);
+    forceConnectorTick((n) => (n + 1) % 1000000);
+  }, [shape, allShapes, overlayRef, pan, zoom, popupSize, pinned, rightPanelOpen]);
+
 
   const onResizePopupDown = useCallback(
     (e: React.PointerEvent<HTMLDivElement>) => {
@@ -4803,12 +4888,29 @@ function ShapeNode({
         );
       })()}
 
-      {/* HOVER POPUP */}
-      {showPopup && popupPos && (
+      {/* HOVER POPUP — portaled into this CanvasArea's overlay (bounded to canvas, never overlaps sidebars) */}
+      {showPopup && popupPos && overlayRef.current && createPortal(
+        <>
+          {popupSide && shapeInOverlayRef.current && (
+            <svg
+              style={{ position: "absolute", inset: 0, width: "100%", height: "100%", pointerEvents: "none", overflow: "visible" }}
+            >
+              <ConnectorLine
+                shape={shapeInOverlayRef.current}
+                popup={{
+                  left: (dragPos ?? popupPos).left,
+                  top: (dragPos ?? popupPos).top,
+                  width: pinned ? popupSize?.w ?? 320 : 280,
+                  height: pinned ? popupSize?.h ?? 380 : 200,
+                }}
+                side={popupSide}
+              />
+            </svg>
+          )}
         <div
           data-popup-for={shape.id}
           className={cn(
-            "fixed z-50 flex flex-col overflow-hidden rounded-[10px] border border-[#EBEBEB] bg-white",
+            "absolute flex flex-col overflow-hidden rounded-[10px] border border-[#EBEBEB] bg-white",
             pinned ? "flowit-pin-in" : "flowit-popup",
             dragging
               ? "shadow-[0_12px_40px_rgba(0,0,0,0.25)]"
@@ -4959,6 +5061,8 @@ function ShapeNode({
             />
           )}
         </div>
+        </>,
+        overlayRef.current,
       )}
 
       {editingText && useSvgOutline && typeof document !== "undefined" && (() => {
