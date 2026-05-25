@@ -4992,9 +4992,10 @@ function ShapeNode({
   const mouseRef = useRef<{ x: number; y: number }>({ x: 0, y: 0 });
   const [qaEdge, setQaEdge] = useState<"top" | "bottom" | "left" | "right">("bottom");
   const [dragPos, setDragPos] = useState<{ left: number; top: number } | null>(null);
-  // World-relative anchor (dx, dy in screen px from shape's overlay top-left)
-  // captured when the popup is pinned; used to keep the pinned popup glued to
-  // the shape as the canvas pans/zooms.
+  // World-space anchor (in canvas world units, NOT screen px) captured when
+  // the popup is pinned. We re-derive the popup's overlay position on every
+  // pan/zoom as `shapeOverlay + anchor * zoom`, so the popup stays glued to
+  // the shape during both panning AND zooming in/out.
   const pinnedAnchorRef = useRef<{ dx: number; dy: number } | null>(null);
   const [dragging, setDragging] = useState(false);
   const [lightbox, setLightbox] = useState(false);
@@ -5063,12 +5064,13 @@ function ShapeNode({
     if (!pinned) return;
     const pos = dragPos ?? popupPos;
     if (pos && shapeInOverlayRef.current && !pinnedAnchorRef.current) {
+      const z = zoom || 1;
       pinnedAnchorRef.current = {
-        dx: pos.left - shapeInOverlayRef.current.left,
-        dy: pos.top - shapeInOverlayRef.current.top,
+        dx: (pos.left - shapeInOverlayRef.current.left) / z,
+        dy: (pos.top - shapeInOverlayRef.current.top) / z,
       };
     }
-  }, [pinned, popupPos, dragPos]);
+  }, [pinned, popupPos, dragPos, zoom]);
 
   const onDragHandleDown = useCallback(
     (e: React.PointerEvent<HTMLDivElement>) => {
@@ -5093,9 +5095,10 @@ function ShapeNode({
         setDragging(false);
         // Commit drag → re-anchor relative to shape so pan/zoom keeps it glued.
         if (pinned && shapeInOverlayRef.current) {
+          const z = zoom || 1;
           pinnedAnchorRef.current = {
-            dx: lastPos.left - shapeInOverlayRef.current.left,
-            dy: lastPos.top - shapeInOverlayRef.current.top,
+            dx: (lastPos.left - shapeInOverlayRef.current.left) / z,
+            dy: (lastPos.top - shapeInOverlayRef.current.top) / z,
           };
           setPopupPos(lastPos);
           setDragPos(null);
@@ -5106,7 +5109,7 @@ function ShapeNode({
       window.addEventListener("pointermove", onMove);
       window.addEventListener("pointerup", onUp);
     },
-    [dragPos, popupPos, pinned],
+    [dragPos, popupPos, pinned, zoom],
   );
 
   const [popupSize, setPopupSize] = useState<{ w: number; h: number } | null>(null);
@@ -5247,9 +5250,10 @@ function ShapeNode({
     // If pinned, slide the popup along with the shape so it stays anchored
     // to the shape rather than to the viewport when the canvas pans/zooms.
     if (pinned && pinnedAnchorRef.current) {
+      const z = zoom || 1;
       const next = {
-        left: newRect.left + pinnedAnchorRef.current.dx,
-        top: newRect.top + pinnedAnchorRef.current.dy,
+        left: newRect.left + pinnedAnchorRef.current.dx * z,
+        top: newRect.top + pinnedAnchorRef.current.dy * z,
       };
       setPopupPos(next);
       setDragPos(null);
