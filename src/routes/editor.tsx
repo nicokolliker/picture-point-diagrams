@@ -2559,18 +2559,18 @@ function SummaryPanel({
     <div className="mb-4 grid grid-cols-3 gap-2">
       {[
         { label: "Alertas", value: totalAlerts, color: "#DC2626", bg: "#FEF2F2" },
-        { label: "Oportunidades", value: totalImprovements, color: "#5B6CF8", bg: "#EEF0FF" },
-        { label: "Docs faltantes", value: totalMissing, color: "#D97706", bg: "#FFFBEB" },
+        { label: "Oport.", value: totalImprovements, color: "#5B6CF8", bg: "#EEF0FF" },
+        { label: "Docs", value: totalMissing, color: "#D97706", bg: "#FFFBEB" },
       ].map((s) => (
         <div
           key={s.label}
           className="flex flex-col items-center justify-center rounded-md border border-[#EBEBEB] py-2"
           style={{ background: s.bg }}
         >
-          <div className="text-[16px] font-bold tabular-nums" style={{ color: s.color }}>
+          <div className="text-[16px] font-bold tabular-nums leading-none" style={{ color: s.color }}>
             {s.value}
           </div>
-          <div className="mt-0.5 text-center text-[9px] font-medium uppercase tracking-wider text-[#6B7280]">
+          <div className="mt-1 text-center text-[9px] font-medium uppercase tracking-wider text-[#6B7280]">
             {s.label}
           </div>
         </div>
@@ -2581,7 +2581,7 @@ function SummaryPanel({
   const ShapePill = ({ s, pageId }: { s: Shape; pageId: string }) => (
     <button
       onClick={() => onJumpToShape(s.id, pageId)}
-      className="inline-flex max-w-full items-center rounded-full bg-[#F3F4F6] px-2 py-0.5 text-[11px] font-medium text-[#374151] hover:bg-[#E5E7EB]"
+      className="inline-flex max-w-[140px] items-center rounded-full bg-[#F3F4F6] px-2 py-0.5 text-[11px] font-medium text-[#374151] hover:bg-[#E5E7EB]"
     >
       <span className="truncate">{s.title || s.text || "Sin título"}</span>
     </button>
