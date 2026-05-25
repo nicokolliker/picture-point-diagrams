@@ -4418,10 +4418,31 @@ function ShapeNode({
   // Pinned popup is always shown. Don't auto-reposition if user has dragged.
   useEffect(() => {
     if (pinned) {
-      if (!dragPos) computePos();
+      if (!dragPos && !popupPos) computePos();
       setShowPopup(true);
     }
-  }, [pinned, computePos, dragPos]);
+  }, [pinned, computePos, dragPos, popupPos]);
+
+  // Keep shape's overlay-relative rect fresh on every pan/zoom so the
+  // connector line's shape-end stays anchored even when the popup is pinned
+  // (computePos itself bails early when pinned).
+  useEffect(() => {
+    if (!showPopup && !pinned) return;
+    const overlay = overlayRef.current;
+    const shapeEl = nodeRef.current;
+    if (!overlay || !shapeEl) return;
+    const or = overlay.getBoundingClientRect();
+    const sr = shapeEl.getBoundingClientRect();
+    shapeInOverlayRef.current = {
+      left: sr.left - or.left,
+      top: sr.top - or.top,
+      right: sr.right - or.left,
+      bottom: sr.bottom - or.top,
+      width: sr.width,
+      height: sr.height,
+    };
+    forceConnectorTick((n) => (n + 1) % 1000000);
+  }, [pan, zoom, showPopup, pinned, overlayRef]);
 
   // Hover-show with 400ms delay; popup itself does not extend its lifetime.
   // When the mouse leaves the shape, hide after a 150ms grace period.
