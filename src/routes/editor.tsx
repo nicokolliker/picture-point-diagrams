@@ -4087,6 +4087,19 @@ function CanvasArea({
       </div>
 
 
+      {/* Popup overlay — bounded exactly to the canvas area.
+          Popups & connector lines portaled here use position:absolute,
+          so they are physically incapable of overlapping sidebars. */}
+      <div
+        ref={overlayRef}
+        style={{
+          position: "absolute",
+          inset: 0,
+          pointerEvents: "none",
+          zIndex: 50,
+          overflow: "visible",
+        }}
+      />
 
       {/* Hint */}
       <div className="pointer-events-none absolute bottom-3 left-3 rounded-md bg-white/90 px-2 py-1 text-[11px] text-[#6B7280] shadow-sm">
