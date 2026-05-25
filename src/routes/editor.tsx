@@ -4117,6 +4117,7 @@ interface ShapeNodeProps {
   zoom: number;
   pan: { x: number; y: number };
   allShapes: Shape[];
+  overlayRef: React.RefObject<HTMLDivElement | null>;
   pinned: boolean;
   onPin: () => void;
   onUnpin: () => void;
