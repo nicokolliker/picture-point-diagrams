@@ -11,9 +11,12 @@ import {
   Pencil,
   Copy,
   Trash2,
-  Upload,
   FilePlus2,
   Sparkles,
+  Mic,
+  Shield,
+  CheckCircle2,
+  Clock,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -29,33 +32,26 @@ import {
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
+  DropdownMenuSeparator,
+  DropdownMenuLabel,
 } from "@/components/ui/dropdown-menu";
 import { useDiagramStore } from "@/lib/diagram-store";
 import { cn } from "@/lib/utils";
 import { useAuth, signOut } from "@/lib/auth";
-import {
-  DropdownMenuSeparator,
-  DropdownMenuLabel,
-} from "@/components/ui/dropdown-menu";
+import { useAreas } from "@/lib/use-areas";
 import { CaptureProcessModal } from "@/components/CaptureProcessModal";
+import { FlowItLogo } from "@/components/flowit-logo";
+import { DocThumbnail } from "@/components/doc-thumbnail";
 
 export const Route = createFileRoute("/home")({
   head: () => ({
     meta: [
-      { title: "Dashboard — FlowIt" },
-      { name: "description", content: "Manage your FlowIt diagrams." },
+      { title: "FlowIt — Tu hub de procesos" },
+      { name: "description", content: "Capturá, diseñá y aprobá procesos con IA." },
     ],
   }),
   component: HomePage,
 });
-
-const CATEGORIES = ["All", "Processes", "Systems", "Planning", "Brainstorming", "Agile"];
-const SIDEBAR_ITEMS = [
-  { label: "Home", icon: HomeIcon, active: true },
-  { label: "Documents", icon: FileText },
-  { label: "Templates", icon: LayoutGrid },
-  { label: "Integrations", icon: Plug },
-];
 
 function HomePage() {
   const navigate = useNavigate();
@@ -66,85 +62,83 @@ function HomePage() {
   const deleteDocument = useDiagramStore((s) => s.deleteDocument);
   const duplicateDocument = useDiagramStore((s) => s.duplicateDocument);
   const renameDocument = useDiagramStore((s) => s.renameDocument);
+  const { areas } = useAreas();
 
   const [query, setQuery] = useState("");
-  const [category, setCategory] = useState("All");
+  const [areaId, setAreaId] = useState<string>("all");
   const [showNew, setShowNew] = useState(false);
   const [renamingId, setRenamingId] = useState<string | null>(null);
   const [renameValue, setRenameValue] = useState("");
   const [captureOpen, setCaptureOpen] = useState(false);
 
-  useEffect(() => {
-    ensureSeed();
-  }, [ensureSeed]);
-
-  useEffect(() => {
-    if (!loading && !user) navigate({ to: "/login" });
-  }, [loading, user, navigate]);
+  useEffect(() => { ensureSeed(); }, [ensureSeed]);
+  useEffect(() => { if (!loading && !user) navigate({ to: "/login" }); }, [loading, user, navigate]);
 
   const filtered = useMemo(() => {
     return documents
-      .filter((d) => (category === "All" ? true : d.category === category))
+      .filter((d) => (areaId === "all" ? true : d.areaId === areaId))
       .filter((d) => d.name.toLowerCase().includes(query.toLowerCase()))
       .sort((a, b) => b.updatedAt - a.updatedAt);
-  }, [documents, category, query]);
+  }, [documents, areaId, query]);
 
   const openDoc = (id: string) => navigate({ to: "/editor", search: { doc: id } });
 
   const handleCreateBlank = () => {
-    const id = createDocument();
+    const id = createDocument({ areaId: areaId === "all" ? undefined : areaId });
     setShowNew(false);
     openDoc(id);
   };
 
+  const handleCapture = () => {
+    setShowNew(false);
+    setCaptureOpen(true);
+  };
+
+  const greeting = useMemo(() => {
+    const h = new Date().getHours();
+    if (h < 12) return "Buen día";
+    if (h < 19) return "Buenas tardes";
+    return "Buenas noches";
+  }, []);
+  const userName = (user?.email ?? "").split("@")[0];
+
   return (
-    <div className="flex h-screen flex-col bg-white text-[#111827]">
+    <div className="flex h-screen flex-col bg-[#FAFBFF] text-[#0F172A]">
       {/* Top navbar */}
-      <header className="flex h-14 items-center justify-between border-b border-[#EBEBEB] px-4">
-        <div className="flex items-center gap-2">
-          <div className="flex h-8 w-8 items-center justify-center rounded-md bg-[#5B6CF8] text-white font-bold">
-            F
-          </div>
-          <span className="text-base font-semibold">FlowIt</span>
-        </div>
+      <header className="flex h-14 items-center justify-between border-b border-[#EBEBEB] bg-white px-4">
+        <FlowItLogo size={28} withWordmark />
         <div className="relative w-full max-w-md">
-          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#9CA3AF]" />
+          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#94A3B8]" />
           <Input
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            placeholder="Search diagrams"
-            className="h-9 pl-9"
+            placeholder="Buscar procesos…"
+            className="h-9 rounded-full border-[#E2E8F0] pl-9"
           />
         </div>
         <div className="flex items-center gap-2">
-          <button
-            onClick={() => setCaptureOpen(true)}
-            className="inline-flex items-center gap-1.5 rounded-md bg-[#5B6CF8] px-3 py-1.5 text-sm text-white hover:bg-[#4856E0]"
-          >
-            <Sparkles className="h-4 w-4" /> Capturar proceso
-          </button>
           <Link
             to="/approvals"
-            className="inline-flex items-center gap-1.5 rounded-md border border-[#EBEBEB] px-3 py-1.5 text-sm text-[#4B5563] hover:bg-[#F3F4F6]"
+            className="inline-flex items-center gap-1.5 rounded-full border border-[#E2E8F0] px-3 py-1.5 text-sm text-[#475569] hover:bg-[#F8FAFC]"
           >
-            Approvals
+            <Shield className="h-3.5 w-3.5" /> Aprobaciones
           </Link>
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <button className="flex h-8 w-8 items-center justify-center rounded-full bg-[#5B6CF8] text-xs font-semibold text-white">
+              <button className="flex h-9 w-9 items-center justify-center rounded-full bg-gradient-to-br from-sky-500 to-violet-500 text-xs font-semibold text-white">
                 {(user?.email ?? "?").slice(0, 1).toUpperCase()}
               </button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-56">
-              <DropdownMenuLabel>{user?.email}</DropdownMenuLabel>
+              <DropdownMenuLabel className="truncate">{user?.email}</DropdownMenuLabel>
               <DropdownMenuSeparator />
               {isAdmin && (
                 <DropdownMenuItem onSelect={() => navigate({ to: "/admin" })}>
-                  Admin panel
+                  Panel de admin
                 </DropdownMenuItem>
               )}
               <DropdownMenuItem onSelect={() => navigate({ to: "/approvals" })}>
-                My approvals
+                Mis aprobaciones
               </DropdownMenuItem>
               <DropdownMenuSeparator />
               <DropdownMenuItem
@@ -153,7 +147,7 @@ function HomePage() {
                   navigate({ to: "/login" });
                 }}
               >
-                Sign out
+                Cerrar sesión
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
@@ -162,157 +156,221 @@ function HomePage() {
 
       <div className="flex flex-1 overflow-hidden">
         {/* Left sidebar */}
-        <aside className="flex w-[240px] flex-col border-r border-[#EBEBEB] bg-white p-3">
+        <aside className="flex w-[232px] flex-col border-r border-[#EBEBEB] bg-white p-3">
           <Button
             onClick={() => setShowNew(true)}
-            className="mb-4 w-full bg-[#5B6CF8] hover:bg-[#4856E0] text-white"
+            className="mb-4 h-10 w-full rounded-xl bg-gradient-to-r from-sky-500 to-violet-500 font-semibold text-white shadow-sm hover:opacity-95"
           >
             <Plus className="h-4 w-4" />
-            New
+            Nuevo
           </Button>
-          <nav className="flex flex-col gap-1">
-            {SIDEBAR_ITEMS.map((item) => (
-              <button
-                key={item.label}
-                className={cn(
-                  "flex items-center gap-2 rounded-md px-3 py-2 text-sm text-[#4B5563] hover:bg-[#F3F4F6] text-left",
-                  item.active && "bg-[#F3F4F6] text-[#111827] font-medium",
-                )}
-              >
-                <item.icon className="h-4 w-4" />
-                {item.label}
-              </button>
-            ))}
+          <nav className="flex flex-col gap-0.5">
+            <SidebarLink active icon={HomeIcon} label="Inicio" />
+            <SidebarLink icon={FileText} label="Documents" to="/documents" />
+            <SidebarLink icon={LayoutGrid} label="Templates" />
+            <SidebarLink icon={Plug} label="Integrations" to="/integrations" />
           </nav>
+
+          <div className="mt-6 mb-2 px-3 text-[10px] font-semibold uppercase tracking-wider text-[#94A3B8]">
+            Áreas
+          </div>
+          <div className="flex flex-col gap-0.5">
+            <AreaItem
+              selected={areaId === "all"}
+              onClick={() => setAreaId("all")}
+              color="#94A3B8"
+              label="Todas"
+              count={documents.length}
+            />
+            {areas.map((a) => {
+              const count = documents.filter((d) => d.areaId === a.id).length;
+              return (
+                <AreaItem
+                  key={a.id}
+                  selected={areaId === a.id}
+                  onClick={() => setAreaId(a.id)}
+                  color={a.color}
+                  label={a.name}
+                  count={count}
+                />
+              );
+            })}
+          </div>
+          {isAdmin && (
+            <Link
+              to="/admin"
+              className="mt-2 inline-flex items-center gap-1 px-3 py-1 text-xs text-sky-600 hover:underline"
+            >
+              <Plus className="h-3 w-3" /> Gestionar áreas
+            </Link>
+          )}
         </aside>
 
         {/* Main */}
-        <main className="flex-1 overflow-y-auto p-8">
-          <div className="mb-6 flex flex-wrap items-center gap-2">
-            {CATEGORIES.map((c) => (
-              <button
-                key={c}
-                onClick={() => setCategory(c)}
-                className={cn(
-                  "rounded-full border px-4 py-1.5 text-sm transition-colors",
-                  category === c
-                    ? "border-[#5B6CF8] bg-[#5B6CF8] text-white"
-                    : "border-[#EBEBEB] bg-white text-[#4B5563] hover:border-[#D0D0D0]",
-                )}
-              >
-                {c}
-              </button>
-            ))}
-          </div>
+        <main className="flex-1 overflow-y-auto">
+          {/* Hero */}
+          <section className="border-b border-[#EBEBEB] bg-gradient-to-br from-sky-50 via-white to-violet-50 px-8 py-8">
+            <h1 className="font-display text-3xl font-semibold tracking-tight text-[#0F172A]">
+              {greeting}, <span className="bg-gradient-to-r from-sky-500 to-violet-500 bg-clip-text text-transparent">{userName}</span> 👋
+            </h1>
+            <p className="mt-1 text-sm text-[#64748B]">
+              ¿Qué proceso querés capturar hoy?
+            </p>
 
-          <h1 className="mb-4 text-xl font-semibold">Recent documents</h1>
-
-          {filtered.length === 0 ? (
-            <div className="rounded-lg border border-dashed border-[#D0D0D0] p-12 text-center text-[#6B7280]">
-              No documents yet. Click <span className="font-medium text-[#111827]">+ New</span> to create one.
+            <div className="mt-5 grid grid-cols-1 gap-3 sm:grid-cols-3">
+              <HeroCard
+                onClick={handleCreateBlank}
+                icon={<FilePlus2 className="h-5 w-5" />}
+                title="Empezar de cero"
+                desc="Lienzo en blanco para diseñar tu proceso."
+                gradient="from-sky-100 to-cyan-50"
+                iconBg="bg-sky-500"
+              />
+              <HeroCard
+                onClick={() => setShowNew(true)}
+                icon={<LayoutGrid className="h-5 w-5" />}
+                title="Usar template"
+                desc="Onboarding, ventas, compras y más."
+                gradient="from-violet-100 to-fuchsia-50"
+                iconBg="bg-violet-500"
+              />
+              <HeroCard
+                onClick={() => setCaptureOpen(true)}
+                icon={<Sparkles className="h-5 w-5" />}
+                title="Capturar proceso"
+                desc="IA, Granola o notas manuales."
+                gradient="from-amber-100 to-pink-50"
+                iconBg="bg-gradient-to-br from-amber-500 to-pink-500"
+              />
             </div>
-          ) : (
-            <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-              {filtered.map((doc) => (
-                <div
-                  key={doc.id}
-                  onClick={() => openDoc(doc.id)}
-                  className="group cursor-pointer rounded-lg border border-[#EBEBEB] bg-white p-3 transition-all hover:shadow-[0_8px_24px_rgba(0,0,0,0.08)] hover:-translate-y-0.5"
-                >
-                  <div className="relative mb-3 flex aspect-[4/3] items-center justify-center overflow-hidden rounded-md bg-gradient-to-br from-[#F3F4F6] to-[#E5E7EB]">
-                    <div className="flex flex-col items-center gap-2 text-[#9CA3AF]">
-                      <LayoutGrid className="h-8 w-8" />
-                      <span className="text-xs">{doc.pages[0]?.shapes.length ?? 0} shapes</span>
-                    </div>
+          </section>
+
+          <section className="px-8 py-6">
+            <div className="mb-4 flex items-center justify-between">
+              <h2 className="font-display text-xl font-semibold">Recientes</h2>
+              <Link to="/documents" className="text-xs text-sky-600 hover:underline">
+                Ver todos →
+              </Link>
+            </div>
+
+            {filtered.length === 0 ? (
+              <div className="rounded-2xl border border-dashed border-[#CBD5E1] bg-white p-12 text-center">
+                <Sparkles className="mx-auto h-8 w-8 text-[#CBD5E1]" />
+                <p className="mt-3 font-display text-base text-[#475569]">No hay procesos todavía</p>
+                <p className="mt-1 text-xs text-[#94A3B8]">Clickeá <span className="font-medium">Nuevo</span> para crear uno.</p>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+                {filtered.slice(0, 12).map((doc) => {
+                  const area = areas.find((a) => a.id === doc.areaId);
+                  return (
                     <div
-                      className="absolute right-2 top-2 opacity-0 transition-opacity group-hover:opacity-100"
-                      onClick={(e) => e.stopPropagation()}
+                      key={doc.id}
+                      onClick={() => openDoc(doc.id)}
+                      className="group cursor-pointer overflow-hidden rounded-2xl border border-[#EBEBEB] bg-white transition-all hover:-translate-y-0.5 hover:shadow-[0_12px_32px_rgba(14,165,233,0.10)]"
                     >
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <button className="rounded-md bg-white p-1 shadow-sm hover:bg-[#F3F4F6]">
-                            <MoreHorizontal className="h-4 w-4" />
-                          </button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end">
-                          <DropdownMenuItem
-                            onSelect={() => {
-                              setRenamingId(doc.id);
-                              setRenameValue(doc.name);
-                            }}
+                      <div className="relative aspect-[4/3] overflow-hidden bg-gradient-to-br from-sky-50 via-white to-violet-50">
+                        <DocThumbnail doc={doc} />
+                        {area && (
+                          <span
+                            className="absolute left-2 top-2 inline-flex items-center gap-1 rounded-full bg-white/90 px-2 py-0.5 text-[10px] font-medium text-[#475569] shadow-sm backdrop-blur"
                           >
-                            <Pencil className="h-4 w-4" />
-                            Rename
-                          </DropdownMenuItem>
-                          <DropdownMenuItem onSelect={() => duplicateDocument(doc.id)}>
-                            <Copy className="h-4 w-4" />
-                            Duplicate
-                          </DropdownMenuItem>
-                          <DropdownMenuItem
-                            onSelect={() => deleteDocument(doc.id)}
-                            className="text-[#DC2626] focus:text-[#DC2626]"
-                          >
-                            <Trash2 className="h-4 w-4" />
-                            Delete
-                          </DropdownMenuItem>
-                        </DropdownMenuContent>
-                      </DropdownMenu>
+                            <span className="h-1.5 w-1.5 rounded-full" style={{ background: area.color }} />
+                            {area.name}
+                          </span>
+                        )}
+                        <span className="absolute right-2 top-2 inline-flex items-center gap-1 rounded-full bg-white/90 px-2 py-0.5 text-[10px] font-medium text-[#475569] shadow-sm">
+                          {doc.status === "published" ? (
+                            <><CheckCircle2 className="h-2.5 w-2.5 text-emerald-600" /> Publicado</>
+                          ) : (
+                            <><Clock className="h-2.5 w-2.5 text-amber-600" /> Borrador</>
+                          )}
+                        </span>
+                        <div
+                          className="absolute bottom-2 right-2 opacity-0 transition-opacity group-hover:opacity-100"
+                          onClick={(e) => e.stopPropagation()}
+                        >
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <button className="rounded-md bg-white p-1 shadow-sm hover:bg-[#F3F4F6]">
+                                <MoreHorizontal className="h-4 w-4" />
+                              </button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end">
+                              <DropdownMenuItem
+                                onSelect={() => {
+                                  setRenamingId(doc.id);
+                                  setRenameValue(doc.name);
+                                }}
+                              >
+                                <Pencil className="h-4 w-4" /> Renombrar
+                              </DropdownMenuItem>
+                              <DropdownMenuItem onSelect={() => duplicateDocument(doc.id)}>
+                                <Copy className="h-4 w-4" /> Duplicar
+                              </DropdownMenuItem>
+                              <DropdownMenuItem
+                                onSelect={() => deleteDocument(doc.id)}
+                                className="text-[#DC2626] focus:text-[#DC2626]"
+                              >
+                                <Trash2 className="h-4 w-4" /> Eliminar
+                              </DropdownMenuItem>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
+                        </div>
+                      </div>
+                      <div className="p-3">
+                        <div className="truncate font-display text-sm font-semibold text-[#0F172A]">{doc.name}</div>
+                        <div className="mt-0.5 text-xs text-[#94A3B8]">
+                          {doc.pages[0]?.shapes.length ?? 0} shapes · {timeAgo(doc.updatedAt)}
+                        </div>
+                      </div>
                     </div>
-                  </div>
-                  <div className="truncate text-sm font-medium">{doc.name}</div>
-                  <div className="mt-1 text-xs text-[#6B7280]">
-                    Edited {timeAgo(doc.updatedAt)}
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
+                  );
+                })}
+              </div>
+            )}
+          </section>
         </main>
       </div>
 
       {/* New document modal */}
       <Dialog open={showNew} onOpenChange={setShowNew}>
-        <DialogContent>
+        <DialogContent className="max-w-2xl">
           <DialogHeader>
-            <DialogTitle>Create new document</DialogTitle>
-            <DialogDescription>Choose how to start.</DialogDescription>
+            <DialogTitle className="font-display text-xl">Crear nuevo proceso</DialogTitle>
+            <DialogDescription>Elegí cómo querés empezar.</DialogDescription>
           </DialogHeader>
-          <div className="grid grid-cols-3 gap-3 pt-2">
-            <button
+          <div className="grid grid-cols-1 gap-3 pt-2 sm:grid-cols-3">
+            <NewOption
               onClick={handleCreateBlank}
-              className="flex flex-col items-center gap-2 rounded-lg border border-[#EBEBEB] p-4 text-sm hover:border-[#5B6CF8] hover:bg-[#F5F6FF]"
-            >
-              <FilePlus2 className="h-6 w-6 text-[#5B6CF8]" />
-              Blank diagram
-            </button>
-            <button
+              icon={<FilePlus2 className="h-6 w-6" />}
+              title="Empezar de cero"
+              desc="Lienzo en blanco."
+              accent="from-sky-500 to-cyan-500"
+            />
+            <NewOption
               onClick={handleCreateBlank}
-              className="flex flex-col items-center gap-2 rounded-lg border border-[#EBEBEB] p-4 text-sm hover:border-[#5B6CF8] hover:bg-[#F5F6FF]"
-            >
-              <Upload className="h-6 w-6 text-[#5B6CF8]" />
-              Import
-            </button>
-            <button
-              onClick={handleCreateBlank}
-              className="flex flex-col items-center gap-2 rounded-lg border border-[#EBEBEB] p-4 text-sm hover:border-[#5B6CF8] hover:bg-[#F5F6FF]"
-            >
-              <Sparkles className="h-6 w-6 text-[#5B6CF8]" />
-              Template
-            </button>
+              icon={<LayoutGrid className="h-6 w-6" />}
+              title="Template"
+              desc="Procesos pre-armados."
+              accent="from-violet-500 to-fuchsia-500"
+            />
+            <NewOption
+              onClick={handleCapture}
+              icon={<Mic className="h-6 w-6" />}
+              title="Capturar proceso"
+              desc="IA, Granola o notas."
+              accent="from-amber-500 to-pink-500"
+            />
           </div>
         </DialogContent>
       </Dialog>
 
       {/* Rename modal */}
-      <Dialog
-        open={!!renamingId}
-        onOpenChange={(o) => {
-          if (!o) setRenamingId(null);
-        }}
-      >
+      <Dialog open={!!renamingId} onOpenChange={(o) => { if (!o) setRenamingId(null); }}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Rename document</DialogTitle>
+            <DialogTitle>Renombrar proceso</DialogTitle>
           </DialogHeader>
           <Input
             value={renameValue}
@@ -320,43 +378,97 @@ function HomePage() {
             autoFocus
             onKeyDown={(e) => {
               if (e.key === "Enter" && renamingId) {
-                renameDocument(renamingId, renameValue.trim() || "Untitled");
+                renameDocument(renamingId, renameValue.trim() || "Sin título");
                 setRenamingId(null);
               }
             }}
           />
           <div className="flex justify-end gap-2">
-            <Button variant="outline" onClick={() => setRenamingId(null)}>
-              Cancel
-            </Button>
+            <Button variant="outline" onClick={() => setRenamingId(null)}>Cancelar</Button>
             <Button
               onClick={() => {
                 if (renamingId) {
-                  renameDocument(renamingId, renameValue.trim() || "Untitled");
+                  renameDocument(renamingId, renameValue.trim() || "Sin título");
                   setRenamingId(null);
                 }
               }}
             >
-              Save
+              Guardar
             </Button>
           </div>
         </DialogContent>
       </Dialog>
 
       <CaptureProcessModal open={captureOpen} onClose={() => setCaptureOpen(false)} />
-
-      <Link to="/home" className="hidden" aria-hidden />
     </div>
+  );
+}
+
+function SidebarLink({ active, icon: Icon, label, to }: { active?: boolean; icon: React.ElementType; label: string; to?: string }) {
+  const cls = cn(
+    "flex items-center gap-2 rounded-lg px-3 py-2 text-sm text-[#475569] hover:bg-[#F1F5F9] text-left",
+    active && "bg-gradient-to-r from-sky-50 to-violet-50 text-[#0F172A] font-medium",
+  );
+  if (to) return <Link to={to} className={cls}><Icon className="h-4 w-4" /> {label}</Link>;
+  return <button className={cls}><Icon className="h-4 w-4" /> {label}</button>;
+}
+
+function AreaItem({ selected, onClick, color, label, count }: { selected: boolean; onClick: () => void; color: string; label: string; count: number }) {
+  return (
+    <button
+      onClick={onClick}
+      className={cn(
+        "flex items-center gap-2 rounded-lg px-3 py-1.5 text-sm transition-colors",
+        selected ? "bg-[#F1F5F9] font-medium text-[#0F172A]" : "text-[#475569] hover:bg-[#F8FAFC]"
+      )}
+    >
+      <span className="h-2 w-2 rounded-full" style={{ background: color }} />
+      <span className="flex-1 truncate text-left">{label}</span>
+      <span className="text-xs text-[#94A3B8]">{count}</span>
+    </button>
+  );
+}
+
+function HeroCard({ onClick, icon, title, desc, gradient, iconBg }: { onClick: () => void; icon: React.ReactNode; title: string; desc: string; gradient: string; iconBg: string }) {
+  return (
+    <button
+      onClick={onClick}
+      className={cn(
+        "group relative overflow-hidden rounded-2xl border border-white/60 bg-gradient-to-br p-4 text-left transition-all hover:-translate-y-0.5 hover:shadow-[0_12px_32px_rgba(14,165,233,0.12)]",
+        gradient
+      )}
+    >
+      <div className={cn("mb-3 inline-flex h-10 w-10 items-center justify-center rounded-xl text-white shadow-sm", iconBg)}>
+        {icon}
+      </div>
+      <div className="font-display text-base font-semibold text-[#0F172A]">{title}</div>
+      <div className="mt-0.5 text-xs text-[#475569]">{desc}</div>
+    </button>
+  );
+}
+
+function NewOption({ onClick, icon, title, desc, accent }: { onClick: () => void; icon: React.ReactNode; title: string; desc: string; accent: string }) {
+  return (
+    <button
+      onClick={onClick}
+      className="group flex flex-col items-start gap-2 rounded-xl border border-[#E2E8F0] p-4 text-left transition-all hover:-translate-y-0.5 hover:border-sky-300 hover:shadow-md"
+    >
+      <div className={cn("inline-flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br text-white shadow-sm", accent)}>
+        {icon}
+      </div>
+      <div className="font-display text-sm font-semibold text-[#0F172A]">{title}</div>
+      <div className="text-xs text-[#64748B]">{desc}</div>
+    </button>
   );
 }
 
 function timeAgo(ts: number): string {
   const diff = Date.now() - ts;
   const m = Math.floor(diff / 60000);
-  if (m < 1) return "just now";
-  if (m < 60) return `${m}m ago`;
+  if (m < 1) return "ahora";
+  if (m < 60) return `hace ${m}m`;
   const h = Math.floor(m / 60);
-  if (h < 24) return `${h}h ago`;
+  if (h < 24) return `hace ${h}h`;
   const d = Math.floor(h / 24);
-  return `${d}d ago`;
+  return `hace ${d}d`;
 }

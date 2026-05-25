@@ -30,7 +30,7 @@ interface State {
   updatePerson: (id: string, patch: Partial<Person>) => void;
   deletePerson: (id: string) => void;
   ensureSeed: () => void;
-  createDocument: (name?: string) => string;
+  createDocument: (opts?: { name?: string; areaId?: string }) => string;
   deleteDocument: (id: string) => void;
   duplicateDocument: (id: string) => void;
   renameDocument: (id: string, name: string) => void;
@@ -170,12 +170,14 @@ export const useDiagramStore = create<State>()(
           set({ documents: [createDemoDocument()] });
         }
       },
-      createDocument: (name = "Untitled diagram") => {
+      createDocument: (opts = {}) => {
+        const { name = "Sin título", areaId } = opts;
         const id = `d${Date.now()}`;
         const doc: DiagramDocument = {
           id,
           name,
           category: "Processes",
+          areaId,
           updatedAt: Date.now(),
           status: "draft",
           pages: [{ id: `p${Date.now()}`, name: "Page 1", shapes: [], connectors: [] }],

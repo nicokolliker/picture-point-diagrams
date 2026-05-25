@@ -126,6 +126,7 @@ export interface DiagramDocument {
   id: string;
   name: string;
   category: string;
+  areaId?: string;
   updatedAt: number;
   status: "draft" | "published";
   pages: Page[];
