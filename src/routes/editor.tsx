@@ -360,6 +360,7 @@ function EditorPage() {
         >
           {doc.status === "draft" ? "Draft" : "Published"}
         </button>
+        <PublishButton doc={doc} />
 
         {/* Format controls when shape selected */}
         <div className="ml-2 flex flex-1 items-center justify-center gap-1">
