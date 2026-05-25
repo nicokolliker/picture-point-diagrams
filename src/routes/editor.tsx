@@ -41,6 +41,7 @@ import {
   AlignCenter,
   AlignRight,
   Expand,
+  Shuffle,
 } from "lucide-react";
 import {
   Popover,
@@ -3049,8 +3050,9 @@ function SummaryPanel({
             >
               <div className="flex items-center gap-2">
                 <span className="text-[10px] text-[#6B7280]">{open ? "▼" : "▶"}</span>
-                <span className="truncate text-[12px] font-semibold text-[#111827]">
-                  {isMain ? pd.page.name : `⊞ ${pd.page.name}`}
+                <span className="flex items-center gap-1 truncate text-[12px] font-semibold text-[#111827]">
+                  {!isMain && <Shuffle className="h-3 w-3 text-[#5B6CF8]" />}
+                  {pd.page.name}
                 </span>
               </div>
               <div className="mt-1.5">
@@ -3686,8 +3688,9 @@ function FullSummaryModal({
             >
               <div className="flex items-center gap-2">
                 <span className="text-[10px] text-[#6B7280]">{open ? "▼" : "▶"}</span>
-                <span className="truncate text-[12px] font-semibold text-[#111827]">
-                  {isMain ? pd.page.name : `⊞ ${pd.page.name}`}
+                <span className="flex items-center gap-1 truncate text-[12px] font-semibold text-[#111827]">
+                  {!isMain && <Shuffle className="h-3 w-3 text-[#5B6CF8]" />}
+                  {pd.page.name}
                 </span>
               </div>
               <div className="mt-1.5">
@@ -4989,6 +4992,10 @@ function ShapeNode({
   const mouseRef = useRef<{ x: number; y: number }>({ x: 0, y: 0 });
   const [qaEdge, setQaEdge] = useState<"top" | "bottom" | "left" | "right">("bottom");
   const [dragPos, setDragPos] = useState<{ left: number; top: number } | null>(null);
+  // World-relative anchor (dx, dy in screen px from shape's overlay top-left)
+  // captured when the popup is pinned; used to keep the pinned popup glued to
+  // the shape as the canvas pans/zooms.
+  const pinnedAnchorRef = useRef<{ dx: number; dy: number } | null>(null);
   const [dragging, setDragging] = useState(false);
   const [lightbox, setLightbox] = useState(false);
   useEffect(() => {
@@ -5042,10 +5049,26 @@ function ShapeNode({
     }
   }, [hovered, qaHover, pointerActive, showQuickAdd, showPopup, popupSide]);
 
-  // Reset drag position when unpinned
+  // Reset drag position + anchor when unpinned
   useEffect(() => {
-    if (!pinned) setDragPos(null);
+    if (!pinned) {
+      setDragPos(null);
+      pinnedAnchorRef.current = null;
+    }
   }, [pinned]);
+
+  // When the popup transitions to pinned, capture its world-relative anchor
+  // so subsequent canvas pan/zoom keeps the popup glued to the shape.
+  useEffect(() => {
+    if (!pinned) return;
+    const pos = dragPos ?? popupPos;
+    if (pos && shapeInOverlayRef.current && !pinnedAnchorRef.current) {
+      pinnedAnchorRef.current = {
+        dx: pos.left - shapeInOverlayRef.current.left,
+        dy: pos.top - shapeInOverlayRef.current.top,
+      };
+    }
+  }, [pinned, popupPos, dragPos]);
 
   const onDragHandleDown = useCallback(
     (e: React.PointerEvent<HTMLDivElement>) => {
@@ -5058,21 +5081,32 @@ function ShapeNode({
       const startLeft = origin.left;
       const startTop = origin.top;
       setDragging(true);
+      let lastPos = { left: startLeft, top: startTop };
       const onMove = (ev: PointerEvent) => {
-        setDragPos({
+        lastPos = {
           left: startLeft + (ev.clientX - startX),
           top: startTop + (ev.clientY - startY),
-        });
+        };
+        setDragPos(lastPos);
       };
       const onUp = () => {
         setDragging(false);
+        // Commit drag → re-anchor relative to shape so pan/zoom keeps it glued.
+        if (pinned && shapeInOverlayRef.current) {
+          pinnedAnchorRef.current = {
+            dx: lastPos.left - shapeInOverlayRef.current.left,
+            dy: lastPos.top - shapeInOverlayRef.current.top,
+          };
+          setPopupPos(lastPos);
+          setDragPos(null);
+        }
         window.removeEventListener("pointermove", onMove);
         window.removeEventListener("pointerup", onUp);
       };
       window.addEventListener("pointermove", onMove);
       window.addEventListener("pointerup", onUp);
     },
-    [dragPos, popupPos],
+    [dragPos, popupPos, pinned],
   );
 
   const [popupSize, setPopupSize] = useState<{ w: number; h: number } | null>(null);
@@ -5201,7 +5235,7 @@ function ShapeNode({
     if (!overlay || !shapeEl) return;
     const or = overlay.getBoundingClientRect();
     const sr = shapeEl.getBoundingClientRect();
-    shapeInOverlayRef.current = {
+    const newRect = {
       left: sr.left - or.left,
       top: sr.top - or.top,
       right: sr.right - or.left,
@@ -5209,6 +5243,17 @@ function ShapeNode({
       width: sr.width,
       height: sr.height,
     };
+    shapeInOverlayRef.current = newRect;
+    // If pinned, slide the popup along with the shape so it stays anchored
+    // to the shape rather than to the viewport when the canvas pans/zooms.
+    if (pinned && pinnedAnchorRef.current) {
+      const next = {
+        left: newRect.left + pinnedAnchorRef.current.dx,
+        top: newRect.top + pinnedAnchorRef.current.dy,
+      };
+      setPopupPos(next);
+      setDragPos(null);
+    }
     forceConnectorTick((n) => (n + 1) % 1000000);
   }, [pan, zoom, showPopup, pinned, overlayRef]);
 
@@ -5645,7 +5690,8 @@ function ShapeNode({
           }}
           title={shape.subProcessPageId ? "Abrir sub-proceso" : "Crear sub-proceso"}
         >
-          ⊞
+          <Shuffle className="h-3 w-3" />
+
         </button>
       )}
 
@@ -6102,7 +6148,7 @@ function SubProcessModal({
           className="flex h-11 shrink-0 items-center gap-2 border-b border-[#EBEBEB] px-3 select-none"
         >
           <div className="flex h-[18px] w-[18px] items-center justify-center rounded-[4px] bg-[#5B6CF8] text-[12px] font-semibold leading-none text-white">
-            ⊞
+            <Shuffle className="h-3 w-3" />
           </div>
           <input
             value={nameVal}
