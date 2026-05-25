@@ -4345,7 +4345,7 @@ function ShapeNode({
             className="absolute inset-0"
             style={{
               border: "2px solid #5B6CF8",
-              borderRadius: shape.cornerStyle === "rounded" ? 10 : 0,
+              borderRadius: shape.cornerStyle === "pill" ? 9999 : shape.cornerStyle === "rounded" ? 10 : 0,
               pointerEvents: "none",
             }}
           />
