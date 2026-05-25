@@ -41,6 +41,7 @@ import {
   AlignCenter,
   AlignRight,
   Expand,
+  Shuffle,
 } from "lucide-react";
 import {
   Popover,
