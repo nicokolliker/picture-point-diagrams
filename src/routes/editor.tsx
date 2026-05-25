@@ -2829,6 +2829,28 @@ function FullSummaryModal({
         : null,
   );
   const [notes, setNotes] = useState<Record<string, string>>({});
+  const [openGroups, setOpenGroups] = useState<Record<string, boolean>>({});
+  const isGroupOpen = (pid: string) => openGroups[pid] ?? true;
+  const toggleGroup = (pid: string) =>
+    setOpenGroups((g) => ({ ...g, [pid]: !isGroupOpen(pid) }));
+  const computeProgress = (pd: ReturnType<typeof computePageSummary>) => {
+    const total = pd.page.shapes.length;
+    if (total === 0) return 1;
+    const flagged = new Set<string>();
+    pd.alerts.forEach((a) => a.shapes.forEach((s) => flagged.add(s.id)));
+    pd.missingGroups.forEach((ss) => ss.forEach((s) => flagged.add(s.id)));
+    return Math.max(0, (total - flagged.size) / total);
+  };
+  const ProgressBar = ({ value }: { value: number }) => {
+    const filled = Math.round(value * 10);
+    return (
+      <span className="font-mono text-[10px] tracking-tight text-[#10B981]">
+        {"█".repeat(filled)}
+        <span className="text-[#E5E7EB]">{"░".repeat(10 - filled)}</span>
+        <span className="ml-1 text-[#6B7280]">{Math.round(value * 100)}%</span>
+      </span>
+    );
+  };
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
