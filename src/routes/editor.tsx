@@ -646,15 +646,28 @@ function FormatBar({
   shape: Shape;
   onChange: (patch: Partial<Shape>) => void;
 }) {
+  const FONTS = ["Inter", "Poppins", "Georgia", "Courier New", "Arial", "Roboto Mono"];
+  const cycleCorner = () => {
+    const next: Shape["cornerStyle"] =
+      shape.cornerStyle === "sharp"
+        ? "rounded"
+        : shape.cornerStyle === "rounded"
+          ? "pill"
+          : "sharp";
+    onChange({ cornerStyle: next });
+  };
+  const cornerIcon =
+    shape.cornerStyle === "sharp" ? "▢" : shape.cornerStyle === "rounded" ? "▣" : "⬭";
+  const opacity = shape.opacity ?? 1;
   return (
-    <div className="flex items-center gap-1 rounded-md border border-[#EBEBEB] bg-white p-1">
+    <div className="flex flex-wrap items-center gap-1 rounded-md border border-[#EBEBEB] bg-white p-1">
       <Select value={shape.fontFamily} onValueChange={(v) => onChange({ fontFamily: v })}>
-        <SelectTrigger className="h-7 w-[90px] text-xs">
+        <SelectTrigger className="h-7 w-[110px] text-xs" style={{ fontFamily: shape.fontFamily }}>
           <SelectValue />
         </SelectTrigger>
         <SelectContent>
-          {["Inter", "Arial", "Georgia", "Monospace"].map((f) => (
-            <SelectItem key={f} value={f}>
+          {FONTS.map((f) => (
+            <SelectItem key={f} value={f} style={{ fontFamily: f }}>
               {f}
             </SelectItem>
           ))}
@@ -739,18 +752,13 @@ function FormatBar({
           <SelectItem value="3">3px</SelectItem>
         </SelectContent>
       </Select>
-      <Select
-        value={shape.cornerStyle}
-        onValueChange={(v) => onChange({ cornerStyle: v as Shape["cornerStyle"] })}
+      <button
+        onClick={cycleCorner}
+        title={`Corners: ${shape.cornerStyle}`}
+        className="flex h-7 w-8 items-center justify-center rounded text-[14px] text-[#374151] hover:bg-[#F3F4F6]"
       >
-        <SelectTrigger className="h-7 w-[80px] text-xs">
-          <SelectValue />
-        </SelectTrigger>
-        <SelectContent>
-          <SelectItem value="sharp">Sharp</SelectItem>
-          <SelectItem value="rounded">Rounded</SelectItem>
-        </SelectContent>
-      </Select>
+        {cornerIcon}
+      </button>
       <div className="mx-1 h-5 w-px bg-[#EBEBEB]" />
       <ColorSwatchPicker
         label="Fill"
@@ -762,6 +770,25 @@ function FormatBar({
         value={shape.borderColor ?? "#D0D0D0"}
         onChange={(c) => onChange({ borderColor: c })}
       />
+      <ToggleBtn
+        active={!!shape.shadow}
+        onClick={() => onChange({ shadow: !shape.shadow })}
+      >
+        <span title="Shadow" className="text-[12px] leading-none">☐</span>
+      </ToggleBtn>
+      <div className="flex items-center gap-1 rounded border border-[#EBEBEB] px-1.5 py-0.5" title="Opacity">
+        <input
+          type="range"
+          min={10}
+          max={100}
+          value={Math.round(opacity * 100)}
+          onChange={(e) => onChange({ opacity: Number(e.target.value) / 100 })}
+          className="h-1 w-16 cursor-pointer accent-[#5B6CF8]"
+        />
+        <span className="w-7 text-right text-[10px] tabular-nums text-[#6B7280]">
+          {Math.round(opacity * 100)}%
+        </span>
+      </div>
     </div>
   );
 }
