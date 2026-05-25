@@ -2596,6 +2596,7 @@ function SummaryPanel({
 
   const generalContent = (
     <>
+      <StatBar />
       <div>
         <div className={sectionHeader}>⚠️ Alertas</div>
         {allAlerts.length === 0 ? (
@@ -2632,19 +2633,9 @@ function SummaryPanel({
             Todas las etapas tienen documentación.
           </div>
         ) : (
-          <div className="flex flex-col gap-4">
+          <div className="grid grid-cols-1 gap-2.5 xl:grid-cols-2">
             {Array.from(aggMissing.entries()).map(([type, items]) => (
-              <div key={type}>
-                <div className="mb-2 flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wider text-[#9CA3AF]">
-                  <span>{type === MISSING_UNSPEC ? type : `${type} faltante`}</span>
-                  <span className="inline-flex h-4 min-w-[16px] items-center justify-center rounded-full bg-[#F3F4F6] px-1 text-[10px] font-semibold text-[#6B7280]">
-                    {items.length}
-                  </span>
-                </div>
-                <ul className="flex flex-col gap-2">
-                  {items.map((it) => renderMissingItem(it.shape, it.pageId, it.pageName))}
-                </ul>
-              </div>
+              <DocTypeCard key={type} type={type} items={items} />
             ))}
           </div>
         )}
@@ -2661,22 +2652,26 @@ function SummaryPanel({
           pd.missingGroups.size > 0;
         const open = isGroupOpen(pd.page.id);
         const isMain = pd.page.id === mainPageId;
+        const progress = computeProgress(pd);
         return (
           <div key={pd.page.id} className="rounded-md border border-[#EBEBEB] bg-[#FAFAFB]">
             <button
               onClick={() => toggleGroup(pd.page.id)}
               className="flex w-full items-center justify-between gap-2 px-3 py-2 text-left"
             >
-              <div className="flex min-w-0 items-center gap-2">
+              <div className="flex min-w-0 flex-1 items-center gap-2">
                 <span className="text-[12px] text-[#6B7280]">{open ? "▼" : "▶"}</span>
                 <span className="truncate text-[13px] font-semibold text-[#111827]">
                   {isMain ? pd.page.name : `Sub-proceso: ${pd.page.name}`}
                 </span>
               </div>
-              <span className="text-[10px] text-[#9CA3AF]">
-                {pd.alerts.length}⚠ · {pd.entries.length}● · {Array.from(pd.missingGroups.values()).reduce((n, s) => n + s.length, 0)}📄
-              </span>
+              <ProgressBar value={progress} />
             </button>
+            <div className="flex items-center gap-2 px-3 pb-2 text-[10px] text-[#6B7280]">
+              <span>⚠ {pd.alerts.length}</span>
+              <span>● {pd.entries.length}</span>
+              <span>📄 {Array.from(pd.missingGroups.values()).reduce((n, s) => n + s.length, 0)}</span>
+            </div>
             {open && (
               <div className="border-t border-[#EBEBEB] p-3">
                 {!hasContent && (
