@@ -11,9 +11,11 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as ResetPasswordRouteImport } from './routes/reset-password'
 import { Route as LoginRouteImport } from './routes/login'
+import { Route as IntegrationsRouteImport } from './routes/integrations'
 import { Route as ImportRouteImport } from './routes/import'
 import { Route as HomeRouteImport } from './routes/home'
 import { Route as EditorRouteImport } from './routes/editor'
+import { Route as DocumentsRouteImport } from './routes/documents'
 import { Route as BootstrapRouteImport } from './routes/bootstrap'
 import { Route as ApprovalsRouteImport } from './routes/approvals'
 import { Route as AdminRouteImport } from './routes/admin'
@@ -29,6 +31,11 @@ const LoginRoute = LoginRouteImport.update({
   path: '/login',
   getParentRoute: () => rootRouteImport,
 } as any)
+const IntegrationsRoute = IntegrationsRouteImport.update({
+  id: '/integrations',
+  path: '/integrations',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ImportRoute = ImportRouteImport.update({
   id: '/import',
   path: '/import',
@@ -42,6 +49,11 @@ const HomeRoute = HomeRouteImport.update({
 const EditorRoute = EditorRouteImport.update({
   id: '/editor',
   path: '/editor',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const DocumentsRoute = DocumentsRouteImport.update({
+  id: '/documents',
+  path: '/documents',
   getParentRoute: () => rootRouteImport,
 } as any)
 const BootstrapRoute = BootstrapRouteImport.update({
@@ -70,9 +82,11 @@ export interface FileRoutesByFullPath {
   '/admin': typeof AdminRoute
   '/approvals': typeof ApprovalsRoute
   '/bootstrap': typeof BootstrapRoute
+  '/documents': typeof DocumentsRoute
   '/editor': typeof EditorRoute
   '/home': typeof HomeRoute
   '/import': typeof ImportRoute
+  '/integrations': typeof IntegrationsRoute
   '/login': typeof LoginRoute
   '/reset-password': typeof ResetPasswordRoute
 }
@@ -81,9 +95,11 @@ export interface FileRoutesByTo {
   '/admin': typeof AdminRoute
   '/approvals': typeof ApprovalsRoute
   '/bootstrap': typeof BootstrapRoute
+  '/documents': typeof DocumentsRoute
   '/editor': typeof EditorRoute
   '/home': typeof HomeRoute
   '/import': typeof ImportRoute
+  '/integrations': typeof IntegrationsRoute
   '/login': typeof LoginRoute
   '/reset-password': typeof ResetPasswordRoute
 }
@@ -93,9 +109,11 @@ export interface FileRoutesById {
   '/admin': typeof AdminRoute
   '/approvals': typeof ApprovalsRoute
   '/bootstrap': typeof BootstrapRoute
+  '/documents': typeof DocumentsRoute
   '/editor': typeof EditorRoute
   '/home': typeof HomeRoute
   '/import': typeof ImportRoute
+  '/integrations': typeof IntegrationsRoute
   '/login': typeof LoginRoute
   '/reset-password': typeof ResetPasswordRoute
 }
@@ -106,9 +124,11 @@ export interface FileRouteTypes {
     | '/admin'
     | '/approvals'
     | '/bootstrap'
+    | '/documents'
     | '/editor'
     | '/home'
     | '/import'
+    | '/integrations'
     | '/login'
     | '/reset-password'
   fileRoutesByTo: FileRoutesByTo
@@ -117,9 +137,11 @@ export interface FileRouteTypes {
     | '/admin'
     | '/approvals'
     | '/bootstrap'
+    | '/documents'
     | '/editor'
     | '/home'
     | '/import'
+    | '/integrations'
     | '/login'
     | '/reset-password'
   id:
@@ -128,9 +150,11 @@ export interface FileRouteTypes {
     | '/admin'
     | '/approvals'
     | '/bootstrap'
+    | '/documents'
     | '/editor'
     | '/home'
     | '/import'
+    | '/integrations'
     | '/login'
     | '/reset-password'
   fileRoutesById: FileRoutesById
@@ -140,9 +164,11 @@ export interface RootRouteChildren {
   AdminRoute: typeof AdminRoute
   ApprovalsRoute: typeof ApprovalsRoute
   BootstrapRoute: typeof BootstrapRoute
+  DocumentsRoute: typeof DocumentsRoute
   EditorRoute: typeof EditorRoute
   HomeRoute: typeof HomeRoute
   ImportRoute: typeof ImportRoute
+  IntegrationsRoute: typeof IntegrationsRoute
   LoginRoute: typeof LoginRoute
   ResetPasswordRoute: typeof ResetPasswordRoute
 }
@@ -161,6 +187,13 @@ declare module '@tanstack/react-router' {
       path: '/login'
       fullPath: '/login'
       preLoaderRoute: typeof LoginRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/integrations': {
+      id: '/integrations'
+      path: '/integrations'
+      fullPath: '/integrations'
+      preLoaderRoute: typeof IntegrationsRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/import': {
@@ -182,6 +215,13 @@ declare module '@tanstack/react-router' {
       path: '/editor'
       fullPath: '/editor'
       preLoaderRoute: typeof EditorRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/documents': {
+      id: '/documents'
+      path: '/documents'
+      fullPath: '/documents'
+      preLoaderRoute: typeof DocumentsRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/bootstrap': {
@@ -220,12 +260,24 @@ const rootRouteChildren: RootRouteChildren = {
   AdminRoute: AdminRoute,
   ApprovalsRoute: ApprovalsRoute,
   BootstrapRoute: BootstrapRoute,
+  DocumentsRoute: DocumentsRoute,
   EditorRoute: EditorRoute,
   HomeRoute: HomeRoute,
   ImportRoute: ImportRoute,
+  IntegrationsRoute: IntegrationsRoute,
   LoginRoute: LoginRoute,
   ResetPasswordRoute: ResetPasswordRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
+
+import type { getRouter } from './router.tsx'
+import type { startInstance } from './start.ts'
+declare module '@tanstack/react-start' {
+  interface Register {
+    ssr: true
+    router: Awaited<ReturnType<typeof getRouter>>
+    config: Awaited<ReturnType<typeof startInstance.getOptions>>
+  }
+}
