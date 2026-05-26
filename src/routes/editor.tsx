@@ -43,7 +43,7 @@ import {
   Expand,
   Shuffle,
   SlidersHorizontal,
-  Sparkles,
+  
 } from "lucide-react";
 import {
   Popover,
