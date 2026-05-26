@@ -54,6 +54,8 @@ function ApprovalsPage() {
   const [tab, setTab] = useState<Tab>("mine");
   const [rejectFor, setRejectFor] = useState<string | null>(null);
   const [rejectComment, setRejectComment] = useState("");
+  const [diffFor, setDiffFor] = useState<Req | null>(null);
+
   const decide = useServerFn(decidePublishRequest);
 
   useEffect(() => { if (!loading && !user) navigate({ to: "/login" }); }, [loading, user, navigate]);
