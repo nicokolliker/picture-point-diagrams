@@ -23,6 +23,8 @@ import {
   ShieldCheck,
   PencilRuler,
   Check,
+  History as HistoryIcon,
+  Users as UsersIcon,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -50,6 +52,7 @@ import { FlowItLogo } from "@/components/flowit-logo";
 import { DocThumbnail } from "@/components/doc-thumbnail";
 import { ChangesDiffModal } from "@/components/ChangesDiffModal";
 import { PickProcessModal } from "@/components/PickProcessModal";
+import { VersionsModal } from "@/components/VersionsModal";
 import { StatusPill } from "@/components/StatusPill";
 import type { DiagramDocument } from "@/lib/shape-types";
 
