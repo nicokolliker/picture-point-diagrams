@@ -434,9 +434,9 @@ function HomePage() {
         <ChangesDiffModal
           open={!!auditDoc}
           onClose={() => setAuditDoc(null)}
-          prevPages={auditDoc.baseline?.pages ?? null}
-          nextPages={auditDoc.pages}
-          docName={auditDoc.name}
+          prev={auditDoc.baseline ? ({ ...auditDoc, pages: auditDoc.baseline.pages } as DiagramDocument) : null}
+          next={auditDoc}
+          title={`Auditoría · ${auditDoc.name}`}
         />
       )}
     </div>
