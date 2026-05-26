@@ -80,7 +80,8 @@ export function EditModeBar({ doc }: { doc: DiagramDocument }) {
       });
       // Mark this version as the new baseline so the bar disappears.
       captureBaseline(doc.id);
-      toast.success("Solicitud de publicación enviada");
+      setDocStatus(doc.id, "in_review");
+      toast.success("Solicitud de publicación enviada · Proceso en auditoría");
       setPublishOpen(false);
       setNote("");
     } catch (e: any) {
