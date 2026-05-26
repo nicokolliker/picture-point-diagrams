@@ -1,47 +1,113 @@
-# Plan — Estados, diff y logo
 
-## 1. Estado se queda en "En auditoría" después de aprobar
+# Modelo de flujos de FlowIt (consolidado)
 
-**Diagnóstico.** Cuando el aprobador decide en `/approvals`, esa pantalla sí corre `syncApprovedSnapshots()` y actualiza el store local de ese usuario. Pero el **solicitante**, que ya está en `/home`, sólo sincroniza al montar la ruta (línea 95 de `home.tsx`). Mientras tanto su store sigue con `status: "in_review"` (lo seteamos en `EditModeBar.onSubmit`). Resultado: aunque el backend ya marcó la request como `approved`, el doc local sigue figurando en "En auditoría".
+Esto resume — basado en tus respuestas — cómo debería comportarse cada estado y transición. Si algo acá no coincide con lo que pensabas, lo ajustamos antes de implementar.
 
-Además, en el flujo de **fork** (Modificar proceso publicado), el snapshot lleva el id del fork pero `doc_id` apunta al padre. `applyApprovedSnapshot` archiva el fork y publica el padre, pero si el sync no se dispara, el fork queda visible como "in_review".
+## 1. Roles
 
-**Cambios.**
+Roles **por área** (un mismo usuario puede tener distintos roles en distintas áreas):
 
-- `src/routes/home.tsx`
-  - Re-sincronizar en `window` `focus` y `visibilitychange` (cuando el tab vuelve a estar activo).
-  - Poll liviano cada 20s mientras la pestaña está visible.
-  - Filtrar de la lista los docs con `archived === true` (el fork archivado no debe aparecer como tarjeta separada).
-- `src/lib/sync-approved.ts`
-  - Devolver un boolean si aplicó algo nuevo, para que la home pueda toastear "Publicado" cuando un doc pasa de `in_review` a `published`.
-- `src/routes/editor.tsx`
-  - Reemplazar el pill "Draft / Published" hecho a mano (líneas ~366–375) por `<StatusPill>` para que coincida con la home y refleje `in_review`. Eliminar el botón que toggle-aba `status` directo desde el editor (rompe el flujo de aprobación).
-- `src/components/EditModeBar.tsx`
-  - Al enviar la solicitud, mostrar el toast "Solicitud enviada" pero **no** navegar automáticamente a `/approvals`; ofrecer un botón en el toast. Esto evita que el solicitante "pierda" el doc y vea sólo el estado intermedio.
+- **Viewer**: ve procesos publicados del área.
+- **Editor**: crea borradores, modifica, propone cambios.
+- **Auditor**: audita procesos publicados, abre hallazgos, puede promoverlos a propuesta de cambio.
+- **Approver**: aprueba/rechaza solicitudes de publicación del área.
+- **Notified**: no decide, recibe notificación de cambios publicados.
+- **Super admin** (global): configura áreas, asigna roles, configura cuántos aprobadores requiere cada proceso y quiénes son los notificados.
 
-## 2. El diff se rompe / no se entiende
+Cambio de schema: tabla nueva `area_members(area_id, user_id, role)` con role enum `viewer|editor|auditor|approver|notified`. `user_roles` global queda solo para `super_admin`/`admin`.
 
-**Diagnóstico.** `ChangesDiffModal` mete en un mismo SVG las shapes de **todas** las páginas (incluidas sub-procesos). Cuando un sub-proceso tiene coordenadas muy alejadas, el `viewBox` se estira y las shapes del flujo principal aparecen como puntitos. Además, el modo "lado a lado" cuando `prev` y `next` tienen tamaños distintos no respeta el aspect ratio.
+## 2. Estados de un proceso
 
-**Cambios en `src/components/ChangesDiffModal.tsx`.**
+```text
+                  ┌──────────┐
+   crear ───────► │  draft   │ ◄────── rechazo ──────┐
+                  └────┬─────┘                       │
+              request publish                        │
+                       ▼                             │
+                  ┌──────────┐                       │
+                  │in_review │ ──────────────────────┘
+                  └────┬─────┘
+              N approvals OK
+                       ▼
+                  ┌──────────┐    nueva versión aprobada
+                  │published │ ◄──────────────────────┐
+                  └────┬─────┘                        │
+              "Modificar" (fork)                      │
+                       ▼                              │
+                  ┌──────────┐  request publish       │
+                  │  draft   │ ─────► in_review ──────┘
+                  │ (fork)   │
+                  └──────────┘
+```
 
-- Calcular el diff y los bounds **por página** (`pageId`), no global. Mostrar pestañas si hay más de una página con cambios (default: la primera con diffs).
-- Forzar un `viewBox` común entre `prev` y `next` en modo "Lado a lado" (unión de bounds) para que las dos mitades se vean al mismo zoom y se entienda qué se movió.
-- Dibujar conectores (no sólo shapes) con el mismo esquema de color: verde nuevos, rojo eliminados, gris base. Hoy sólo se cuentan.
-- Agregar un mini-render del texto (`<text>`) centrado en cada shape, truncado a ~14 chars, para que se identifique qué nodo es cuál.
-- Cuando `prev === null` y modo "Overlay", reemplazar el `<DiffCanvas>` por la vista propuesta sola con un banner "Primera versión" arriba (en lugar de pintar todo como "agregado" gigante que se ve raro).
-- En el listado de detalle, agrupar por categoría (Agregadas / Eliminadas / Movidas / Editadas) con headers.
+- `draft`: privado del autor. Nadie más lo ve en home.
+- `in_review`: visible para approvers/notified del área + autor. Read-only para el resto.
+- `published`: visible para todos los miembros del área.
+- `archived` (flag, no estado): fork que se mergeó al padre se archiva.
 
-## 3. Logo más chico + gradient violeta/azul oscuro
+## 3. Crear proceso
 
-**Cambios en `src/components/flowit-logo.tsx`.**
+- Cualquier **Editor del área** puede crear (blank / template / capture).
+- Nace como `draft` privado: solo el autor lo ve hasta que pida aprobación.
+- El doc se asocia al/los `areaIds` elegidos al crear.
 
-- Bajar `size` default de 28 → 22. Reducir el ring (`ringSize` 86% → 80%) y el ícono.
-- Cambiar el wordmark: en vez de inyectar el SVG negro tal cual (`<img>`), embeber el SVG inline y aplicarle `fill: url(#flowit-wordmark-grad)` con un gradient violeta→azul oscuro (`#3730A3` → `#1E3A8A`, parecido al ramp del usuario pero más oscuro). El ícono shuffle usa el mismo gradient para que todo sea una sola familia.
-- Ajustar los call-sites donde se pase `size` explícito en headers para mantener proporciones (revisar `home.tsx`, `editor.tsx`, `approvals.tsx`, `templates.tsx`, etc. — sólo bajar valores, no romper layout).
+## 4. Modificar proceso publicado
 
-## Notas técnicas
+- Editor abre "Modificar" desde el modal de PickProcess.
+- Si el doc está `published` → **fork a draft propio** (`originDocId = parentId`, `archived=false`). El publicado sigue vivo, otros pueden seguir usándolo y proponiendo en paralelo (varios forks coexisten).
+- Editor trabaja en su fork y cuando termina, pide aprobación.
 
-- El SVG de Chill It vive en `src/assets/chillit-logo.svg`. Para aplicar gradient hace falta importarlo como componente (Vite soporta `?react`) o leer el contenido y pegarlo inline. Voy con la opción inline (un mini componente `<ChillitWordmark>` dentro de `flowit-logo.tsx`) para no agregar plugins.
-- No tocamos el esquema de Supabase ni `approvals.functions.ts`; el backend ya hace lo correcto, el problema es de propagación cliente.
-- No se modifica el comportamiento de fork/aprobación, sólo cómo se refleja localmente y cómo se visualiza el diff.
+## 5. Auditar proceso publicado
+
+- Auditor abre "Auditar" → entra en modo `audit` sobre el publicado (read-only sobre shapes).
+- Puede:
+  - Marcar **status del proceso** (Verde / Amarillo / Rojo).
+  - Crear **hallazgos** (inconsistencias, oportunidades, riesgos) anclados a shapes o al proceso entero.
+  - Cerrar la auditoría → queda guardada como objeto propio en historial del doc, con autor, fecha y status.
+- Desde una auditoría puede **"Promover a propuesta"**: genera un fork-draft con los hallazgos pre-cargados como notas/sugerencias y entra al flujo normal de modificación → aprobación.
+- La auditoría NO modifica el publicado. Solo el flujo de modificación + aprobación puede.
+
+Cambio de schema: tabla `audits(id, doc_id, auditor_id, status, summary, created_at, closed_at)` + `audit_findings(audit_id, shape_id?, severity, title, description, promoted_to_doc_id?)`.
+
+## 6. Aprobaciones
+
+- Super admin define, por proceso (no por área): `required_approvals` (N) y la lista de `approvers` + `notified`. Ya existe `doc_approvers` — sumamos `doc_notified(doc_id, user_id)`.
+- Editor en su draft → "Solicitar publicación" → crea `publish_request` (pending). El doc pasa a `in_review`.
+- Approvers ven la solicitud en `/approvals`. Pueden aprobar o rechazar con comentario.
+- **Aprobación**: cuando llega a N approves, el snapshot se aplica al doc padre (o al doc original si es fork), versión sube +1, doc vuelve a `published`. Si era fork, el fork queda `archived`.
+- **Rechazo**: cualquier rechazo cancela el request. El doc vuelve a `draft` con el comentario adjunto. El autor edita y vuelve a pedir aprobación (request nuevo, no se reabre el viejo). No hay iteración en vivo dentro del mismo request.
+- Notified recibe notificación in-app + email cuando se publica (no aprueba).
+
+## 7. Versiones y publicación
+
+Cada aprobación crea un registro `versions` en el doc (ya existe `currentVersion` y `versions[]`). Desde el menú del doc publicado se puede ver historial, diff entre versiones y restaurar como nuevo borrador.
+
+## 8. Visibilidad en home
+
+- Filtros existentes (Estado, Área, búsqueda) se aplican según rol por área:
+  - Viewer: solo ve `published` de sus áreas.
+  - Editor: ve `published` + sus propios `draft`/`in_review` + forks propios.
+  - Auditor: ve `published` + auditorías propias (sección nueva).
+  - Approver: ve `published` + `in_review` de sus áreas (cualquier autor).
+  - Super admin: ve todo.
+- Forks `archived=true` no aparecen como card separada.
+
+## 9. Cambios técnicos resumidos
+
+- Schema: nuevas tablas `area_members`, `audits`, `audit_findings`, `doc_notified`. Migrar lógica de roles globales para que `editor/approver/auditor` salgan de `area_members`.
+- Server fns: `setAreaMembers`, `createAudit`, `addFinding`, `closeAudit`, `promoteAuditToDraft`, `setDocApprovers` (super admin), `setDocNotified`.
+- Store: agregar `audits` por doc, `originDocId` ya existe. Al rechazar request, transicionar `in_review` → `draft` y guardar comentario.
+- UI:
+  - Pantalla `/admin` extendida: gestionar miembros por área + aprobadores/notified por proceso.
+  - Pantalla `/audits` (similar a `/approvals`): lista de auditorías abiertas/cerradas con su status.
+  - Modo `audit` del editor: panel lateral de hallazgos + botón "Cerrar auditoría" + "Promover a propuesta".
+  - Editor en modo modificación: si es fork, banner "Estás proponiendo cambios sobre v{N} de {Nombre}".
+  - Home: filtros respetan rol por área. Card de `published` ya muestra v{N} y aprobadores; agregar última auditoría y status (🟢🟡🔴).
+
+## Preguntas abiertas
+
+1. Notificaciones: ¿alcanza con notificaciones in-app + email transaccional, o querés también algo como Slack?
+2. Auditorías: ¿cualquier auditor puede abrir auditoría en paralelo, o solo una auditoría abierta por proceso a la vez?
+3. ¿El super admin es el único que asigna roles por área, o también el owner del área (a definir como nuevo rol)?
+
+Si confirmás esto y aclarás las 3 preguntas abiertas, paso a implementarlo por fases (schema → roles/visibilidad → auditorías → flujos de aprobación).
