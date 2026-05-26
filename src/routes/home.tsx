@@ -17,6 +17,8 @@ import {
   Shield,
   CheckCircle2,
   Clock,
+  GitCompare,
+  ScrollText,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -42,6 +44,8 @@ import { useAreas } from "@/lib/use-areas";
 import { CaptureProcessModal } from "@/components/CaptureProcessModal";
 import { FlowItLogo } from "@/components/flowit-logo";
 import { DocThumbnail } from "@/components/doc-thumbnail";
+import { ChangesDiffModal } from "@/components/ChangesDiffModal";
+import type { DiagramDocument } from "@/lib/shape-types";
 
 export const Route = createFileRoute("/home")({
   head: () => ({
