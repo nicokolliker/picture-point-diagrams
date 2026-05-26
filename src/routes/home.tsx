@@ -109,15 +109,16 @@ function HomePage() {
         <div className="flex w-[232px] shrink-0 items-center justify-center border-r border-[#EBEBEB] h-full">
           <FlowItLogo size={22} />
         </div>
-        <div className="relative w-full max-w-md">
-          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#94A3B8]" />
-          <Input
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            placeholder="Buscar procesos…"
-            className="h-9 rounded-full border-[#E2E8F0] pl-9"
-          />
-        </div>
+        <div className="flex flex-1 items-center justify-between gap-4 pl-4">
+          <div className="relative w-full max-w-md">
+            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#94A3B8]" />
+            <Input
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder="Buscar procesos…"
+              className="h-9 rounded-full border-[#E2E8F0] pl-9"
+            />
+          </div>
         <div className="flex items-center gap-2">
           <Link
             to="/approvals"
