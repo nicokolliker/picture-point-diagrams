@@ -206,7 +206,13 @@ function ApprovalsPage() {
                     )}
 
                     {/* Actions */}
-                    <div className="mt-4 flex gap-2">
+                    <div className="mt-4 flex flex-wrap gap-2">
+                      <button
+                        onClick={() => setDiffFor(r)}
+                        className="inline-flex flex-1 items-center justify-center gap-1.5 rounded-md border border-sky-200 bg-sky-50 px-3 py-1.5 text-xs font-medium text-sky-700 hover:bg-sky-100"
+                      >
+                        <GitCompare className="h-3.5 w-3.5" /> Ver cambios
+                      </button>
                       <Link
                         to="/editor"
                         search={{ doc: r.doc_id }}
@@ -214,6 +220,7 @@ function ApprovalsPage() {
                       >
                         Ver diagrama
                       </Link>
+
                       {canApprove(r) && (
                         <>
                           <Button size="sm" className="h-8 flex-1 bg-emerald-600 hover:bg-emerald-700" onClick={() => onDecide(r.id, "approve")}>
