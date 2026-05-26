@@ -380,12 +380,6 @@ function EditorPage() {
           >
             <Maximize2 className="h-4 w-4" />
           </button>
-          <button
-            onClick={() => setCaptureOpen(true)}
-            className="inline-flex items-center gap-1.5 rounded-md bg-[#5B6CF8] px-3 py-1.5 text-sm text-white hover:bg-[#4856E0]"
-          >
-            <Sparkles className="h-4 w-4" /> Capturar proceso
-          </button>
           <Button className="h-8 bg-[#5B6CF8] hover:bg-[#4856E0] text-white">
             <Share2 className="h-4 w-4" />
             Share
