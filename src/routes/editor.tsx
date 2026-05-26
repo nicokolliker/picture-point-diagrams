@@ -361,19 +361,7 @@ function EditorPage() {
             {doc.name}
           </button>
         )}
-        <button
-          onClick={() =>
-            setDocStatus(doc.id, doc.status === "draft" ? "published" : "draft")
-          }
-          className={cn(
-            "rounded-full px-2 py-0.5 text-xs font-medium",
-            doc.status === "draft"
-              ? "bg-[#FEF3C7] text-[#92400E]"
-              : "bg-[#DCFCE7] text-[#166534]",
-          )}
-        >
-          {doc.status === "draft" ? "Draft" : "Published"}
-        </button>
+        <StatusPill status={doc.status ?? "draft"} size="sm" />
         <PublishButton doc={doc} />
 
         {/* Format controls when shape selected */}
