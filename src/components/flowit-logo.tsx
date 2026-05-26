@@ -4,6 +4,8 @@ import chillitLogo from "@/assets/chillit-logo.svg";
 type Props = {
   size?: number;
   className?: string;
+  /** kept for backwards compatibility; the wordmark is always rendered */
+  withWordmark?: boolean;
 };
 
 /**
