@@ -1,5 +1,5 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   Plus,
   Search,
@@ -19,6 +19,10 @@ import {
   Clock,
   GitCompare,
   ScrollText,
+  Rocket,
+  ShieldCheck,
+  PencilRuler,
+  Check,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -80,9 +84,16 @@ function HomePage() {
   useEffect(() => { ensureSeed(); }, [ensureSeed]);
   useEffect(() => { if (!loading && !user) navigate({ to: "/login" }); }, [loading, user, navigate]);
 
+  const [selectedAreaIds, setSelectedAreaIds] = useState<string[]>([]);
+  const recientesRef = useRef<HTMLElement | null>(null);
+
   const filtered = useMemo(() => {
     return documents
-      .filter((d) => (areaId === "all" ? true : d.areaId === areaId))
+      .filter((d) => {
+        if (areaId === "all") return true;
+        const ids = d.areaIds && d.areaIds.length > 0 ? d.areaIds : d.areaId ? [d.areaId] : [];
+        return ids.includes(areaId);
+      })
       .filter((d) => (statusFilter === "all" ? true : (d.status ?? "draft") === statusFilter))
       .filter((d) => d.name.toLowerCase().includes(query.toLowerCase()))
       .sort((a, b) => b.updatedAt - a.updatedAt);
@@ -90,9 +101,15 @@ function HomePage() {
 
   const openDoc = (id: string) => navigate({ to: "/editor", search: { doc: id } });
 
+  const scrollToRecientes = () => {
+    setTimeout(() => recientesRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }), 50);
+  };
+
   const handleCreateBlank = () => {
-    const id = createDocument({ areaId: areaId === "all" ? undefined : areaId });
+    const ids = selectedAreaIds.length > 0 ? selectedAreaIds : areaId === "all" ? [] : [areaId];
+    const id = createDocument({ areaIds: ids });
     setShowNew(false);
+    setSelectedAreaIds([]);
     openDoc(id);
   };
 
@@ -100,6 +117,17 @@ function HomePage() {
     setShowNew(false);
     setCaptureOpen(true);
   };
+
+  const handleAuditar = () => {
+    setStatusFilter("in_review");
+    scrollToRecientes();
+  };
+
+  const handleModificar = () => {
+    setStatusFilter("all");
+    scrollToRecientes();
+  };
+
 
   const greeting = useMemo(() => {
     const h = new Date().getHours();
@@ -205,7 +233,10 @@ function HomePage() {
               count={documents.length}
             />
             {areas.map((a) => {
-              const count = documents.filter((d) => d.areaId === a.id).length;
+              const count = documents.filter((d) => {
+                const ids = d.areaIds && d.areaIds.length > 0 ? d.areaIds : d.areaId ? [d.areaId] : [];
+                return ids.includes(a.id);
+              }).length;
               return (
                 <AreaItem
                   key={a.id}
@@ -236,38 +267,39 @@ function HomePage() {
               {greeting}, <span className="bg-gradient-to-r from-sky-500 to-violet-500 bg-clip-text text-transparent">{userName}</span> 👋
             </h1>
             <p className="mt-1 text-sm text-[#64748B]">
-              ¿Qué proceso querés capturar hoy?
+              Elegí qué querés hacer con tus procesos hoy.
             </p>
 
             <div className="mt-5 grid grid-cols-1 gap-3 sm:grid-cols-3">
               <HeroCard
-                onClick={handleCreateBlank}
-                icon={<FilePlus2 className="h-5 w-5" />}
-                title="Empezar de cero"
-                desc="Lienzo en blanco para diseñar tu proceso."
-                gradient="from-sky-100 to-cyan-50"
-                iconBg="bg-sky-500"
-              />
-              <HeroCard
                 onClick={() => setShowNew(true)}
-                icon={<LayoutGrid className="h-5 w-5" />}
-                title="Usar template"
-                desc="Onboarding, ventas, compras y más."
-                gradient="from-violet-100 to-fuchsia-50"
-                iconBg="bg-violet-500"
+                icon={<Rocket className="h-5 w-5" />}
+                title="Iniciar nuevo proceso"
+                desc="Empezá de cero, con template o capturando una reunión."
+                gradient="from-sky-100 to-cyan-50"
+                iconBg="bg-gradient-to-br from-sky-500 to-cyan-500"
               />
               <HeroCard
-                onClick={() => setCaptureOpen(true)}
-                icon={<Sparkles className="h-5 w-5" />}
-                title="Capturar proceso"
-                desc="IA, Granola o notas manuales."
+                onClick={handleAuditar}
+                icon={<ShieldCheck className="h-5 w-5" />}
+                title="Auditar proceso"
+                desc="Revisá los procesos en auditoría y aprobá cambios."
+                gradient="from-violet-100 to-fuchsia-50"
+                iconBg="bg-gradient-to-br from-violet-500 to-fuchsia-500"
+                badge={documents.filter((d) => d.status === "in_review").length}
+              />
+              <HeroCard
+                onClick={handleModificar}
+                icon={<PencilRuler className="h-5 w-5" />}
+                title="Modificar proceso"
+                desc="Editá borradores o publicados (pasa por aprobación)."
                 gradient="from-amber-100 to-pink-50"
                 iconBg="bg-gradient-to-br from-amber-500 to-pink-500"
               />
             </div>
           </section>
 
-          <section className="px-8 py-6">
+          <section ref={recientesRef} className="px-8 py-6">
             <div className="mb-4 flex items-center justify-between">
               <h2 className="font-display text-xl font-semibold">Recientes</h2>
               <Link to="/documents" className="text-xs text-sky-600 hover:underline">
@@ -363,13 +395,50 @@ function HomePage() {
       </div>
 
       {/* New document modal */}
-      <Dialog open={showNew} onOpenChange={setShowNew}>
+      <Dialog open={showNew} onOpenChange={(o) => { setShowNew(o); if (!o) setSelectedAreaIds([]); }}>
         <DialogContent className="max-w-2xl">
           <DialogHeader>
-            <DialogTitle className="font-display text-xl">Crear nuevo proceso</DialogTitle>
-            <DialogDescription>Elegí cómo querés empezar.</DialogDescription>
+            <DialogTitle className="font-display text-xl">Iniciar nuevo proceso</DialogTitle>
+            <DialogDescription>Categorizá el proceso por área y elegí cómo empezar.</DialogDescription>
           </DialogHeader>
-          <div className="grid grid-cols-1 gap-3 pt-2 sm:grid-cols-3">
+
+          {/* Area multi-select */}
+          <div className="pt-2">
+            <div className="mb-2 text-[11px] font-semibold uppercase tracking-wider text-[#94A3B8]">
+              Áreas {selectedAreaIds.length > 0 && <span className="ml-1 normal-case text-[#475569]">· {selectedAreaIds.length} seleccionada{selectedAreaIds.length > 1 ? "s" : ""}</span>}
+            </div>
+            {areas.length === 0 ? (
+              <p className="text-xs text-[#94A3B8]">No hay áreas creadas todavía. Podés asignar una luego desde el proceso.</p>
+            ) : (
+              <div className="flex flex-wrap gap-1.5">
+                {areas.map((a) => {
+                  const sel = selectedAreaIds.includes(a.id);
+                  return (
+                    <button
+                      key={a.id}
+                      onClick={() =>
+                        setSelectedAreaIds((cur) =>
+                          cur.includes(a.id) ? cur.filter((x) => x !== a.id) : [...cur, a.id]
+                        )
+                      }
+                      className={cn(
+                        "inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs transition-all",
+                        sel
+                          ? "border-transparent bg-[#0F172A] text-white shadow-sm"
+                          : "border-[#E2E8F0] bg-white text-[#475569] hover:border-[#CBD5E1]"
+                      )}
+                    >
+                      <span className="h-2 w-2 rounded-full" style={{ background: a.color }} />
+                      {a.name}
+                      {sel && <Check className="h-3 w-3" />}
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+
+          <div className="mt-1 grid grid-cols-1 gap-3 pt-2 sm:grid-cols-3">
             <NewOption
               onClick={handleCreateBlank}
               icon={<FilePlus2 className="h-6 w-6" />}
@@ -394,6 +463,7 @@ function HomePage() {
           </div>
         </DialogContent>
       </Dialog>
+
 
       {/* Rename modal */}
       <Dialog open={!!renamingId} onOpenChange={(o) => { if (!o) setRenamingId(null); }}>
@@ -428,7 +498,11 @@ function HomePage() {
         </DialogContent>
       </Dialog>
 
-      <CaptureProcessModal open={captureOpen} onClose={() => setCaptureOpen(false)} />
+      <CaptureProcessModal
+        open={captureOpen}
+        onClose={() => { setCaptureOpen(false); setSelectedAreaIds([]); }}
+        defaultAreaIds={selectedAreaIds.length > 0 ? selectedAreaIds : (areaId !== "all" ? [areaId] : undefined)}
+      />
 
       {auditDoc && (
         <ChangesDiffModal
@@ -484,7 +558,7 @@ function AreaItem({ selected, onClick, color, label, count }: { selected: boolea
   );
 }
 
-function HeroCard({ onClick, icon, title, desc, gradient, iconBg }: { onClick: () => void; icon: React.ReactNode; title: string; desc: string; gradient: string; iconBg: string }) {
+function HeroCard({ onClick, icon, title, desc, gradient, iconBg, badge }: { onClick: () => void; icon: React.ReactNode; title: string; desc: string; gradient: string; iconBg: string; badge?: number }) {
   return (
     <button
       onClick={onClick}
@@ -493,8 +567,15 @@ function HeroCard({ onClick, icon, title, desc, gradient, iconBg }: { onClick: (
         gradient
       )}
     >
-      <div className={cn("mb-3 inline-flex h-10 w-10 items-center justify-center rounded-xl text-white shadow-sm", iconBg)}>
-        {icon}
+      <div className="mb-3 flex items-center justify-between">
+        <div className={cn("inline-flex h-10 w-10 items-center justify-center rounded-xl text-white shadow-sm", iconBg)}>
+          {icon}
+        </div>
+        {badge !== undefined && badge > 0 && (
+          <span className="inline-flex h-6 min-w-6 items-center justify-center rounded-full bg-white px-2 text-[11px] font-semibold text-[#0F172A] shadow-sm">
+            {badge}
+          </span>
+        )}
       </div>
       <div className="font-display text-base font-semibold text-[#0F172A]">{title}</div>
       <div className="mt-0.5 text-xs text-[#475569]">{desc}</div>
