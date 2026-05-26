@@ -183,6 +183,17 @@ function HomePage() {
           </nav>
 
           <div className="mt-6 mb-2 px-3 text-[10px] font-semibold uppercase tracking-wider text-[#94A3B8]">
+            Estado
+          </div>
+          <div className="flex flex-col gap-0.5">
+            <StatusItem selected={statusFilter === "all"} onClick={() => setStatusFilter("all")} dotClass="bg-slate-300" label="Todos" count={documents.length} />
+            <StatusItem selected={statusFilter === "draft"} onClick={() => setStatusFilter("draft")} dotClass="bg-amber-400" label="Borradores" count={documents.filter((d) => (d.status ?? "draft") === "draft").length} />
+            <StatusItem selected={statusFilter === "in_review"} onClick={() => setStatusFilter("in_review")} dotClass="bg-sky-500" label="En auditoría" count={documents.filter((d) => d.status === "in_review").length} />
+            <StatusItem selected={statusFilter === "published"} onClick={() => setStatusFilter("published")} dotClass="bg-emerald-500" label="Publicados" count={documents.filter((d) => d.status === "published").length} />
+          </div>
+
+
+          <div className="mt-6 mb-2 px-3 text-[10px] font-semibold uppercase tracking-wider text-[#94A3B8]">
             Áreas
           </div>
           <div className="flex flex-col gap-0.5">
