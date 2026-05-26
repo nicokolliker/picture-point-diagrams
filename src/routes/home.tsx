@@ -304,6 +304,8 @@ function HomePage() {
                         <span className="absolute right-2 top-2 inline-flex items-center gap-1 rounded-full bg-white/90 px-2 py-0.5 text-[10px] font-medium text-[#475569] shadow-sm">
                           {doc.status === "published" ? (
                             <><CheckCircle2 className="h-2.5 w-2.5 text-emerald-600" /> Publicado</>
+                          ) : doc.status === "in_review" ? (
+                            <><GitCompare className="h-2.5 w-2.5 text-sky-600" /> En auditoría</>
                           ) : (
                             <><Clock className="h-2.5 w-2.5 text-amber-600" /> Borrador</>
                           )}
@@ -330,6 +332,11 @@ function HomePage() {
                               <DropdownMenuItem onSelect={() => duplicateDocument(doc.id)}>
                                 <Copy className="h-4 w-4" /> Duplicar
                               </DropdownMenuItem>
+                              {doc.baseline && (
+                                <DropdownMenuItem onSelect={() => setAuditDoc(doc)}>
+                                  <ScrollText className="h-4 w-4" /> Ver auditoría
+                                </DropdownMenuItem>
+                              )}
                               <DropdownMenuItem
                                 onSelect={() => deleteDocument(doc.id)}
                                 className="text-[#DC2626] focus:text-[#DC2626]"
