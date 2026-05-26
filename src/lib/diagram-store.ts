@@ -14,7 +14,7 @@ import type {
   ShapeType,
   Status,
 } from "./shape-types";
-import { createDemoDocument } from "./preloaded-demo";
+import { createDemoDocument, createSeedTemplates } from "./preloaded-demo";
 
 interface State {
   documents: DiagramDocument[];
@@ -37,6 +37,8 @@ interface State {
   setDocStatus: (id: string, status: "draft" | "in_review" | "published") => void;
   captureBaseline: (id: string) => void;
   discardChanges: (id: string) => void;
+  saveAsTemplate: (id: string) => string;
+  createFromTemplate: (templateId: string, opts?: { name?: string; areaIds?: string[] }) => string | null;
 
   addShape: (docId: string, pageId: string, shape: Shape) => void;
   updateShape: (docId: string, pageId: string, id: string, patch: Partial<Shape>) => void;
@@ -169,9 +171,14 @@ export const useDiagramStore = create<State>()(
         );
       },
       ensureSeed: () => {
-        if (get().documents.length === 0) {
-          set({ documents: [createDemoDocument()] });
+        const cur = get().documents;
+        const next: DiagramDocument[] = [...cur];
+        if (next.length === 0) next.unshift(createDemoDocument());
+        // Always make sure seed templates exist (idempotent by id).
+        for (const t of createSeedTemplates()) {
+          if (!next.some((d) => d.id === t.id)) next.push(t);
         }
+        if (next.length !== cur.length) set({ documents: next });
       },
       createDocument: (opts = {}) => {
         const { name = "Sin título", areaId, areaIds } = opts;
