@@ -70,10 +70,12 @@ function HomePage() {
 
   const [query, setQuery] = useState("");
   const [areaId, setAreaId] = useState<string>("all");
+  const [statusFilter, setStatusFilter] = useState<"all" | "draft" | "in_review" | "published">("all");
   const [showNew, setShowNew] = useState(false);
   const [renamingId, setRenamingId] = useState<string | null>(null);
   const [renameValue, setRenameValue] = useState("");
   const [captureOpen, setCaptureOpen] = useState(false);
+  const [auditDoc, setAuditDoc] = useState<DiagramDocument | null>(null);
 
   useEffect(() => { ensureSeed(); }, [ensureSeed]);
   useEffect(() => { if (!loading && !user) navigate({ to: "/login" }); }, [loading, user, navigate]);
@@ -81,9 +83,10 @@ function HomePage() {
   const filtered = useMemo(() => {
     return documents
       .filter((d) => (areaId === "all" ? true : d.areaId === areaId))
+      .filter((d) => (statusFilter === "all" ? true : (d.status ?? "draft") === statusFilter))
       .filter((d) => d.name.toLowerCase().includes(query.toLowerCase()))
       .sort((a, b) => b.updatedAt - a.updatedAt);
-  }, [documents, areaId, query]);
+  }, [documents, areaId, statusFilter, query]);
 
   const openDoc = (id: string) => navigate({ to: "/editor", search: { doc: id } });
 
