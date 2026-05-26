@@ -425,6 +425,11 @@ function HomePage() {
                                   <ScrollText className="h-4 w-4" /> Ver auditoría
                                 </DropdownMenuItem>
                               )}
+                              {doc.status === "published" && (
+                                <DropdownMenuItem onSelect={() => setVersionsDoc(doc)}>
+                                  <HistoryIcon className="h-4 w-4" /> Ver versiones
+                                </DropdownMenuItem>
+                              )}
                               <DropdownMenuItem
                                 onSelect={() => deleteDocument(doc.id)}
                                 className="text-[#DC2626] focus:text-[#DC2626]"
@@ -437,9 +442,26 @@ function HomePage() {
                       </div>
                       <div className="p-3">
                         <div className="truncate font-display text-sm font-semibold text-[#0F172A]">{doc.name}</div>
-                        <div className="mt-0.5 text-xs text-[#94A3B8]">
-                          {doc.pages[0]?.shapes.length ?? 0} shapes · {timeAgo(doc.updatedAt)}
+                        <div className="mt-0.5 flex items-center gap-1.5 text-xs text-[#94A3B8]">
+                          <span>{doc.pages[0]?.shapes.length ?? 0} shapes</span>
+                          <span>·</span>
+                          <span>{timeAgo(doc.updatedAt)}</span>
+                          {doc.status === "published" && doc.currentVersion != null && (
+                            <>
+                              <span>·</span>
+                              <span className="font-medium text-emerald-600">v{doc.currentVersion}</span>
+                            </>
+                          )}
                         </div>
+                        {doc.status === "published" && (doc.versions?.length ?? 0) > 0 && (
+                          <div className="mt-1 flex items-center gap-1 text-[10px] text-[#94A3B8]">
+                            <UsersIcon className="h-2.5 w-2.5" />
+                            <span>
+                              {doc.versions?.[doc.versions.length - 1]?.approverIds.length ?? 0} aprobador
+                              {(doc.versions?.[doc.versions.length - 1]?.approverIds.length ?? 0) === 1 ? "" : "es"}
+                            </span>
+                          </div>
+                        )}
                       </div>
                     </div>
                   );
@@ -575,6 +597,14 @@ function HomePage() {
         mode={pickerMode ?? "edit"}
         onClose={() => setPickerMode(null)}
       />
+
+      {versionsDoc && (
+        <VersionsModal
+          doc={versionsDoc}
+          open={!!versionsDoc}
+          onClose={() => setVersionsDoc(null)}
+        />
+      )}
     </div>
   );
 }
