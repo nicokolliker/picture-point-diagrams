@@ -112,9 +112,9 @@ function HomePage() {
   return (
     <div className="flex h-screen flex-col bg-[#FAFBFF] text-[#0F172A]">
       {/* Top navbar */}
-      <header className="flex h-14 items-center border-b border-[#EBEBEB] bg-white pr-4">
-        <div className="flex w-[232px] shrink-0 items-center justify-center border-r border-[#EBEBEB] h-full">
-          <FlowItLogo size={22} />
+      <header className="flex h-16 items-center border-b border-[#EBEBEB] bg-white pr-4">
+        <div className="flex w-[232px] shrink-0 items-center pl-5 border-r border-[#EBEBEB] h-full">
+          <FlowItLogo size={34} />
         </div>
         <div className="flex flex-1 items-center justify-between gap-4 pl-4">
           <div className="relative w-full max-w-md">
