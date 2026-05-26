@@ -395,13 +395,50 @@ function HomePage() {
       </div>
 
       {/* New document modal */}
-      <Dialog open={showNew} onOpenChange={setShowNew}>
+      <Dialog open={showNew} onOpenChange={(o) => { setShowNew(o); if (!o) setSelectedAreaIds([]); }}>
         <DialogContent className="max-w-2xl">
           <DialogHeader>
-            <DialogTitle className="font-display text-xl">Crear nuevo proceso</DialogTitle>
-            <DialogDescription>Elegí cómo querés empezar.</DialogDescription>
+            <DialogTitle className="font-display text-xl">Iniciar nuevo proceso</DialogTitle>
+            <DialogDescription>Categorizá el proceso por área y elegí cómo empezar.</DialogDescription>
           </DialogHeader>
-          <div className="grid grid-cols-1 gap-3 pt-2 sm:grid-cols-3">
+
+          {/* Area multi-select */}
+          <div className="pt-2">
+            <div className="mb-2 text-[11px] font-semibold uppercase tracking-wider text-[#94A3B8]">
+              Áreas {selectedAreaIds.length > 0 && <span className="ml-1 normal-case text-[#475569]">· {selectedAreaIds.length} seleccionada{selectedAreaIds.length > 1 ? "s" : ""}</span>}
+            </div>
+            {areas.length === 0 ? (
+              <p className="text-xs text-[#94A3B8]">No hay áreas creadas todavía. Podés asignar una luego desde el proceso.</p>
+            ) : (
+              <div className="flex flex-wrap gap-1.5">
+                {areas.map((a) => {
+                  const sel = selectedAreaIds.includes(a.id);
+                  return (
+                    <button
+                      key={a.id}
+                      onClick={() =>
+                        setSelectedAreaIds((cur) =>
+                          cur.includes(a.id) ? cur.filter((x) => x !== a.id) : [...cur, a.id]
+                        )
+                      }
+                      className={cn(
+                        "inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs transition-all",
+                        sel
+                          ? "border-transparent bg-[#0F172A] text-white shadow-sm"
+                          : "border-[#E2E8F0] bg-white text-[#475569] hover:border-[#CBD5E1]"
+                      )}
+                    >
+                      <span className="h-2 w-2 rounded-full" style={{ background: a.color }} />
+                      {a.name}
+                      {sel && <Check className="h-3 w-3" />}
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+
+          <div className="mt-1 grid grid-cols-1 gap-3 pt-2 sm:grid-cols-3">
             <NewOption
               onClick={handleCreateBlank}
               icon={<FilePlus2 className="h-6 w-6" />}
@@ -426,6 +463,7 @@ function HomePage() {
           </div>
         </DialogContent>
       </Dialog>
+
 
       {/* Rename modal */}
       <Dialog open={!!renamingId} onOpenChange={(o) => { if (!o) setRenamingId(null); }}>
