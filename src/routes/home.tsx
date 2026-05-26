@@ -17,6 +17,8 @@ import {
   Shield,
   CheckCircle2,
   Clock,
+  GitCompare,
+  ScrollText,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -42,6 +44,8 @@ import { useAreas } from "@/lib/use-areas";
 import { CaptureProcessModal } from "@/components/CaptureProcessModal";
 import { FlowItLogo } from "@/components/flowit-logo";
 import { DocThumbnail } from "@/components/doc-thumbnail";
+import { ChangesDiffModal } from "@/components/ChangesDiffModal";
+import type { DiagramDocument } from "@/lib/shape-types";
 
 export const Route = createFileRoute("/home")({
   head: () => ({
@@ -66,10 +70,12 @@ function HomePage() {
 
   const [query, setQuery] = useState("");
   const [areaId, setAreaId] = useState<string>("all");
+  const [statusFilter, setStatusFilter] = useState<"all" | "draft" | "in_review" | "published">("all");
   const [showNew, setShowNew] = useState(false);
   const [renamingId, setRenamingId] = useState<string | null>(null);
   const [renameValue, setRenameValue] = useState("");
   const [captureOpen, setCaptureOpen] = useState(false);
+  const [auditDoc, setAuditDoc] = useState<DiagramDocument | null>(null);
 
   useEffect(() => { ensureSeed(); }, [ensureSeed]);
   useEffect(() => { if (!loading && !user) navigate({ to: "/login" }); }, [loading, user, navigate]);
@@ -77,9 +83,10 @@ function HomePage() {
   const filtered = useMemo(() => {
     return documents
       .filter((d) => (areaId === "all" ? true : d.areaId === areaId))
+      .filter((d) => (statusFilter === "all" ? true : (d.status ?? "draft") === statusFilter))
       .filter((d) => d.name.toLowerCase().includes(query.toLowerCase()))
       .sort((a, b) => b.updatedAt - a.updatedAt);
-  }, [documents, areaId, query]);
+  }, [documents, areaId, statusFilter, query]);
 
   const openDoc = (id: string) => navigate({ to: "/editor", search: { doc: id } });
 
@@ -105,9 +112,9 @@ function HomePage() {
   return (
     <div className="flex h-screen flex-col bg-[#FAFBFF] text-[#0F172A]">
       {/* Top navbar */}
-      <header className="flex h-14 items-center border-b border-[#EBEBEB] bg-white pr-4">
-        <div className="flex w-[232px] shrink-0 items-center justify-center border-r border-[#EBEBEB] h-full">
-          <FlowItLogo size={22} />
+      <header className="flex h-16 items-center border-b border-[#EBEBEB] bg-white pr-4">
+        <div className="flex w-[232px] shrink-0 items-center pl-5 border-r border-[#EBEBEB] h-full">
+          <FlowItLogo size={34} />
         </div>
         <div className="flex flex-1 items-center justify-between gap-4 pl-4">
           <div className="relative w-full max-w-md">
@@ -174,6 +181,17 @@ function HomePage() {
             <SidebarLink icon={LayoutGrid} label="Templates" />
             <SidebarLink icon={Plug} label="Integrations" to="/integrations" />
           </nav>
+
+          <div className="mt-6 mb-2 px-3 text-[10px] font-semibold uppercase tracking-wider text-[#94A3B8]">
+            Estado
+          </div>
+          <div className="flex flex-col gap-0.5">
+            <StatusItem selected={statusFilter === "all"} onClick={() => setStatusFilter("all")} dotClass="bg-slate-300" label="Todos" count={documents.length} />
+            <StatusItem selected={statusFilter === "draft"} onClick={() => setStatusFilter("draft")} dotClass="bg-amber-400" label="Borradores" count={documents.filter((d) => (d.status ?? "draft") === "draft").length} />
+            <StatusItem selected={statusFilter === "in_review"} onClick={() => setStatusFilter("in_review")} dotClass="bg-sky-500" label="En auditoría" count={documents.filter((d) => d.status === "in_review").length} />
+            <StatusItem selected={statusFilter === "published"} onClick={() => setStatusFilter("published")} dotClass="bg-emerald-500" label="Publicados" count={documents.filter((d) => d.status === "published").length} />
+          </div>
+
 
           <div className="mt-6 mb-2 px-3 text-[10px] font-semibold uppercase tracking-wider text-[#94A3B8]">
             Áreas
@@ -286,6 +304,8 @@ function HomePage() {
                         <span className="absolute right-2 top-2 inline-flex items-center gap-1 rounded-full bg-white/90 px-2 py-0.5 text-[10px] font-medium text-[#475569] shadow-sm">
                           {doc.status === "published" ? (
                             <><CheckCircle2 className="h-2.5 w-2.5 text-emerald-600" /> Publicado</>
+                          ) : doc.status === "in_review" ? (
+                            <><GitCompare className="h-2.5 w-2.5 text-sky-600" /> En auditoría</>
                           ) : (
                             <><Clock className="h-2.5 w-2.5 text-amber-600" /> Borrador</>
                           )}
@@ -312,6 +332,11 @@ function HomePage() {
                               <DropdownMenuItem onSelect={() => duplicateDocument(doc.id)}>
                                 <Copy className="h-4 w-4" /> Duplicar
                               </DropdownMenuItem>
+                              {doc.baseline && (
+                                <DropdownMenuItem onSelect={() => setAuditDoc(doc)}>
+                                  <ScrollText className="h-4 w-4" /> Ver auditoría
+                                </DropdownMenuItem>
+                              )}
                               <DropdownMenuItem
                                 onSelect={() => deleteDocument(doc.id)}
                                 className="text-[#DC2626] focus:text-[#DC2626]"
@@ -404,7 +429,33 @@ function HomePage() {
       </Dialog>
 
       <CaptureProcessModal open={captureOpen} onClose={() => setCaptureOpen(false)} />
+
+      {auditDoc && (
+        <ChangesDiffModal
+          open={!!auditDoc}
+          onClose={() => setAuditDoc(null)}
+          prev={auditDoc.baseline ? ({ ...auditDoc, pages: auditDoc.baseline.pages } as DiagramDocument) : null}
+          next={auditDoc}
+          title={`Auditoría · ${auditDoc.name}`}
+        />
+      )}
     </div>
+  );
+}
+
+function StatusItem({ selected, onClick, dotClass, label, count }: { selected: boolean; onClick: () => void; dotClass: string; label: string; count: number }) {
+  return (
+    <button
+      onClick={onClick}
+      className={cn(
+        "flex items-center gap-2 rounded-lg px-3 py-1.5 text-sm transition-colors",
+        selected ? "bg-[#F1F5F9] font-medium text-[#0F172A]" : "text-[#475569] hover:bg-[#F8FAFC]"
+      )}
+    >
+      <span className={cn("h-2 w-2 rounded-full", dotClass)} />
+      <span className="flex-1 truncate text-left">{label}</span>
+      <span className="text-xs text-[#94A3B8]">{count}</span>
+    </button>
   );
 }
 

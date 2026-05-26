@@ -128,7 +128,7 @@ export interface DiagramDocument {
   category: string;
   areaId?: string;
   updatedAt: number;
-  status: "draft" | "published";
+  status: "draft" | "in_review" | "published";
   pages: Page[];
   /** Snapshot of the last "clean" / approved version. Used to compute dirty state and to discard pending changes. */
   baseline?: {
