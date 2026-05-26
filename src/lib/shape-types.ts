@@ -130,6 +130,8 @@ export interface DiagramDocument {
   areaIds?: string[];
   updatedAt: number;
   status: "draft" | "in_review" | "published";
+  /** Reusable template that doesn't show up in the regular processes list. */
+  isTemplate?: boolean;
   pages: Page[];
   /** Snapshot of the last "clean" / approved version. Used to compute dirty state and to discard pending changes. */
   baseline?: {
