@@ -130,7 +130,13 @@ export interface DiagramDocument {
   updatedAt: number;
   status: "draft" | "published";
   pages: Page[];
+  /** Snapshot of the last "clean" / approved version. Used to compute dirty state and to discard pending changes. */
+  baseline?: {
+    pages: Page[];
+    capturedAt: number;
+  };
 }
+
 
 export const STATUS_COLORS: Record<Status, { bg: string; label: string }> = {
   funciona: { bg: "#16A34A", label: "Funciona" },
