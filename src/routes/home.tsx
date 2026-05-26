@@ -92,7 +92,33 @@ function HomePage() {
   useEffect(() => { if (!loading && !user) navigate({ to: "/login" }); }, [loading, user, navigate]);
   useEffect(() => {
     if (!user) return;
-    import("@/lib/sync-approved").then((m) => m.syncApprovedSnapshots()).catch(() => {});
+    let alive = true;
+    const run = async () => {
+      try {
+        const m = await import("@/lib/sync-approved");
+        const n = await m.syncApprovedSnapshots();
+        if (alive && n > 0) {
+          const { toast } = await import("sonner");
+          toast.success(
+            n === 1 ? "Un proceso fue publicado" : `${n} procesos fueron publicados`,
+          );
+        }
+      } catch { /* noop */ }
+    };
+    run();
+    const onFocus = () => run();
+    const onVis = () => { if (document.visibilityState === "visible") run(); };
+    window.addEventListener("focus", onFocus);
+    document.addEventListener("visibilitychange", onVis);
+    const interval = window.setInterval(() => {
+      if (document.visibilityState === "visible") run();
+    }, 20000);
+    return () => {
+      alive = false;
+      window.removeEventListener("focus", onFocus);
+      document.removeEventListener("visibilitychange", onVis);
+      window.clearInterval(interval);
+    };
   }, [user?.id]);
 
   const [selectedAreaIds, setSelectedAreaIds] = useState<string[]>([]);
