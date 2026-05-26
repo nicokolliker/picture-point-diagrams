@@ -213,6 +213,14 @@ function EditorPage() {
 
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [captureOpen, setCaptureOpen] = useState(false);
+  // Initialize a baseline for documents that don't have one yet (e.g. legacy docs
+  // or freshly published ones). This makes the "Modo edición" diff meaningful.
+  useEffect(() => {
+    if (doc && !doc.baseline && doc.status === "published") {
+      useDiagramStore.getState().captureBaseline(doc.id);
+    }
+  }, [doc?.id]);
+
   useEffect(() => {
     if (pendingSelectRef.current && page) {
       const id = pendingSelectRef.current;
