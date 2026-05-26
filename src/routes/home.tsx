@@ -83,15 +83,23 @@ function HomePage() {
   const [captureOpen, setCaptureOpen] = useState(false);
   const [auditDoc, setAuditDoc] = useState<DiagramDocument | null>(null);
   const [pickerMode, setPickerMode] = useState<"audit" | "edit" | null>(null);
+  const [versionsDoc, setVersionsDoc] = useState<DiagramDocument | null>(null);
 
   useEffect(() => { ensureSeed(); }, [ensureSeed]);
   useEffect(() => { if (!loading && !user) navigate({ to: "/login" }); }, [loading, user, navigate]);
+  useEffect(() => {
+    if (!user) return;
+    import("@/lib/sync-approved").then((m) => m.syncApprovedSnapshots()).catch(() => {});
+  }, [user?.id]);
 
   const [selectedAreaIds, setSelectedAreaIds] = useState<string[]>([]);
   const recientesRef = useRef<HTMLElement | null>(null);
 
-  // Exclude templates from regular doc lists.
-  const realDocs = useMemo(() => documents.filter((d) => !d.isTemplate), [documents]);
+  // Exclude templates and archived (merged fork drafts).
+  const realDocs = useMemo(
+    () => documents.filter((d) => !d.isTemplate && !d.archived),
+    [documents],
+  );
 
   const filtered = useMemo(() => {
     return realDocs
