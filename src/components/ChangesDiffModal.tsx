@@ -289,19 +289,32 @@ export function ChangesDiffModal({
           <div className="h-[460px] rounded-xl border border-[#E2E8F0] bg-gradient-to-br from-slate-50 to-white p-2">
             <DiffCanvas prev={prev} next={next} diff={diff} />
           </div>
+        ) : !prev ? (
+          // First version: no "before" exists, so show a full-width "after" with a clear empty-state explainer.
+          <div className="grid h-[460px] grid-cols-[260px_1fr] gap-3">
+            <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-slate-200 bg-slate-50/60 p-6 text-center">
+              <div className="mb-3 inline-flex h-12 w-12 items-center justify-center rounded-full bg-white shadow-sm">
+                <GitCompare className="h-5 w-5 text-slate-400" />
+              </div>
+              <div className="font-display text-sm font-semibold text-slate-700">Primera versión</div>
+              <p className="mt-1 text-[11px] leading-relaxed text-slate-500">
+                Aún no hay versión publicada para comparar. Todo lo de la derecha cuenta como contenido nuevo.
+              </p>
+            </div>
+            <div className="rounded-xl border border-emerald-200 bg-emerald-50/40 p-2">
+              <div className="mb-1 px-1 text-[11px] font-semibold uppercase tracking-wide text-emerald-700">
+                Versión propuesta
+              </div>
+              <DiffCanvas prev={null} next={next} diff={computeDiff(null, next)} />
+            </div>
+          </div>
         ) : (
           <div className="grid h-[460px] grid-cols-2 gap-3">
             <div className="rounded-xl border border-[#E2E8F0] bg-slate-50 p-2">
               <div className="mb-1 px-1 text-[11px] font-semibold uppercase tracking-wide text-slate-500">
-                Versión anterior
+                Versión anterior aprobada
               </div>
-              {prev ? (
-                <DiffCanvas prev={null} next={prev} diff={computeDiff(null, prev)} />
-              ) : (
-                <div className="flex h-full items-center justify-center text-xs text-slate-400">
-                  Sin versión previa
-                </div>
-              )}
+              <DiffCanvas prev={null} next={prev} diff={computeDiff(null, prev)} />
             </div>
             <div className="rounded-xl border border-emerald-200 bg-emerald-50/40 p-2">
               <div className="mb-1 px-1 text-[11px] font-semibold uppercase tracking-wide text-emerald-700">
