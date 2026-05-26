@@ -233,7 +233,10 @@ function HomePage() {
               count={documents.length}
             />
             {areas.map((a) => {
-              const count = documents.filter((d) => d.areaId === a.id).length;
+              const count = documents.filter((d) => {
+                const ids = d.areaIds && d.areaIds.length > 0 ? d.areaIds : d.areaId ? [d.areaId] : [];
+                return ids.includes(a.id);
+              }).length;
               return (
                 <AreaItem
                   key={a.id}
@@ -264,38 +267,39 @@ function HomePage() {
               {greeting}, <span className="bg-gradient-to-r from-sky-500 to-violet-500 bg-clip-text text-transparent">{userName}</span> 👋
             </h1>
             <p className="mt-1 text-sm text-[#64748B]">
-              ¿Qué proceso querés capturar hoy?
+              Elegí qué querés hacer con tus procesos hoy.
             </p>
 
             <div className="mt-5 grid grid-cols-1 gap-3 sm:grid-cols-3">
               <HeroCard
-                onClick={handleCreateBlank}
-                icon={<FilePlus2 className="h-5 w-5" />}
-                title="Empezar de cero"
-                desc="Lienzo en blanco para diseñar tu proceso."
-                gradient="from-sky-100 to-cyan-50"
-                iconBg="bg-sky-500"
-              />
-              <HeroCard
                 onClick={() => setShowNew(true)}
-                icon={<LayoutGrid className="h-5 w-5" />}
-                title="Usar template"
-                desc="Onboarding, ventas, compras y más."
-                gradient="from-violet-100 to-fuchsia-50"
-                iconBg="bg-violet-500"
+                icon={<Rocket className="h-5 w-5" />}
+                title="Iniciar nuevo proceso"
+                desc="Empezá de cero, con template o capturando una reunión."
+                gradient="from-sky-100 to-cyan-50"
+                iconBg="bg-gradient-to-br from-sky-500 to-cyan-500"
               />
               <HeroCard
-                onClick={() => setCaptureOpen(true)}
-                icon={<Sparkles className="h-5 w-5" />}
-                title="Capturar proceso"
-                desc="IA, Granola o notas manuales."
+                onClick={handleAuditar}
+                icon={<ShieldCheck className="h-5 w-5" />}
+                title="Auditar proceso"
+                desc="Revisá los procesos en auditoría y aprobá cambios."
+                gradient="from-violet-100 to-fuchsia-50"
+                iconBg="bg-gradient-to-br from-violet-500 to-fuchsia-500"
+                badge={documents.filter((d) => d.status === "in_review").length}
+              />
+              <HeroCard
+                onClick={handleModificar}
+                icon={<PencilRuler className="h-5 w-5" />}
+                title="Modificar proceso"
+                desc="Editá borradores o publicados (pasa por aprobación)."
                 gradient="from-amber-100 to-pink-50"
                 iconBg="bg-gradient-to-br from-amber-500 to-pink-500"
               />
             </div>
           </section>
 
-          <section className="px-8 py-6">
+          <section ref={recientesRef} className="px-8 py-6">
             <div className="mb-4 flex items-center justify-between">
               <h2 className="font-display text-xl font-semibold">Recientes</h2>
               <Link to="/documents" className="text-xs text-sky-600 hover:underline">
