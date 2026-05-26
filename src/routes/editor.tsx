@@ -97,6 +97,8 @@ import { PdfCanvasViewer } from "@/components/pdf-canvas-viewer";
 import { PeoplePicker } from "@/components/people-picker";
 import { IconTip } from "@/components/icon-tooltip";
 import { PublishButton } from "@/components/PublishButton";
+import { EditModeBar } from "@/components/EditModeBar";
+
 
 interface EditorSearch {
   doc?: string;
