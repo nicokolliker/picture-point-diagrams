@@ -35,6 +35,9 @@ interface State {
   duplicateDocument: (id: string) => void;
   renameDocument: (id: string, name: string) => void;
   setDocStatus: (id: string, status: "draft" | "published") => void;
+  captureBaseline: (id: string) => void;
+  discardChanges: (id: string) => void;
+
   addShape: (docId: string, pageId: string, shape: Shape) => void;
   updateShape: (docId: string, pageId: string, id: string, patch: Partial<Shape>) => void;
   updateShapes: (docId: string, pageId: string, ids: string[], patch: Partial<Shape>) => void;
