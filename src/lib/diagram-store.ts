@@ -248,6 +248,58 @@ export const useDiagramStore = create<State>()(
           ),
         );
       },
+      saveAsTemplate: (id) => {
+        const src = get().documents.find((d) => d.id === id);
+        if (!src) return id;
+        const tplId = `tpl-${Date.now()}`;
+        const copy: DiagramDocument = JSON.parse(JSON.stringify(src));
+        copy.id = tplId;
+        copy.name = src.name.includes("template")
+          ? src.name
+          : `${src.name} (template)`;
+        copy.isTemplate = true;
+        copy.status = "published";
+        copy.baseline = undefined;
+        copy.updatedAt = Date.now();
+        commit([copy, ...get().documents]);
+        return tplId;
+      },
+      createFromTemplate: (templateId, opts = {}) => {
+        const src = get().documents.find(
+          (d) => d.id === templateId && d.isTemplate,
+        );
+        if (!src) return null;
+        const id = `d${Date.now()}`;
+        const cloned: DiagramDocument = JSON.parse(JSON.stringify(src));
+        // Re-id pages and shapes/connectors so they don't collide.
+        const now = Date.now();
+        cloned.id = id;
+        cloned.name = opts.name ?? src.name.replace(/^Template\s*·\s*/i, "");
+        cloned.isTemplate = false;
+        cloned.status = "draft";
+        cloned.baseline = undefined;
+        cloned.updatedAt = now;
+        cloned.areaIds = opts.areaIds && opts.areaIds.length > 0 ? opts.areaIds : undefined;
+        cloned.areaId = cloned.areaIds?.[0];
+        cloned.pages = cloned.pages.map((p, pi) => {
+          const newPageId = `p${now}${pi}`;
+          const idMap = new Map<string, string>();
+          const shapes = p.shapes.map((s, si) => {
+            const newId = `s${now}${pi}${si}`;
+            idMap.set(s.id, newId);
+            return { ...s, id: newId };
+          });
+          const connectors = p.connectors.map((c, ci) => ({
+            ...c,
+            id: `c${now}${pi}${ci}`,
+            fromId: idMap.get(c.fromId) ?? c.fromId,
+            toId: idMap.get(c.toId) ?? c.toId,
+          }));
+          return { ...p, id: newPageId, shapes, connectors };
+        });
+        commit([cloned, ...get().documents]);
+        return id;
+      },
 
       addShape: (docId, pageId, shape) =>
         commit(
