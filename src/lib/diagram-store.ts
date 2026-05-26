@@ -6,6 +6,7 @@ import type {
   DiagramDocument,
   DocEntry,
   DocType,
+  DocVersion,
   ImprovementCategory,
   ImprovementEntry,
   Page,
@@ -39,6 +40,21 @@ interface State {
   discardChanges: (id: string) => void;
   saveAsTemplate: (id: string) => string;
   createFromTemplate: (templateId: string, opts?: { name?: string; areaIds?: string[] }) => string | null;
+  forkPublishedToDraft: (docId: string) => string | null;
+  applyApprovedSnapshot: (
+    docId: string,
+    snapshot: DiagramDocument,
+    meta: {
+      requestId: string;
+      versionNumber: number;
+      approvedAt: number;
+      requesterId: string;
+      approverIds: string[];
+      note?: string;
+      forkedFromDocId?: string;
+    },
+  ) => void;
+  restoreVersionAsDraft: (docId: string, versionNumber: number) => string | null;
 
   addShape: (docId: string, pageId: string, shape: Shape) => void;
   updateShape: (docId: string, pageId: string, id: string, patch: Partial<Shape>) => void;
