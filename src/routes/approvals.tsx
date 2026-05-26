@@ -254,9 +254,33 @@ function ApprovalsPage() {
           </div>
         )}
       </main>
+
+      {diffFor && (
+        <ChangesDiffModal
+          open={!!diffFor}
+          onClose={() => setDiffFor(null)}
+          prev={
+            reqs
+              .filter(
+                (x) =>
+                  x.doc_id === diffFor.doc_id &&
+                  x.status === "approved" &&
+                  new Date(x.created_at).getTime() <
+                    new Date(diffFor.created_at).getTime(),
+              )
+              .sort(
+                (a, b) =>
+                  new Date(b.created_at).getTime() - new Date(a.created_at).getTime(),
+              )[0]?.snapshot ?? null
+          }
+          next={diffFor.snapshot}
+          title={`${diffFor.doc_name} · v${diffFor.version_number}`}
+        />
+      )}
     </div>
   );
 }
+
 
 function TabBtn({ active, onClick, icon, label, count, accent }: { active: boolean; onClick: () => void; icon: React.ReactNode; label: string; count: number; accent?: boolean }) {
   return (
