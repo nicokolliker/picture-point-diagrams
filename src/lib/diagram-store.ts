@@ -210,6 +210,36 @@ export const useDiagramStore = create<State>()(
             d.id === id ? { ...d, status, updatedAt: Date.now() } : d,
           )
         ),
+      captureBaseline: (id) =>
+        set({
+          documents: get().documents.map((d) =>
+            d.id === id
+              ? {
+                  ...d,
+                  baseline: {
+                    pages: JSON.parse(JSON.stringify(d.pages)) as Page[],
+                    capturedAt: Date.now(),
+                  },
+                }
+              : d,
+          ),
+        }),
+      discardChanges: (id) => {
+        const d = get().documents.find((x) => x.id === id);
+        if (!d?.baseline) return;
+        commit(
+          get().documents.map((x) =>
+            x.id === id
+              ? {
+                  ...x,
+                  pages: JSON.parse(JSON.stringify(d.baseline!.pages)) as Page[],
+                  updatedAt: Date.now(),
+                }
+              : x,
+          ),
+        );
+      },
+
       addShape: (docId, pageId, shape) =>
         commit(
           mutPage(get().documents, docId, pageId, (p) => {
