@@ -498,7 +498,11 @@ function HomePage() {
         </DialogContent>
       </Dialog>
 
-      <CaptureProcessModal open={captureOpen} onClose={() => setCaptureOpen(false)} />
+      <CaptureProcessModal
+        open={captureOpen}
+        onClose={() => { setCaptureOpen(false); setSelectedAreaIds([]); }}
+        defaultAreaIds={selectedAreaIds.length > 0 ? selectedAreaIds : (areaId !== "all" ? [areaId] : undefined)}
+      />
 
       {auditDoc && (
         <ChangesDiffModal
@@ -554,7 +558,7 @@ function AreaItem({ selected, onClick, color, label, count }: { selected: boolea
   );
 }
 
-function HeroCard({ onClick, icon, title, desc, gradient, iconBg }: { onClick: () => void; icon: React.ReactNode; title: string; desc: string; gradient: string; iconBg: string }) {
+function HeroCard({ onClick, icon, title, desc, gradient, iconBg, badge }: { onClick: () => void; icon: React.ReactNode; title: string; desc: string; gradient: string; iconBg: string; badge?: number }) {
   return (
     <button
       onClick={onClick}
@@ -563,8 +567,15 @@ function HeroCard({ onClick, icon, title, desc, gradient, iconBg }: { onClick: (
         gradient
       )}
     >
-      <div className={cn("mb-3 inline-flex h-10 w-10 items-center justify-center rounded-xl text-white shadow-sm", iconBg)}>
-        {icon}
+      <div className="mb-3 flex items-center justify-between">
+        <div className={cn("inline-flex h-10 w-10 items-center justify-center rounded-xl text-white shadow-sm", iconBg)}>
+          {icon}
+        </div>
+        {badge !== undefined && badge > 0 && (
+          <span className="inline-flex h-6 min-w-6 items-center justify-center rounded-full bg-white px-2 text-[11px] font-semibold text-[#0F172A] shadow-sm">
+            {badge}
+          </span>
+        )}
       </div>
       <div className="font-display text-base font-semibold text-[#0F172A]">{title}</div>
       <div className="mt-0.5 text-xs text-[#475569]">{desc}</div>
