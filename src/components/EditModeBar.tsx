@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react";
+import { useNavigate } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { Undo2, Save, Send } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -16,7 +17,6 @@ import type { DiagramDocument, Page } from "@/lib/shape-types";
 import { createPublishRequest } from "@/lib/approvals.functions";
 
 function normalizePages(pages: Page[]) {
-  // Strip volatile fields then stringify for comparison.
   return JSON.stringify(
     pages.map((p) => ({
       id: p.id,
@@ -31,7 +31,9 @@ export function EditModeBar({ doc }: { doc: DiagramDocument }) {
   const captureBaseline = useDiagramStore((s) => s.captureBaseline);
   const discardChanges = useDiagramStore((s) => s.discardChanges);
   const setDocStatus = useDiagramStore((s) => s.setDocStatus);
+  const documents = useDiagramStore((s) => s.documents);
   const create = useServerFn(createPublishRequest);
+  const navigate = useNavigate();
 
   const [publishOpen, setPublishOpen] = useState(false);
   const [note, setNote] = useState("");
@@ -39,8 +41,6 @@ export function EditModeBar({ doc }: { doc: DiagramDocument }) {
 
   const isDirty = useMemo(() => {
     if (!doc.baseline) {
-      // No baseline yet: treat as dirty only if there's any content,
-      // so the bar appears after the very first edit on a fresh doc.
       const hasContent = doc.pages.some(
         (p) => p.shapes.length > 0 || p.connectors.length > 0,
       );
@@ -50,6 +50,9 @@ export function EditModeBar({ doc }: { doc: DiagramDocument }) {
   }, [doc]);
 
   if (!isDirty) return null;
+
+  const isFork = !!doc.originDocId;
+  const parent = isFork ? documents.find((d) => d.id === doc.originDocId) : null;
 
   const onDiscard = () => {
     if (!doc.baseline) {
@@ -69,21 +72,24 @@ export function EditModeBar({ doc }: { doc: DiagramDocument }) {
   const onSubmit = async () => {
     setBusy(true);
     try {
+      const targetId = parent?.id ?? doc.id;
+      const targetName = parent?.name ?? doc.name;
+      const nextVersion = (parent?.currentVersion ?? doc.currentVersion ?? 0) + 1;
       await create({
         data: {
-          doc_id: doc.id,
-          doc_name: doc.name,
-          version_number: 1,
-          snapshot: doc,
+          doc_id: targetId,
+          doc_name: targetName,
+          version_number: nextVersion,
+          snapshot: doc, // includes originDocId so server can find the fork
           note: note || undefined,
         },
       });
-      // Mark this version as the new baseline so the bar disappears.
       captureBaseline(doc.id);
       setDocStatus(doc.id, "in_review");
-      toast.success("Solicitud de publicación enviada · Proceso en auditoría");
+      toast.success("Solicitud enviada. Te llevamos a aprobaciones.");
       setPublishOpen(false);
       setNote("");
+      navigate({ to: "/approvals" });
     } catch (e: any) {
       toast.error(e?.message ?? "Error al enviar");
     } finally {
@@ -95,30 +101,22 @@ export function EditModeBar({ doc }: { doc: DiagramDocument }) {
     <>
       <div className="flex items-center gap-2 border-b border-amber-200 bg-gradient-to-r from-amber-50 to-yellow-50 px-4 py-1.5 text-sm">
         <span className="inline-flex h-1.5 w-1.5 animate-pulse rounded-full bg-amber-500" />
-        <span className="font-medium text-amber-900">Modo edición</span>
-        <span className="text-amber-700/80">Tenés cambios sin publicar.</span>
+        <span className="font-medium text-amber-900">
+          {isFork ? "Modificando proceso publicado" : "Modo edición"}
+        </span>
+        <span className="text-amber-700/80">
+          {isFork
+            ? `Cambios sobre "${parent?.name ?? "original"}". Pasarán por aprobación.`
+            : "Tenés cambios sin publicar."}
+        </span>
         <div className="ml-auto flex items-center gap-1.5">
-          <Button
-            size="sm"
-            variant="ghost"
-            className="h-7 text-amber-900 hover:bg-amber-100"
-            onClick={onDiscard}
-          >
+          <Button size="sm" variant="ghost" className="h-7 text-amber-900 hover:bg-amber-100" onClick={onDiscard}>
             <Undo2 className="h-3.5 w-3.5" /> Descartar cambios
           </Button>
-          <Button
-            size="sm"
-            variant="outline"
-            className="h-7 border-amber-300 bg-white text-amber-900 hover:bg-amber-50"
-            onClick={onSaveDraft}
-          >
+          <Button size="sm" variant="outline" className="h-7 border-amber-300 bg-white text-amber-900 hover:bg-amber-50" onClick={onSaveDraft}>
             <Save className="h-3.5 w-3.5" /> Guardar borrador
           </Button>
-          <Button
-            size="sm"
-            className="h-7 bg-[#5B6CF8] text-white hover:bg-[#4856E0]"
-            onClick={() => setPublishOpen(true)}
-          >
+          <Button size="sm" className="h-7 bg-[#5B6CF8] text-white hover:bg-[#4856E0]" onClick={() => setPublishOpen(true)}>
             <Send className="h-3.5 w-3.5" /> Solicitar publicación
           </Button>
         </div>
@@ -129,8 +127,7 @@ export function EditModeBar({ doc }: { doc: DiagramDocument }) {
           <DialogHeader>
             <DialogTitle>Solicitar publicación</DialogTitle>
             <DialogDescription>
-              Se enviará una snapshot del documento a los aprobadores asignados. No se publicará
-              hasta que reciba las aprobaciones requeridas.
+              Se enviará una snapshot del documento a los aprobadores asignados. Una vez aprobado, se publicará automáticamente.
             </DialogDescription>
           </DialogHeader>
           <Textarea
@@ -139,9 +136,7 @@ export function EditModeBar({ doc }: { doc: DiagramDocument }) {
             onChange={(e) => setNote(e.target.value)}
           />
           <div className="flex justify-end gap-2">
-            <Button variant="outline" onClick={() => setPublishOpen(false)}>
-              Cancelar
-            </Button>
+            <Button variant="outline" onClick={() => setPublishOpen(false)}>Cancelar</Button>
             <Button disabled={busy} onClick={onSubmit} className="bg-[#5B6CF8] hover:bg-[#4856E0]">
               {busy ? "Enviando…" : "Enviar solicitud"}
             </Button>

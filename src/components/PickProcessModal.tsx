@@ -13,6 +13,7 @@ import { useDiagramStore } from "@/lib/diagram-store";
 import { useAreas } from "@/lib/use-areas";
 import { DocThumbnail } from "@/components/doc-thumbnail";
 import { StatusPill } from "@/components/StatusPill";
+import type { DiagramDocument } from "@/lib/shape-types";
 import { cn } from "@/lib/utils";
 
 type Mode = "audit" | "edit";
@@ -27,18 +28,21 @@ export function PickProcessModal({
   onClose: () => void;
 }) {
   const navigate = useNavigate();
-  const documents = useDiagramStore((s) => s.documents);
+  // (documents pulled inside `list` memo below)
   const { areas } = useAreas();
   const [query, setQuery] = useState("");
   const [areaId, setAreaId] = useState<string>("all");
 
+  const forkPublishedToDraft = useDiagramStore((s) => s.forkPublishedToDraft);
+  const documents = useDiagramStore((s) => s.documents);
+
   const list = useMemo(() => {
     return documents
-      .filter((d) => !d.isTemplate)
+      .filter((d) => !d.isTemplate && !d.archived)
       .filter((d) =>
         mode === "audit"
-          ? d.status === "in_review"
-          : d.status !== "in_review",
+          ? d.status === "published"
+          : true,
       )
       .filter((d) => {
         if (areaId === "all") return true;
@@ -49,9 +53,21 @@ export function PickProcessModal({
       .sort((a, b) => b.updatedAt - a.updatedAt);
   }, [documents, mode, areaId, query]);
 
-  const openDoc = (id: string) => {
+  const openDoc = (d: DiagramDocument) => {
     onClose();
-    navigate({ to: "/editor", search: { doc: id, mode } as any });
+    if (mode === "audit") {
+      navigate({ to: "/editor", search: { doc: d.id, mode: "audit" } as any });
+      return;
+    }
+    // Modify mode: if doc is published, fork to a draft proposing changes.
+    if (d.status === "published") {
+      const draftId = forkPublishedToDraft(d.id);
+      if (draftId) {
+        navigate({ to: "/editor", search: { doc: draftId } });
+        return;
+      }
+    }
+    navigate({ to: "/editor", search: { doc: d.id } });
   };
 
   const isAudit = mode === "audit";
@@ -77,8 +93,8 @@ export function PickProcessModal({
           </DialogTitle>
           <DialogDescription>
             {isAudit
-              ? "Procesos con cambios propuestos esperando tu revisión."
-              : "Elegí un proceso para editar. Los cambios pasarán por aprobación."}
+              ? "Auditá procesos publicados: marcá diagnóstico, inconsistencias y oportunidades."
+              : "Elegí un proceso para modificar. Si está publicado, abrimos un borrador con tus cambios para aprobación."}
           </DialogDescription>
         </DialogHeader>
 
@@ -118,8 +134,8 @@ export function PickProcessModal({
               <Inbox className="mx-auto h-7 w-7 text-[#CBD5E1]" />
               <p className="mt-2 text-sm text-[#475569]">
                 {isAudit
-                  ? "No hay procesos en auditoría."
-                  : "No hay procesos para editar con esos filtros."}
+                  ? "No hay procesos publicados para auditar."
+                  : "No hay procesos para modificar con esos filtros."}
               </p>
             </div>
           ) : (
@@ -129,7 +145,7 @@ export function PickProcessModal({
                 return (
                   <button
                     key={d.id}
-                    onClick={() => openDoc(d.id)}
+                    onClick={() => openDoc(d)}
                     className="group overflow-hidden rounded-xl border border-[#EBEBEB] bg-white text-left transition-all hover:-translate-y-0.5 hover:shadow-md"
                   >
                     <div className="relative aspect-[5/3] overflow-hidden bg-gradient-to-br from-sky-50 via-white to-violet-50">

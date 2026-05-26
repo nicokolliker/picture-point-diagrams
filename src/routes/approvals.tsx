@@ -72,6 +72,11 @@ function ApprovalsPage() {
     setApprovals((a.data as Approval[]) ?? []);
     setApproverDocIds(new Set((da.data ?? []).map((x: any) => x.doc_id)));
     setProfiles((p.data as Profile[]) ?? []);
+    // Apply any approved snapshots locally (auto-publish).
+    try {
+      const { syncApprovedSnapshots } = await import("@/lib/sync-approved");
+      await syncApprovedSnapshots();
+    } catch { /* noop */ }
   };
 
   useEffect(() => { refresh(); }, [user?.id]);
