@@ -4,16 +4,16 @@ import type { DiagramDocument } from "@/lib/shape-types";
 
 /**
  * Pulls all approved publish_requests and applies any not yet merged
- * into the local document store. Should be invoked periodically (on
- * Home mount, after returning from /approvals, etc.).
+ * into the local document store. Returns the number of newly applied
+ * snapshots so callers can react (e.g. show a toast).
  */
-export async function syncApprovedSnapshots() {
+export async function syncApprovedSnapshots(): Promise<number> {
   const { data: reqs, error } = await supabase
     .from("publish_requests")
     .select("id, doc_id, version_number, snapshot, requested_by, note, updated_at, created_at, status")
     .eq("status", "approved")
     .order("updated_at", { ascending: true });
-  if (error || !reqs) return;
+  if (error || !reqs) return 0;
 
   const { data: approvals } = await supabase
     .from("approvals")
@@ -21,6 +21,7 @@ export async function syncApprovedSnapshots() {
 
   const docs = useDiagramStore.getState().documents;
   const apply = useDiagramStore.getState().applyApprovedSnapshot;
+  let applied = 0;
 
   for (const r of reqs as any[]) {
     const local = docs.find((d) => d.id === r.doc_id);
@@ -41,5 +42,7 @@ export async function syncApprovedSnapshots() {
       note: r.note ?? undefined,
       forkedFromDocId: snapshot.id !== r.doc_id ? snapshot.id : undefined,
     });
+    applied++;
   }
+  return applied;
 }
