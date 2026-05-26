@@ -8,45 +8,54 @@ import {
   DialogDescription,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import type { DiagramDocument, Shape, Connector } from "@/lib/shape-types";
+import type { DiagramDocument, Shape, Connector, Page } from "@/lib/shape-types";
+import { cn } from "@/lib/utils";
 
-type ShapeIndex = Map<string, Shape>;
-
-function indexShapes(doc?: DiagramDocument | null): ShapeIndex {
-  const map: ShapeIndex = new Map();
-  if (!doc) return map;
-  for (const p of doc.pages) for (const s of p.shapes) map.set(s.id, s);
-  return map;
-}
-
-function indexConnectors(doc?: DiagramDocument | null): Map<string, Connector> {
-  const map = new Map<string, Connector>();
-  if (!doc) return map;
-  for (const p of doc.pages) for (const c of p.connectors) map.set(c.id, c);
-  return map;
-}
-
-type Diff = {
+// ---------- diff types ----------
+type PageDiff = {
+  pageId: string;
+  pageName: string;
   added: Shape[];
   removed: Shape[];
   moved: { before: Shape; after: Shape }[];
   modified: { before: Shape; after: Shape }[];
-  connectorsAdded: number;
-  connectorsRemoved: number;
+  connectorsAdded: Connector[];
+  connectorsRemoved: Connector[];
+  baseShapes: Shape[]; // shapes that exist on both sides unchanged
+  baseConnectors: Connector[];
+  // shapes from either side keyed by id for arrow lookups
+  shapeById: Map<string, Shape>;
 };
 
-function computeDiff(prev: DiagramDocument | null, next: DiagramDocument): Diff {
-  const a = indexShapes(prev);
-  const b = indexShapes(next);
-  const added: Shape[] = [];
-  const removed: Shape[] = [];
-  const moved: { before: Shape; after: Shape }[] = [];
-  const modified: { before: Shape; after: Shape }[] = [];
+function emptyPageDiff(pageId: string, pageName: string): PageDiff {
+  return {
+    pageId,
+    pageName,
+    added: [],
+    removed: [],
+    moved: [],
+    modified: [],
+    connectorsAdded: [],
+    connectorsRemoved: [],
+    baseShapes: [],
+    baseConnectors: [],
+    shapeById: new Map(),
+  };
+}
+
+function diffPages(prev: Page | null, next: Page | null, pageId: string, pageName: string): PageDiff {
+  const d = emptyPageDiff(pageId, pageName);
+  const a = new Map<string, Shape>();
+  const b = new Map<string, Shape>();
+  prev?.shapes.forEach((s) => a.set(s.id, s));
+  next?.shapes.forEach((s) => b.set(s.id, s));
+  a.forEach((s) => d.shapeById.set(s.id, s));
+  b.forEach((s) => d.shapeById.set(s.id, s));
 
   b.forEach((shape, id) => {
     const prevShape = a.get(id);
     if (!prevShape) {
-      added.push(shape);
+      d.added.push(shape);
       return;
     }
     const positionChanged =
@@ -59,50 +68,92 @@ function computeDiff(prev: DiagramDocument | null, next: DiagramDocument): Diff 
       prevShape.fill !== shape.fill ||
       JSON.stringify(prevShape.responsableIds ?? []) !==
         JSON.stringify(shape.responsableIds ?? []);
-    if (positionChanged) moved.push({ before: prevShape, after: shape });
-    else if (contentChanged) modified.push({ before: prevShape, after: shape });
+    if (positionChanged) d.moved.push({ before: prevShape, after: shape });
+    else if (contentChanged) d.modified.push({ before: prevShape, after: shape });
+    else d.baseShapes.push(shape);
   });
-
   a.forEach((shape, id) => {
-    if (!b.has(id)) removed.push(shape);
+    if (!b.has(id)) d.removed.push(shape);
   });
 
-  const cA = indexConnectors(prev);
-  const cB = indexConnectors(next);
-  let connectorsAdded = 0;
-  let connectorsRemoved = 0;
-  cB.forEach((_, id) => {
-    if (!cA.has(id)) connectorsAdded++;
+  const cA = new Map<string, Connector>();
+  const cB = new Map<string, Connector>();
+  prev?.connectors.forEach((c) => cA.set(c.id, c));
+  next?.connectors.forEach((c) => cB.set(c.id, c));
+  cB.forEach((c, id) => {
+    if (!cA.has(id)) d.connectorsAdded.push(c);
+    else d.baseConnectors.push(c);
   });
-  cA.forEach((_, id) => {
-    if (!cB.has(id)) connectorsRemoved++;
+  cA.forEach((c, id) => {
+    if (!cB.has(id)) d.connectorsRemoved.push(c);
   });
-
-  return { added, removed, moved, modified, connectorsAdded, connectorsRemoved };
+  return d;
 }
 
-function ShapeNode({
-  s,
-  variant,
-}: {
-  s: Shape;
-  variant: "added" | "removed" | "moved-from" | "moved-to" | "base";
-}) {
-  const styles = {
-    added: { fill: "rgba(16,185,129,0.18)", stroke: "#10b981", dash: undefined as string | undefined },
-    removed: { fill: "rgba(239,68,68,0.12)", stroke: "#ef4444", dash: "6,4" },
-    "moved-from": { fill: "rgba(245,158,11,0.10)", stroke: "#f59e0b", dash: "5,4" },
-    "moved-to": { fill: "rgba(245,158,11,0.22)", stroke: "#f59e0b", dash: undefined },
-    base: { fill: "rgba(148,163,184,0.10)", stroke: "#cbd5e1", dash: undefined },
-  }[variant];
+function computePageDiffs(prev: DiagramDocument | null, next: DiagramDocument): PageDiff[] {
+  const pageIds = new Set<string>();
+  prev?.pages.forEach((p) => pageIds.add(p.id));
+  next.pages.forEach((p) => pageIds.add(p.id));
+  const out: PageDiff[] = [];
+  pageIds.forEach((id) => {
+    const np = next.pages.find((p) => p.id === id) ?? null;
+    const pp = prev?.pages.find((p) => p.id === id) ?? null;
+    out.push(diffPages(pp, np, id, np?.name ?? pp?.name ?? "Página"));
+  });
+  return out;
+}
+
+function diffHasChanges(d: PageDiff) {
+  return (
+    d.added.length +
+      d.removed.length +
+      d.moved.length +
+      d.modified.length +
+      d.connectorsAdded.length +
+      d.connectorsRemoved.length >
+    0
+  );
+}
+
+// ---------- rendering ----------
+const STYLES = {
+  added: { fill: "rgba(16,185,129,0.20)", stroke: "#10b981", dash: undefined as string | undefined, text: "#065F46" },
+  removed: { fill: "rgba(239,68,68,0.14)", stroke: "#ef4444", dash: "6,4", text: "#991B1B" },
+  movedFrom: { fill: "rgba(245,158,11,0.10)", stroke: "#f59e0b", dash: "5,4", text: "#92400E" },
+  movedTo: { fill: "rgba(245,158,11,0.22)", stroke: "#f59e0b", dash: undefined, text: "#92400E" },
+  modified: { fill: "rgba(56,189,248,0.18)", stroke: "#0EA5E9", dash: undefined, text: "#0C4A6E" },
+  base: { fill: "rgba(148,163,184,0.10)", stroke: "#cbd5e1", dash: undefined, text: "#475569" },
+};
+
+function truncate(t: string | undefined, n = 18) {
+  if (!t) return "";
+  return t.length > n ? t.slice(0, n - 1) + "…" : t;
+}
+
+function ShapeNode({ s, variant }: { s: Shape; variant: keyof typeof STYLES }) {
+  const st = STYLES[variant];
   const common = {
-    fill: styles.fill,
-    stroke: styles.stroke,
+    fill: st.fill,
+    stroke: st.stroke,
     strokeWidth: 2,
-    strokeDasharray: styles.dash,
+    strokeDasharray: st.dash,
   };
-  if (s.type === "oval")
-    return (
+  const label = (
+    <text
+      x={s.x + s.width / 2}
+      y={s.y + s.height / 2}
+      textAnchor="middle"
+      dominantBaseline="central"
+      fontSize={Math.max(11, Math.min(s.height * 0.22, 16))}
+      fill={st.text}
+      style={{ pointerEvents: "none", fontFamily: "Figtree, system-ui" }}
+    >
+      {truncate(s.text)}
+    </text>
+  );
+  let body: React.ReactNode;
+  if (s.type === "oval") {
+    body = (
       <ellipse
         cx={s.x + s.width / 2}
         cy={s.y + s.height / 2}
@@ -111,71 +162,89 @@ function ShapeNode({
         {...common}
       />
     );
-  if (s.type === "diamond") {
+  } else if (s.type === "diamond") {
     const cx = s.x + s.width / 2;
     const cy = s.y + s.height / 2;
-    return (
+    body = (
       <polygon
         points={`${cx},${s.y} ${s.x + s.width},${cy} ${cx},${s.y + s.height} ${s.x},${cy}`}
         {...common}
       />
     );
+  } else {
+    body = <rect x={s.x} y={s.y} width={s.width} height={s.height} rx={10} {...common} />;
   }
-  return <rect x={s.x} y={s.y} width={s.width} height={s.height} rx={10} {...common} />;
+  return (
+    <g>
+      {body}
+      {label}
+    </g>
+  );
 }
 
-function DiffCanvas({
-  prev,
-  next,
-  diff,
-}: {
-  prev: DiagramDocument | null;
-  next: DiagramDocument;
-  diff: Diff;
-}) {
-  const allShapes = useMemo(() => {
-    const list: Shape[] = [];
-    if (prev) for (const p of prev.pages) list.push(...p.shapes);
-    for (const p of next.pages) list.push(...p.shapes);
-    return list;
-  }, [prev, next]);
+function ConnectorLine({ c, shapes, variant }: { c: Connector; shapes: Map<string, Shape>; variant: keyof typeof STYLES }) {
+  const from = shapes.get(c.fromId);
+  const to = shapes.get(c.toId);
+  if (!from || !to) return null;
+  const st = STYLES[variant];
+  return (
+    <line
+      x1={from.x + from.width / 2}
+      y1={from.y + from.height / 2}
+      x2={to.x + to.width / 2}
+      y2={to.y + to.height / 2}
+      stroke={st.stroke}
+      strokeWidth={variant === "base" ? 1.2 : 2}
+      strokeDasharray={st.dash}
+      opacity={variant === "base" ? 0.6 : 1}
+    />
+  );
+}
 
-  if (allShapes.length === 0) {
+function computeViewBox(shapes: Shape[]): string | null {
+  if (shapes.length === 0) return null;
+  const minX = Math.min(...shapes.map((s) => s.x));
+  const minY = Math.min(...shapes.map((s) => s.y));
+  const maxX = Math.max(...shapes.map((s) => s.x + s.width));
+  const maxY = Math.max(...shapes.map((s) => s.y + s.height));
+  const pad = 50;
+  const w = Math.max(maxX - minX + pad * 2, 200);
+  const h = Math.max(maxY - minY + pad * 2, 200);
+  return `${minX - pad} ${minY - pad} ${w} ${h}`;
+}
+
+function DiffOverlay({ diff, viewBox }: { diff: PageDiff; viewBox: string | null }) {
+  if (!viewBox) {
     return (
       <div className="flex h-full items-center justify-center text-sm text-[#94A3B8]">
-        Sin cambios visibles
+        Sin shapes en esta página
       </div>
     );
   }
-
-  const minX = Math.min(...allShapes.map((s) => s.x));
-  const minY = Math.min(...allShapes.map((s) => s.y));
-  const maxX = Math.max(...allShapes.map((s) => s.x + s.width));
-  const maxY = Math.max(...allShapes.map((s) => s.y + s.height));
-  const pad = 60;
-  const w = Math.max(maxX - minX + pad * 2, 200);
-  const h = Math.max(maxY - minY + pad * 2, 200);
-  const vb = `${minX - pad} ${minY - pad} ${w} ${h}`;
-
-  const nextIds = new Set<string>();
-  for (const p of next.pages) for (const s of p.shapes) nextIds.add(s.id);
-
-  const baseShapes: Shape[] = [];
-  for (const p of next.pages)
-    for (const s of p.shapes) {
-      if (
-        !diff.added.some((x) => x.id === s.id) &&
-        !diff.moved.some((m) => m.after.id === s.id)
-      ) {
-        baseShapes.push(s);
-      }
-    }
-
   return (
-    <svg viewBox={vb} className="h-full w-full" preserveAspectRatio="xMidYMid meet">
-      {/* base (unchanged) */}
-      {baseShapes.map((s) => (
+    <svg viewBox={viewBox} className="h-full w-full" preserveAspectRatio="xMidYMid meet">
+      <defs>
+        <marker id="diff-arrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+          <path d="M 0 0 L 10 5 L 0 10 z" fill="#f59e0b" />
+        </marker>
+      </defs>
+      {/* connectors first so shapes overlap */}
+      {diff.baseConnectors.map((c) => (
+        <ConnectorLine key={`bc-${c.id}`} c={c} shapes={diff.shapeById} variant="base" />
+      ))}
+      {diff.connectorsRemoved.map((c) => (
+        <ConnectorLine key={`rc-${c.id}`} c={c} shapes={diff.shapeById} variant="removed" />
+      ))}
+      {diff.connectorsAdded.map((c) => (
+        <ConnectorLine key={`ac-${c.id}`} c={c} shapes={diff.shapeById} variant="added" />
+      ))}
+      {/* base shapes */}
+      {diff.baseShapes.map((s) => (
         <ShapeNode key={`b-${s.id}`} s={s} variant="base" />
+      ))}
+      {/* modified */}
+      {diff.modified.map((m) => (
+        <ShapeNode key={`mod-${m.after.id}`} s={m.after} variant="modified" />
       ))}
       {/* removed ghost */}
       {diff.removed.map((s) => (
@@ -184,8 +253,8 @@ function DiffCanvas({
       {/* moved before/after with arrow */}
       {diff.moved.map((m) => (
         <g key={`m-${m.after.id}`}>
-          <ShapeNode s={m.before} variant="moved-from" />
-          <ShapeNode s={m.after} variant="moved-to" />
+          <ShapeNode s={m.before} variant="movedFrom" />
+          <ShapeNode s={m.after} variant="movedTo" />
           <line
             x1={m.before.x + m.before.width / 2}
             y1={m.before.y + m.before.height / 2}
@@ -194,7 +263,7 @@ function DiffCanvas({
             stroke="#f59e0b"
             strokeWidth={1.5}
             strokeDasharray="3,3"
-            markerEnd="url(#arrow)"
+            markerEnd="url(#diff-arrow)"
           />
         </g>
       ))}
@@ -202,23 +271,41 @@ function DiffCanvas({
       {diff.added.map((s) => (
         <ShapeNode key={`a-${s.id}`} s={s} variant="added" />
       ))}
-      <defs>
-        <marker
-          id="arrow"
-          viewBox="0 0 10 10"
-          refX="8"
-          refY="5"
-          markerWidth="6"
-          markerHeight="6"
-          orient="auto-start-reverse"
-        >
-          <path d="M 0 0 L 10 5 L 0 10 z" fill="#f59e0b" />
-        </marker>
-      </defs>
     </svg>
   );
 }
 
+function SideView({
+  page,
+  variant,
+  viewBox,
+}: {
+  page: Page | null;
+  variant: "before" | "after";
+  viewBox: string | null;
+}) {
+  if (!page || page.shapes.length === 0 || !viewBox) {
+    return (
+      <div className="flex h-full items-center justify-center text-xs text-[#94A3B8]">
+        {variant === "before" ? "Sin versión previa" : "Sin contenido"}
+      </div>
+    );
+  }
+  const shapeMap = new Map<string, Shape>();
+  page.shapes.forEach((s) => shapeMap.set(s.id, s));
+  return (
+    <svg viewBox={viewBox} className="h-full w-full" preserveAspectRatio="xMidYMid meet">
+      {page.connectors.map((c) => (
+        <ConnectorLine key={`c-${c.id}`} c={c} shapes={shapeMap} variant="base" />
+      ))}
+      {page.shapes.map((s) => (
+        <ShapeNode key={s.id} s={s} variant="base" />
+      ))}
+    </svg>
+  );
+}
+
+// ---------- modal ----------
 export function ChangesDiffModal({
   open,
   onClose,
@@ -232,15 +319,64 @@ export function ChangesDiffModal({
   next: DiagramDocument;
   title: string;
 }) {
-  const diff = useMemo(() => computeDiff(prev, next), [prev, next]);
+  const pageDiffs = useMemo(() => computePageDiffs(prev, next), [prev, next]);
+  const changedPages = useMemo(
+    () => pageDiffs.filter(diffHasChanges),
+    [pageDiffs],
+  );
+  const tabs = changedPages.length > 0 ? changedPages : pageDiffs.slice(0, 1);
+  const [activeId, setActiveId] = useState<string>(tabs[0]?.pageId ?? "");
+  const active = tabs.find((t) => t.pageId === activeId) ?? tabs[0];
   const [mode, setMode] = useState<"diff" | "side">("diff");
+
+  const totals = useMemo(() => {
+    return pageDiffs.reduce(
+      (acc, d) => ({
+        added: acc.added + d.added.length,
+        removed: acc.removed + d.removed.length,
+        moved: acc.moved + d.moved.length,
+        modified: acc.modified + d.modified.length,
+        cAdded: acc.cAdded + d.connectorsAdded.length,
+        cRemoved: acc.cRemoved + d.connectorsRemoved.length,
+      }),
+      { added: 0, removed: 0, moved: 0, modified: 0, cAdded: 0, cRemoved: 0 },
+    );
+  }, [pageDiffs]);
+
+  // Compute shared viewBox so prev/next render at same zoom
+  const sharedViewBox = useMemo(() => {
+    if (!active) return null;
+    const prevPage = prev?.pages.find((p) => p.id === active.pageId) ?? null;
+    const nextPage = next.pages.find((p) => p.id === active.pageId) ?? null;
+    const allShapes = [
+      ...(prevPage?.shapes ?? []),
+      ...(nextPage?.shapes ?? []),
+    ];
+    return computeViewBox(allShapes);
+  }, [active, prev, next]);
+
+  if (!active) {
+    return (
+      <Dialog open={open} onOpenChange={(v) => !v && onClose()}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Sin cambios</DialogTitle>
+            <DialogDescription>No hay diferencias para mostrar.</DialogDescription>
+          </DialogHeader>
+        </DialogContent>
+      </Dialog>
+    );
+  }
+
+  const prevPage = prev?.pages.find((p) => p.id === active.pageId) ?? null;
+  const nextPage = next.pages.find((p) => p.id === active.pageId) ?? null;
 
   return (
     <Dialog open={open} onOpenChange={(v) => !v && onClose()}>
       <DialogContent className="max-w-5xl">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2 font-display">
-            <GitCompare className="h-4 w-4" /> Cambios propuestos · {title}
+            <GitCompare className="h-4 w-4 text-[#5B6CF8]" /> Cambios propuestos · {title}
           </DialogTitle>
           <DialogDescription>
             {prev
@@ -249,24 +385,23 @@ export function ChangesDiffModal({
           </DialogDescription>
         </DialogHeader>
 
-        {/* Summary chips */}
-        <div className="flex flex-wrap gap-2 text-xs">
+        {/* Summary chips (globales) */}
+        <div className="flex flex-wrap items-center gap-2 text-xs">
           <span className="inline-flex items-center gap-1 rounded-full bg-emerald-100 px-2.5 py-1 font-medium text-emerald-700">
-            <Plus className="h-3 w-3" /> {diff.added.length} agregadas
+            <Plus className="h-3 w-3" /> {totals.added} agregadas
           </span>
           <span className="inline-flex items-center gap-1 rounded-full bg-red-100 px-2.5 py-1 font-medium text-red-700">
-            <Minus className="h-3 w-3" /> {diff.removed.length} eliminadas
+            <Minus className="h-3 w-3" /> {totals.removed} eliminadas
           </span>
           <span className="inline-flex items-center gap-1 rounded-full bg-amber-100 px-2.5 py-1 font-medium text-amber-700">
-            <Move className="h-3 w-3" /> {diff.moved.length} movidas
+            <Move className="h-3 w-3" /> {totals.moved} movidas
           </span>
           <span className="inline-flex items-center gap-1 rounded-full bg-sky-100 px-2.5 py-1 font-medium text-sky-700">
-            ✎ {diff.modified.length} editadas
+            ✎ {totals.modified} editadas
           </span>
-          {(diff.connectorsAdded > 0 || diff.connectorsRemoved > 0) && (
+          {(totals.cAdded > 0 || totals.cRemoved > 0) && (
             <span className="inline-flex items-center gap-1 rounded-full bg-violet-100 px-2.5 py-1 font-medium text-violet-700">
-              <ArrowRight className="h-3 w-3" />
-              {diff.connectorsAdded} +/ {diff.connectorsRemoved} − conexiones
+              <ArrowRight className="h-3 w-3" /> {totals.cAdded} + / {totals.cRemoved} − conexiones
             </span>
           )}
           <div className="ml-auto inline-flex overflow-hidden rounded-md border border-[#E2E8F0] text-[11px]">
@@ -285,64 +420,90 @@ export function ChangesDiffModal({
           </div>
         </div>
 
-        {mode === "diff" ? (
-          <div className="h-[460px] rounded-xl border border-[#E2E8F0] bg-gradient-to-br from-slate-50 to-white p-2">
-            <DiffCanvas prev={prev} next={next} diff={diff} />
+        {/* Tabs por página (si hay más de una con cambios) */}
+        {tabs.length > 1 && (
+          <div className="flex flex-wrap gap-1 border-b border-[#E2E8F0] pb-1">
+            {tabs.map((t) => {
+              const count =
+                t.added.length + t.removed.length + t.moved.length + t.modified.length;
+              return (
+                <button
+                  key={t.pageId}
+                  onClick={() => setActiveId(t.pageId)}
+                  className={cn(
+                    "rounded-t-md px-3 py-1.5 text-xs font-medium transition-colors",
+                    t.pageId === active.pageId
+                      ? "border-b-2 border-[#5B6CF8] text-[#0F172A]"
+                      : "text-[#64748B] hover:text-[#0F172A]",
+                  )}
+                >
+                  {t.pageName}
+                  <span className="ml-1.5 rounded-full bg-slate-100 px-1.5 text-[10px] text-slate-600">
+                    {count}
+                  </span>
+                </button>
+              );
+            })}
           </div>
-        ) : !prev ? (
-          // First version: no "before" exists, so show a full-width "after" with a clear empty-state explainer.
-          <div className="grid h-[460px] grid-cols-[260px_1fr] gap-3">
-            <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-slate-200 bg-slate-50/60 p-6 text-center">
-              <div className="mb-3 inline-flex h-12 w-12 items-center justify-center rounded-full bg-white shadow-sm">
-                <GitCompare className="h-5 w-5 text-slate-400" />
-              </div>
-              <div className="font-display text-sm font-semibold text-slate-700">Primera versión</div>
-              <p className="mt-1 text-[11px] leading-relaxed text-slate-500">
-                Aún no hay versión publicada para comparar. Todo lo de la derecha cuenta como contenido nuevo.
-              </p>
-            </div>
-            <div className="rounded-xl border border-emerald-200 bg-emerald-50/40 p-2">
-              <div className="mb-1 px-1 text-[11px] font-semibold uppercase tracking-wide text-emerald-700">
-                Versión propuesta
-              </div>
-              <DiffCanvas prev={null} next={next} diff={computeDiff(null, next)} />
-            </div>
+        )}
+
+        {mode === "diff" ? (
+          <div className="h-[440px] rounded-xl border border-[#E2E8F0] bg-gradient-to-br from-slate-50 to-white p-2">
+            <DiffOverlay diff={active} viewBox={sharedViewBox} />
           </div>
         ) : (
-          <div className="grid h-[460px] grid-cols-2 gap-3">
-            <div className="rounded-xl border border-[#E2E8F0] bg-slate-50 p-2">
+          <div className="grid h-[440px] grid-cols-2 gap-3">
+            <div className="rounded-xl border border-slate-200 bg-slate-50 p-2">
               <div className="mb-1 px-1 text-[11px] font-semibold uppercase tracking-wide text-slate-500">
-                Versión anterior aprobada
+                {prev ? "Versión anterior aprobada" : "Sin versión previa"}
               </div>
-              <DiffCanvas prev={null} next={prev} diff={computeDiff(null, prev)} />
+              <SideView page={prevPage} variant="before" viewBox={sharedViewBox} />
             </div>
             <div className="rounded-xl border border-emerald-200 bg-emerald-50/40 p-2">
               <div className="mb-1 px-1 text-[11px] font-semibold uppercase tracking-wide text-emerald-700">
                 Versión propuesta
               </div>
-              <DiffCanvas prev={null} next={next} diff={computeDiff(null, next)} />
+              <SideView page={nextPage} variant="after" viewBox={sharedViewBox} />
             </div>
           </div>
         )}
 
-        {/* Detail list */}
-        {(diff.added.length > 0 || diff.removed.length > 0 || diff.modified.length > 0) && (
-          <div className="max-h-40 space-y-1 overflow-auto rounded-lg border border-[#E2E8F0] bg-white p-2 text-xs">
-            {diff.added.map((s) => (
-              <div key={`la-${s.id}`} className="flex items-center gap-2 text-emerald-700">
-                <Plus className="h-3 w-3" /> <span className="truncate">{s.text || "(sin texto)"}</span>
-              </div>
-            ))}
-            {diff.removed.map((s) => (
-              <div key={`lr-${s.id}`} className="flex items-center gap-2 text-red-700">
-                <Minus className="h-3 w-3" /> <span className="truncate">{s.text || "(sin texto)"}</span>
-              </div>
-            ))}
-            {diff.modified.map((m) => (
-              <div key={`lm-${m.after.id}`} className="flex items-center gap-2 text-sky-700">
-                ✎ <span className="truncate">{m.before.text || "—"} → {m.after.text || "—"}</span>
-              </div>
-            ))}
+        {/* Detail list agrupada */}
+        {(active.added.length > 0 ||
+          active.removed.length > 0 ||
+          active.modified.length > 0 ||
+          active.moved.length > 0) && (
+          <div className="max-h-44 space-y-2 overflow-auto rounded-lg border border-[#E2E8F0] bg-white p-2 text-xs">
+            {active.added.length > 0 && (
+              <DetailGroup title="Agregadas" tone="emerald">
+                {active.added.map((s) => (
+                  <li key={`la-${s.id}`} className="truncate text-emerald-700">+ {s.text || "(sin texto)"}</li>
+                ))}
+              </DetailGroup>
+            )}
+            {active.removed.length > 0 && (
+              <DetailGroup title="Eliminadas" tone="red">
+                {active.removed.map((s) => (
+                  <li key={`lr-${s.id}`} className="truncate text-red-700">− {s.text || "(sin texto)"}</li>
+                ))}
+              </DetailGroup>
+            )}
+            {active.moved.length > 0 && (
+              <DetailGroup title="Movidas" tone="amber">
+                {active.moved.map((m) => (
+                  <li key={`lmv-${m.after.id}`} className="truncate text-amber-700">↕ {m.after.text || "(sin texto)"}</li>
+                ))}
+              </DetailGroup>
+            )}
+            {active.modified.length > 0 && (
+              <DetailGroup title="Editadas" tone="sky">
+                {active.modified.map((m) => (
+                  <li key={`lm-${m.after.id}`} className="truncate text-sky-700">
+                    ✎ {m.before.text || "—"} → {m.after.text || "—"}
+                  </li>
+                ))}
+              </DetailGroup>
+            )}
           </div>
         )}
 
@@ -353,5 +514,30 @@ export function ChangesDiffModal({
         </div>
       </DialogContent>
     </Dialog>
+  );
+}
+
+function DetailGroup({
+  title,
+  tone,
+  children,
+}: {
+  title: string;
+  tone: "emerald" | "red" | "amber" | "sky";
+  children: React.ReactNode;
+}) {
+  const toneCls = {
+    emerald: "text-emerald-800",
+    red: "text-red-800",
+    amber: "text-amber-800",
+    sky: "text-sky-800",
+  }[tone];
+  return (
+    <div>
+      <div className={cn("mb-0.5 text-[10px] font-semibold uppercase tracking-wide", toneCls)}>
+        {title}
+      </div>
+      <ul className="space-y-0.5 pl-1">{children}</ul>
+    </div>
   );
 }

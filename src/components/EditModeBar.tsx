@@ -86,10 +86,14 @@ export function EditModeBar({ doc }: { doc: DiagramDocument }) {
       });
       captureBaseline(doc.id);
       setDocStatus(doc.id, "in_review");
-      toast.success("Solicitud enviada. Te llevamos a aprobaciones.");
+      toast.success("Solicitud enviada a aprobación", {
+        action: {
+          label: "Ver aprobaciones",
+          onClick: () => navigate({ to: "/approvals" }),
+        },
+      });
       setPublishOpen(false);
       setNote("");
-      navigate({ to: "/approvals" });
     } catch (e: any) {
       toast.error(e?.message ?? "Error al enviar");
     } finally {
