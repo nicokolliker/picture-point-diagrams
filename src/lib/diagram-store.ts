@@ -14,7 +14,7 @@ import type {
   ShapeType,
   Status,
 } from "./shape-types";
-import { createDemoDocument } from "./preloaded-demo";
+import { createDemoDocument, createSeedTemplates } from "./preloaded-demo";
 
 interface State {
   documents: DiagramDocument[];
@@ -37,6 +37,8 @@ interface State {
   setDocStatus: (id: string, status: "draft" | "in_review" | "published") => void;
   captureBaseline: (id: string) => void;
   discardChanges: (id: string) => void;
+  saveAsTemplate: (id: string) => string;
+  createFromTemplate: (templateId: string, opts?: { name?: string; areaIds?: string[] }) => string | null;
 
   addShape: (docId: string, pageId: string, shape: Shape) => void;
   updateShape: (docId: string, pageId: string, id: string, patch: Partial<Shape>) => void;
@@ -169,9 +171,14 @@ export const useDiagramStore = create<State>()(
         );
       },
       ensureSeed: () => {
-        if (get().documents.length === 0) {
-          set({ documents: [createDemoDocument()] });
+        const cur = get().documents;
+        const next: DiagramDocument[] = [...cur];
+        if (next.length === 0) next.unshift(createDemoDocument());
+        // Always make sure seed templates exist (idempotent by id).
+        for (const t of createSeedTemplates()) {
+          if (!next.some((d) => d.id === t.id)) next.push(t);
         }
+        if (next.length !== cur.length) set({ documents: next });
       },
       createDocument: (opts = {}) => {
         const { name = "Sin título", areaId, areaIds } = opts;
@@ -240,6 +247,58 @@ export const useDiagramStore = create<State>()(
               : x,
           ),
         );
+      },
+      saveAsTemplate: (id) => {
+        const src = get().documents.find((d) => d.id === id);
+        if (!src) return id;
+        const tplId = `tpl-${Date.now()}`;
+        const copy: DiagramDocument = JSON.parse(JSON.stringify(src));
+        copy.id = tplId;
+        copy.name = src.name.includes("template")
+          ? src.name
+          : `${src.name} (template)`;
+        copy.isTemplate = true;
+        copy.status = "published";
+        copy.baseline = undefined;
+        copy.updatedAt = Date.now();
+        commit([copy, ...get().documents]);
+        return tplId;
+      },
+      createFromTemplate: (templateId, opts = {}) => {
+        const src = get().documents.find(
+          (d) => d.id === templateId && d.isTemplate,
+        );
+        if (!src) return null;
+        const id = `d${Date.now()}`;
+        const cloned: DiagramDocument = JSON.parse(JSON.stringify(src));
+        // Re-id pages and shapes/connectors so they don't collide.
+        const now = Date.now();
+        cloned.id = id;
+        cloned.name = opts.name ?? src.name.replace(/^Template\s*·\s*/i, "");
+        cloned.isTemplate = false;
+        cloned.status = "draft";
+        cloned.baseline = undefined;
+        cloned.updatedAt = now;
+        cloned.areaIds = opts.areaIds && opts.areaIds.length > 0 ? opts.areaIds : undefined;
+        cloned.areaId = cloned.areaIds?.[0];
+        cloned.pages = cloned.pages.map((p, pi) => {
+          const newPageId = `p${now}${pi}`;
+          const idMap = new Map<string, string>();
+          const shapes = p.shapes.map((s, si) => {
+            const newId = `s${now}${pi}${si}`;
+            idMap.set(s.id, newId);
+            return { ...s, id: newId };
+          });
+          const connectors = p.connectors.map((c, ci) => ({
+            ...c,
+            id: `c${now}${pi}${ci}`,
+            fromId: idMap.get(c.fromId) ?? c.fromId,
+            toId: idMap.get(c.toId) ?? c.toId,
+          }));
+          return { ...p, id: newPageId, shapes, connectors };
+        });
+        commit([cloned, ...get().documents]);
+        return id;
       },
 
       addShape: (docId, pageId, shape) =>

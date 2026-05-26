@@ -49,6 +49,8 @@ import { CaptureProcessModal } from "@/components/CaptureProcessModal";
 import { FlowItLogo } from "@/components/flowit-logo";
 import { DocThumbnail } from "@/components/doc-thumbnail";
 import { ChangesDiffModal } from "@/components/ChangesDiffModal";
+import { PickProcessModal } from "@/components/PickProcessModal";
+import { StatusPill } from "@/components/StatusPill";
 import type { DiagramDocument } from "@/lib/shape-types";
 
 export const Route = createFileRoute("/home")({
@@ -80,6 +82,7 @@ function HomePage() {
   const [renameValue, setRenameValue] = useState("");
   const [captureOpen, setCaptureOpen] = useState(false);
   const [auditDoc, setAuditDoc] = useState<DiagramDocument | null>(null);
+  const [pickerMode, setPickerMode] = useState<"audit" | "edit" | null>(null);
 
   useEffect(() => { ensureSeed(); }, [ensureSeed]);
   useEffect(() => { if (!loading && !user) navigate({ to: "/login" }); }, [loading, user, navigate]);
@@ -87,8 +90,11 @@ function HomePage() {
   const [selectedAreaIds, setSelectedAreaIds] = useState<string[]>([]);
   const recientesRef = useRef<HTMLElement | null>(null);
 
+  // Exclude templates from regular doc lists.
+  const realDocs = useMemo(() => documents.filter((d) => !d.isTemplate), [documents]);
+
   const filtered = useMemo(() => {
-    return documents
+    return realDocs
       .filter((d) => {
         if (areaId === "all") return true;
         const ids = d.areaIds && d.areaIds.length > 0 ? d.areaIds : d.areaId ? [d.areaId] : [];
@@ -97,7 +103,7 @@ function HomePage() {
       .filter((d) => (statusFilter === "all" ? true : (d.status ?? "draft") === statusFilter))
       .filter((d) => d.name.toLowerCase().includes(query.toLowerCase()))
       .sort((a, b) => b.updatedAt - a.updatedAt);
-  }, [documents, areaId, statusFilter, query]);
+  }, [realDocs, areaId, statusFilter, query]);
 
   const openDoc = (id: string) => navigate({ to: "/editor", search: { doc: id } });
 
@@ -118,14 +124,38 @@ function HomePage() {
     setCaptureOpen(true);
   };
 
-  const handleAuditar = () => {
-    setStatusFilter("in_review");
-    scrollToRecientes();
+  const handleTemplates = () => {
+    setShowNew(false);
+    setSelectedAreaIds([]);
+    navigate({ to: "/templates" });
   };
 
-  const handleModificar = () => {
+  const handleAuditar = () => setPickerMode("audit");
+  const handleModificar = () => setPickerMode("edit");
+
+  // Build a contextual header for the Recientes section.
+  const filterContext = useMemo(() => {
+    const area = areaId !== "all" ? areas.find((a) => a.id === areaId) : null;
+    const statusLabel =
+      statusFilter === "draft"
+        ? "Borradores"
+        : statusFilter === "in_review"
+          ? "En auditoría"
+          : statusFilter === "published"
+            ? "Publicados"
+            : null;
+    const parts: string[] = [];
+    if (statusLabel) parts.push(statusLabel);
+    if (query.trim()) parts.push(`"${query.trim()}"`);
+    return { area, statusLabel, parts };
+  }, [areaId, areas, statusFilter, query]);
+
+  const hasActiveFilter =
+    areaId !== "all" || statusFilter !== "all" || query.trim().length > 0;
+  const clearFilters = () => {
+    setAreaId("all");
     setStatusFilter("all");
-    scrollToRecientes();
+    setQuery("");
   };
 
 
@@ -206,7 +236,7 @@ function HomePage() {
           <nav className="flex flex-col gap-0.5">
             <SidebarLink active icon={HomeIcon} label="Inicio" />
             <SidebarLink icon={FileText} label="Documents" to="/documents" />
-            <SidebarLink icon={LayoutGrid} label="Templates" />
+            <SidebarLink icon={LayoutGrid} label="Templates" to="/templates" />
             <SidebarLink icon={Plug} label="Integrations" to="/integrations" />
           </nav>
 
@@ -214,10 +244,10 @@ function HomePage() {
             Estado
           </div>
           <div className="flex flex-col gap-0.5">
-            <StatusItem selected={statusFilter === "all"} onClick={() => setStatusFilter("all")} dotClass="bg-slate-300" label="Todos" count={documents.length} />
-            <StatusItem selected={statusFilter === "draft"} onClick={() => setStatusFilter("draft")} dotClass="bg-amber-400" label="Borradores" count={documents.filter((d) => (d.status ?? "draft") === "draft").length} />
-            <StatusItem selected={statusFilter === "in_review"} onClick={() => setStatusFilter("in_review")} dotClass="bg-sky-500" label="En auditoría" count={documents.filter((d) => d.status === "in_review").length} />
-            <StatusItem selected={statusFilter === "published"} onClick={() => setStatusFilter("published")} dotClass="bg-emerald-500" label="Publicados" count={documents.filter((d) => d.status === "published").length} />
+            <StatusItem selected={statusFilter === "all"} onClick={() => setStatusFilter("all")} dotClass="bg-slate-300" label="Todos" count={realDocs.length} />
+            <StatusItem selected={statusFilter === "draft"} onClick={() => setStatusFilter("draft")} dotClass="bg-amber-400" label="Borradores" count={realDocs.filter((d) => (d.status ?? "draft") === "draft").length} />
+            <StatusItem selected={statusFilter === "in_review"} onClick={() => setStatusFilter("in_review")} dotClass="bg-sky-500" label="En auditoría" count={realDocs.filter((d) => d.status === "in_review").length} />
+            <StatusItem selected={statusFilter === "published"} onClick={() => setStatusFilter("published")} dotClass="bg-emerald-500" label="Publicados" count={realDocs.filter((d) => d.status === "published").length} />
           </div>
 
 
@@ -230,10 +260,10 @@ function HomePage() {
               onClick={() => setAreaId("all")}
               color="#94A3B8"
               label="Todas"
-              count={documents.length}
+              count={realDocs.length}
             />
             {areas.map((a) => {
-              const count = documents.filter((d) => {
+              const count = realDocs.filter((d) => {
                 const ids = d.areaIds && d.areaIds.length > 0 ? d.areaIds : d.areaId ? [d.areaId] : [];
                 return ids.includes(a.id);
               }).length;
@@ -300,9 +330,30 @@ function HomePage() {
           </section>
 
           <section ref={recientesRef} className="px-8 py-6">
-            <div className="mb-4 flex items-center justify-between">
-              <h2 className="font-display text-xl font-semibold">Recientes</h2>
-              <Link to="/documents" className="text-xs text-sky-600 hover:underline">
+            <div className="mb-4 flex items-center justify-between gap-3">
+              <div className="min-w-0">
+                <h2 className="font-display text-xl font-semibold">Recientes</h2>
+                <div className="mt-0.5 flex flex-wrap items-center gap-1.5 text-xs text-[#64748B]">
+                  {filterContext.area ? (
+                    <span className="inline-flex items-center gap-1.5 rounded-full bg-white px-2 py-0.5 ring-1 ring-[#E2E8F0]">
+                      <span className="h-1.5 w-1.5 rounded-full" style={{ background: filterContext.area.color }} />
+                      {filterContext.area.name}
+                    </span>
+                  ) : (
+                    <span className="text-[#94A3B8]">Todas las áreas</span>
+                  )}
+                  {filterContext.parts.map((p) => (
+                    <span key={p} className="text-[#94A3B8]">· {p}</span>
+                  ))}
+                  <span className="text-[#94A3B8]">· {filtered.length} resultado{filtered.length === 1 ? "" : "s"}</span>
+                  {hasActiveFilter && (
+                    <button onClick={clearFilters} className="ml-1 text-sky-600 hover:underline">
+                      limpiar filtros
+                    </button>
+                  )}
+                </div>
+              </div>
+              <Link to="/documents" className="shrink-0 text-xs text-sky-600 hover:underline">
                 Ver todos →
               </Link>
             </div>
@@ -333,14 +384,8 @@ function HomePage() {
                             {area.name}
                           </span>
                         )}
-                        <span className="absolute right-2 top-2 inline-flex items-center gap-1 rounded-full bg-white/90 px-2 py-0.5 text-[10px] font-medium text-[#475569] shadow-sm">
-                          {doc.status === "published" ? (
-                            <><CheckCircle2 className="h-2.5 w-2.5 text-emerald-600" /> Publicado</>
-                          ) : doc.status === "in_review" ? (
-                            <><GitCompare className="h-2.5 w-2.5 text-sky-600" /> En auditoría</>
-                          ) : (
-                            <><Clock className="h-2.5 w-2.5 text-amber-600" /> Borrador</>
-                          )}
+                        <span className="absolute right-2 top-2">
+                          <StatusPill status={doc.status} size="sm" />
                         </span>
                         <div
                           className="absolute bottom-2 right-2 opacity-0 transition-opacity group-hover:opacity-100"
@@ -447,7 +492,7 @@ function HomePage() {
               accent="from-sky-500 to-cyan-500"
             />
             <NewOption
-              onClick={handleCreateBlank}
+              onClick={handleTemplates}
               icon={<LayoutGrid className="h-6 w-6" />}
               title="Template"
               desc="Procesos pre-armados."
@@ -513,6 +558,12 @@ function HomePage() {
           title={`Auditoría · ${auditDoc.name}`}
         />
       )}
+
+      <PickProcessModal
+        open={pickerMode !== null}
+        mode={pickerMode ?? "edit"}
+        onClose={() => setPickerMode(null)}
+      />
     </div>
   );
 }
