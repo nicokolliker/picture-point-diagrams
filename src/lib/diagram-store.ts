@@ -555,7 +555,7 @@ export function makeDefaultShape(type: ShapeType, x: number, y: number): Shape {
     improvementEntries: [],
     documents: [],
     noStandardDoc: false,
-    fontFamily: "Inter",
+    fontFamily: "Figtree",
     fontSize: 14,
     bold: false,
     italic: false,
