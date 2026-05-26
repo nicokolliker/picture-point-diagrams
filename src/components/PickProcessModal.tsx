@@ -13,6 +13,7 @@ import { useDiagramStore } from "@/lib/diagram-store";
 import { useAreas } from "@/lib/use-areas";
 import { DocThumbnail } from "@/components/doc-thumbnail";
 import { StatusPill } from "@/components/StatusPill";
+import type { DiagramDocument } from "@/lib/shape-types";
 import { cn } from "@/lib/utils";
 
 type Mode = "audit" | "edit";
@@ -27,7 +28,7 @@ export function PickProcessModal({
   onClose: () => void;
 }) {
   const navigate = useNavigate();
-  const documents = useDiagramStore((s) => s.documents);
+  // (documents pulled inside `list` memo below)
   const { areas } = useAreas();
   const [query, setQuery] = useState("");
   const [areaId, setAreaId] = useState<string>("all");
