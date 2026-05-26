@@ -98,6 +98,7 @@ import { PeoplePicker } from "@/components/people-picker";
 import { IconTip } from "@/components/icon-tooltip";
 import { PublishButton } from "@/components/PublishButton";
 import { EditModeBar } from "@/components/EditModeBar";
+import { StatusPill } from "@/components/StatusPill";
 
 
 interface EditorSearch {
