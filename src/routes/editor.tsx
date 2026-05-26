@@ -389,7 +389,10 @@ function EditorPage() {
         </div>
       </div>
 
+      <EditModeBar doc={doc} />
+
       {/* Main area */}
+
       <div className="flex flex-1 overflow-hidden">
         {/* Icon rail */}
         <div className="flex w-12 flex-col items-center gap-1 border-r border-[#EBEBEB] bg-white py-2">
