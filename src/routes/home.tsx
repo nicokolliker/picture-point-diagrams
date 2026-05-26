@@ -429,7 +429,33 @@ function HomePage() {
       </Dialog>
 
       <CaptureProcessModal open={captureOpen} onClose={() => setCaptureOpen(false)} />
+
+      {auditDoc && (
+        <ChangesDiffModal
+          open={!!auditDoc}
+          onClose={() => setAuditDoc(null)}
+          prevPages={auditDoc.baseline?.pages ?? null}
+          nextPages={auditDoc.pages}
+          docName={auditDoc.name}
+        />
+      )}
     </div>
+  );
+}
+
+function StatusItem({ selected, onClick, dotClass, label, count }: { selected: boolean; onClick: () => void; dotClass: string; label: string; count: number }) {
+  return (
+    <button
+      onClick={onClick}
+      className={cn(
+        "flex items-center gap-2 rounded-lg px-3 py-1.5 text-sm transition-colors",
+        selected ? "bg-[#F1F5F9] font-medium text-[#0F172A]" : "text-[#475569] hover:bg-[#F8FAFC]"
+      )}
+    >
+      <span className={cn("h-2 w-2 rounded-full", dotClass)} />
+      <span className="flex-1 truncate text-left">{label}</span>
+      <span className="text-xs text-[#94A3B8]">{count}</span>
+    </button>
   );
 }
 
