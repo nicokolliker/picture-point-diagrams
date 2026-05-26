@@ -8,11 +8,13 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
-import { ArrowLeft, Check, X, Clock, CheckCircle2, XCircle, Inbox } from "lucide-react";
+import { ArrowLeft, Check, X, Clock, CheckCircle2, XCircle, Inbox, GitCompare } from "lucide-react";
 import { DocThumbnail } from "@/components/doc-thumbnail";
 import { FlowItLogo } from "@/components/flowit-logo";
+import { ChangesDiffModal } from "@/components/ChangesDiffModal";
 import type { DiagramDocument } from "@/lib/shape-types";
 import { cn } from "@/lib/utils";
+
 
 export const Route = createFileRoute("/approvals")({
   head: () => ({ meta: [{ title: "Approvals — FlowIt" }] }),
