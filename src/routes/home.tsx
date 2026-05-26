@@ -49,6 +49,8 @@ import { CaptureProcessModal } from "@/components/CaptureProcessModal";
 import { FlowItLogo } from "@/components/flowit-logo";
 import { DocThumbnail } from "@/components/doc-thumbnail";
 import { ChangesDiffModal } from "@/components/ChangesDiffModal";
+import { PickProcessModal } from "@/components/PickProcessModal";
+import { StatusPill } from "@/components/StatusPill";
 import type { DiagramDocument } from "@/lib/shape-types";
 
 export const Route = createFileRoute("/home")({
@@ -80,6 +82,7 @@ function HomePage() {
   const [renameValue, setRenameValue] = useState("");
   const [captureOpen, setCaptureOpen] = useState(false);
   const [auditDoc, setAuditDoc] = useState<DiagramDocument | null>(null);
+  const [pickerMode, setPickerMode] = useState<"audit" | "edit" | null>(null);
 
   useEffect(() => { ensureSeed(); }, [ensureSeed]);
   useEffect(() => { if (!loading && !user) navigate({ to: "/login" }); }, [loading, user, navigate]);
@@ -87,8 +90,11 @@ function HomePage() {
   const [selectedAreaIds, setSelectedAreaIds] = useState<string[]>([]);
   const recientesRef = useRef<HTMLElement | null>(null);
 
+  // Exclude templates from regular doc lists.
+  const realDocs = useMemo(() => documents.filter((d) => !d.isTemplate), [documents]);
+
   const filtered = useMemo(() => {
-    return documents
+    return realDocs
       .filter((d) => {
         if (areaId === "all") return true;
         const ids = d.areaIds && d.areaIds.length > 0 ? d.areaIds : d.areaId ? [d.areaId] : [];
@@ -97,7 +103,7 @@ function HomePage() {
       .filter((d) => (statusFilter === "all" ? true : (d.status ?? "draft") === statusFilter))
       .filter((d) => d.name.toLowerCase().includes(query.toLowerCase()))
       .sort((a, b) => b.updatedAt - a.updatedAt);
-  }, [documents, areaId, statusFilter, query]);
+  }, [realDocs, areaId, statusFilter, query]);
 
   const openDoc = (id: string) => navigate({ to: "/editor", search: { doc: id } });
 
@@ -118,14 +124,38 @@ function HomePage() {
     setCaptureOpen(true);
   };
 
-  const handleAuditar = () => {
-    setStatusFilter("in_review");
-    scrollToRecientes();
+  const handleTemplates = () => {
+    setShowNew(false);
+    setSelectedAreaIds([]);
+    navigate({ to: "/templates" });
   };
 
-  const handleModificar = () => {
+  const handleAuditar = () => setPickerMode("audit");
+  const handleModificar = () => setPickerMode("edit");
+
+  // Build a contextual header for the Recientes section.
+  const filterContext = useMemo(() => {
+    const area = areaId !== "all" ? areas.find((a) => a.id === areaId) : null;
+    const statusLabel =
+      statusFilter === "draft"
+        ? "Borradores"
+        : statusFilter === "in_review"
+          ? "En auditoría"
+          : statusFilter === "published"
+            ? "Publicados"
+            : null;
+    const parts: string[] = [];
+    if (statusLabel) parts.push(statusLabel);
+    if (query.trim()) parts.push(`"${query.trim()}"`);
+    return { area, statusLabel, parts };
+  }, [areaId, areas, statusFilter, query]);
+
+  const hasActiveFilter =
+    areaId !== "all" || statusFilter !== "all" || query.trim().length > 0;
+  const clearFilters = () => {
+    setAreaId("all");
     setStatusFilter("all");
-    scrollToRecientes();
+    setQuery("");
   };
 
 
