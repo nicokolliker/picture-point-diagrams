@@ -20,9 +20,11 @@ type Note = { id: string; title?: string; created_at?: string };
 export function CaptureProcessModal({
   open,
   onClose,
+  defaultAreaIds,
 }: {
   open: boolean;
   onClose: () => void;
+  defaultAreaIds?: string[];
 }) {
   const navigate = useNavigate();
   const [view, setView] = useState<View>("picker");
@@ -45,6 +47,10 @@ export function CaptureProcessModal({
 
   const finish = (flow: AIFlowchart) => {
     const doc = buildDocFromAI(flow);
+    if (defaultAreaIds && defaultAreaIds.length > 0) {
+      doc.areaIds = [...defaultAreaIds];
+      doc.areaId = defaultAreaIds[0];
+    }
     if (allPeople.length > 0) {
       doc.pages.forEach((p) =>
         p.shapes.forEach((s) => {
