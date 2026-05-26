@@ -5032,36 +5032,58 @@ function CanvasArea({
           overflow: "visible",
         }}
       >
-        {/* Miro-style floating FormatBar above selected shape */}
-        {selectedIds.length === 1 && propertiesOpenFor !== selectedIds[0] && (() => {
-          const s = page.shapes.find((sh) => sh.id === selectedIds[0]);
-          if (!s) return null;
-          const left = pan.x + (s.x + s.width / 2) * zoom;
-          const top = pan.y + s.y * zoom - 12;
-          return (
-            <div
-              style={{
-                position: "absolute",
-                left,
-                top,
-                transform: "translate(-50%, -100%)",
-                pointerEvents: "auto",
-                width: "max-content",
-                maxWidth: "none",
-                filter: "drop-shadow(0 6px 16px rgba(0,0,0,0.12))",
-              }}
-              onPointerDown={(e) => e.stopPropagation()}
-              onWheel={(e) => e.stopPropagation()}
-            >
-              <FormatBar
-                shape={s}
-                onChange={(patch) =>
-                  useDiagramStore.getState().updateShape(docId, page.id, s.id, patch)
-                }
-              />
-            </div>
-          );
-        })()}
+        {/* Miro-style floating FormatBar above selected shape(s) */}
+        {selectedIds.length >= 1 &&
+          !(selectedIds.length === 1 && propertiesOpenFor === selectedIds[0]) &&
+          (() => {
+            const sel = page.shapes.filter((sh) => selectedIds.includes(sh.id));
+            if (sel.length === 0) return null;
+            const minX = Math.min(...sel.map((s) => s.x));
+            const minY = Math.min(...sel.map((s) => s.y));
+            const maxX = Math.max(...sel.map((s) => s.x + s.width));
+            const centerX = (minX + maxX) / 2;
+            const left = pan.x + centerX * zoom;
+            const top = pan.y + minY * zoom - 12;
+            const representative = sel[0];
+            const multi = sel.length > 1;
+            return (
+              <div
+                style={{
+                  position: "absolute",
+                  left,
+                  top,
+                  transform: "translate(-50%, -100%)",
+                  pointerEvents: "auto",
+                  width: "max-content",
+                  maxWidth: "none",
+                  filter: "drop-shadow(0 6px 16px rgba(0,0,0,0.12))",
+                }}
+                onPointerDown={(e) => e.stopPropagation()}
+                onWheel={(e) => e.stopPropagation()}
+              >
+                {multi && (
+                  <div className="mb-1 rounded-md bg-[#5B6CF8] px-2 py-0.5 text-center text-[10px] font-semibold text-white shadow-sm">
+                    {sel.length} shapes seleccionadas
+                  </div>
+                )}
+                <FormatBar
+                  shape={representative}
+                  onChange={(patch) => {
+                    if (multi) {
+                      useDiagramStore
+                        .getState()
+                        .updateShapes(docId, page.id, selectedIds, patch);
+                    } else {
+                      useDiagramStore
+                        .getState()
+                        .updateShape(docId, page.id, representative.id, patch);
+                    }
+                  }}
+                />
+              </div>
+            );
+          })()}
+
       </div>
 
 
