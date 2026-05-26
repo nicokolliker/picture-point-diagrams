@@ -43,7 +43,7 @@ import {
   Expand,
   Shuffle,
   SlidersHorizontal,
-  Sparkles,
+  
 } from "lucide-react";
 import {
   Popover,
@@ -97,6 +97,8 @@ import { PdfCanvasViewer } from "@/components/pdf-canvas-viewer";
 import { PeoplePicker } from "@/components/people-picker";
 import { IconTip } from "@/components/icon-tooltip";
 import { PublishButton } from "@/components/PublishButton";
+import { EditModeBar } from "@/components/EditModeBar";
+
 
 interface EditorSearch {
   doc?: string;
@@ -211,6 +213,14 @@ function EditorPage() {
 
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [captureOpen, setCaptureOpen] = useState(false);
+  // Initialize a baseline for documents that don't have one yet (e.g. legacy docs
+  // or freshly published ones). This makes the "Modo edición" diff meaningful.
+  useEffect(() => {
+    if (doc && !doc.baseline && doc.status === "published") {
+      useDiagramStore.getState().captureBaseline(doc.id);
+    }
+  }, [doc?.id]);
+
   useEffect(() => {
     if (pendingSelectRef.current && page) {
       const id = pendingSelectRef.current;
@@ -380,12 +390,6 @@ function EditorPage() {
           >
             <Maximize2 className="h-4 w-4" />
           </button>
-          <button
-            onClick={() => setCaptureOpen(true)}
-            className="inline-flex items-center gap-1.5 rounded-md bg-[#5B6CF8] px-3 py-1.5 text-sm text-white hover:bg-[#4856E0]"
-          >
-            <Sparkles className="h-4 w-4" /> Capturar proceso
-          </button>
           <Button className="h-8 bg-[#5B6CF8] hover:bg-[#4856E0] text-white">
             <Share2 className="h-4 w-4" />
             Share
@@ -393,7 +397,10 @@ function EditorPage() {
         </div>
       </div>
 
+      <EditModeBar doc={doc} />
+
       {/* Main area */}
+
       <div className="flex flex-1 overflow-hidden">
         {/* Icon rail */}
         <div className="flex w-12 flex-col items-center gap-1 border-r border-[#EBEBEB] bg-white py-2">
@@ -5038,36 +5045,58 @@ function CanvasArea({
           overflow: "visible",
         }}
       >
-        {/* Miro-style floating FormatBar above selected shape */}
-        {selectedIds.length === 1 && propertiesOpenFor !== selectedIds[0] && (() => {
-          const s = page.shapes.find((sh) => sh.id === selectedIds[0]);
-          if (!s) return null;
-          const left = pan.x + (s.x + s.width / 2) * zoom;
-          const top = pan.y + s.y * zoom - 12;
-          return (
-            <div
-              style={{
-                position: "absolute",
-                left,
-                top,
-                transform: "translate(-50%, -100%)",
-                pointerEvents: "auto",
-                width: "max-content",
-                maxWidth: "none",
-                filter: "drop-shadow(0 6px 16px rgba(0,0,0,0.12))",
-              }}
-              onPointerDown={(e) => e.stopPropagation()}
-              onWheel={(e) => e.stopPropagation()}
-            >
-              <FormatBar
-                shape={s}
-                onChange={(patch) =>
-                  useDiagramStore.getState().updateShape(docId, page.id, s.id, patch)
-                }
-              />
-            </div>
-          );
-        })()}
+        {/* Miro-style floating FormatBar above selected shape(s) */}
+        {selectedIds.length >= 1 &&
+          !(selectedIds.length === 1 && propertiesOpenFor === selectedIds[0]) &&
+          (() => {
+            const sel = page.shapes.filter((sh) => selectedIds.includes(sh.id));
+            if (sel.length === 0) return null;
+            const minX = Math.min(...sel.map((s) => s.x));
+            const minY = Math.min(...sel.map((s) => s.y));
+            const maxX = Math.max(...sel.map((s) => s.x + s.width));
+            const centerX = (minX + maxX) / 2;
+            const left = pan.x + centerX * zoom;
+            const top = pan.y + minY * zoom - 12;
+            const representative = sel[0];
+            const multi = sel.length > 1;
+            return (
+              <div
+                style={{
+                  position: "absolute",
+                  left,
+                  top,
+                  transform: "translate(-50%, -100%)",
+                  pointerEvents: "auto",
+                  width: "max-content",
+                  maxWidth: "none",
+                  filter: "drop-shadow(0 6px 16px rgba(0,0,0,0.12))",
+                }}
+                onPointerDown={(e) => e.stopPropagation()}
+                onWheel={(e) => e.stopPropagation()}
+              >
+                {multi && (
+                  <div className="mb-1 rounded-md bg-[#5B6CF8] px-2 py-0.5 text-center text-[10px] font-semibold text-white shadow-sm">
+                    {sel.length} shapes seleccionadas
+                  </div>
+                )}
+                <FormatBar
+                  shape={representative}
+                  onChange={(patch) => {
+                    if (multi) {
+                      useDiagramStore
+                        .getState()
+                        .updateShapes(docId, page.id, selectedIds, patch);
+                    } else {
+                      useDiagramStore
+                        .getState()
+                        .updateShape(docId, page.id, representative.id, patch);
+                    }
+                  }}
+                />
+              </div>
+            );
+          })()}
+
       </div>
 
 

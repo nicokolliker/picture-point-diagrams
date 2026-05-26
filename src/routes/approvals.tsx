@@ -8,11 +8,13 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
-import { ArrowLeft, Check, X, Clock, CheckCircle2, XCircle, Inbox } from "lucide-react";
+import { ArrowLeft, Check, X, Clock, CheckCircle2, XCircle, Inbox, GitCompare } from "lucide-react";
 import { DocThumbnail } from "@/components/doc-thumbnail";
 import { FlowItLogo } from "@/components/flowit-logo";
+import { ChangesDiffModal } from "@/components/ChangesDiffModal";
 import type { DiagramDocument } from "@/lib/shape-types";
 import { cn } from "@/lib/utils";
+
 
 export const Route = createFileRoute("/approvals")({
   head: () => ({ meta: [{ title: "Approvals — FlowIt" }] }),
@@ -52,6 +54,8 @@ function ApprovalsPage() {
   const [tab, setTab] = useState<Tab>("mine");
   const [rejectFor, setRejectFor] = useState<string | null>(null);
   const [rejectComment, setRejectComment] = useState("");
+  const [diffFor, setDiffFor] = useState<Req | null>(null);
+
   const decide = useServerFn(decidePublishRequest);
 
   useEffect(() => { if (!loading && !user) navigate({ to: "/login" }); }, [loading, user, navigate]);
@@ -202,7 +206,13 @@ function ApprovalsPage() {
                     )}
 
                     {/* Actions */}
-                    <div className="mt-4 flex gap-2">
+                    <div className="mt-4 flex flex-wrap gap-2">
+                      <button
+                        onClick={() => setDiffFor(r)}
+                        className="inline-flex flex-1 items-center justify-center gap-1.5 rounded-md border border-sky-200 bg-sky-50 px-3 py-1.5 text-xs font-medium text-sky-700 hover:bg-sky-100"
+                      >
+                        <GitCompare className="h-3.5 w-3.5" /> Ver cambios
+                      </button>
                       <Link
                         to="/editor"
                         search={{ doc: r.doc_id }}
@@ -210,6 +220,7 @@ function ApprovalsPage() {
                       >
                         Ver diagrama
                       </Link>
+
                       {canApprove(r) && (
                         <>
                           <Button size="sm" className="h-8 flex-1 bg-emerald-600 hover:bg-emerald-700" onClick={() => onDecide(r.id, "approve")}>
@@ -243,9 +254,33 @@ function ApprovalsPage() {
           </div>
         )}
       </main>
+
+      {diffFor && (
+        <ChangesDiffModal
+          open={!!diffFor}
+          onClose={() => setDiffFor(null)}
+          prev={
+            reqs
+              .filter(
+                (x) =>
+                  x.doc_id === diffFor.doc_id &&
+                  x.status === "approved" &&
+                  new Date(x.created_at).getTime() <
+                    new Date(diffFor.created_at).getTime(),
+              )
+              .sort(
+                (a, b) =>
+                  new Date(b.created_at).getTime() - new Date(a.created_at).getTime(),
+              )[0]?.snapshot ?? null
+          }
+          next={diffFor.snapshot}
+          title={`${diffFor.doc_name} · v${diffFor.version_number}`}
+        />
+      )}
     </div>
   );
 }
+
 
 function TabBtn({ active, onClick, icon, label, count, accent }: { active: boolean; onClick: () => void; icon: React.ReactNode; label: string; count: number; accent?: boolean }) {
   return (
