@@ -1,5 +1,5 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   Plus,
   Search,
@@ -19,6 +19,10 @@ import {
   Clock,
   GitCompare,
   ScrollText,
+  Rocket,
+  ShieldCheck,
+  PencilRuler,
+  Check,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -80,9 +84,16 @@ function HomePage() {
   useEffect(() => { ensureSeed(); }, [ensureSeed]);
   useEffect(() => { if (!loading && !user) navigate({ to: "/login" }); }, [loading, user, navigate]);
 
+  const [selectedAreaIds, setSelectedAreaIds] = useState<string[]>([]);
+  const recientesRef = useRef<HTMLElement | null>(null);
+
   const filtered = useMemo(() => {
     return documents
-      .filter((d) => (areaId === "all" ? true : d.areaId === areaId))
+      .filter((d) => {
+        if (areaId === "all") return true;
+        const ids = d.areaIds && d.areaIds.length > 0 ? d.areaIds : d.areaId ? [d.areaId] : [];
+        return ids.includes(areaId);
+      })
       .filter((d) => (statusFilter === "all" ? true : (d.status ?? "draft") === statusFilter))
       .filter((d) => d.name.toLowerCase().includes(query.toLowerCase()))
       .sort((a, b) => b.updatedAt - a.updatedAt);
@@ -90,9 +101,15 @@ function HomePage() {
 
   const openDoc = (id: string) => navigate({ to: "/editor", search: { doc: id } });
 
+  const scrollToRecientes = () => {
+    setTimeout(() => recientesRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }), 50);
+  };
+
   const handleCreateBlank = () => {
-    const id = createDocument({ areaId: areaId === "all" ? undefined : areaId });
+    const ids = selectedAreaIds.length > 0 ? selectedAreaIds : areaId === "all" ? [] : [areaId];
+    const id = createDocument({ areaIds: ids });
     setShowNew(false);
+    setSelectedAreaIds([]);
     openDoc(id);
   };
 
@@ -100,6 +117,17 @@ function HomePage() {
     setShowNew(false);
     setCaptureOpen(true);
   };
+
+  const handleAuditar = () => {
+    setStatusFilter("in_review");
+    scrollToRecientes();
+  };
+
+  const handleModificar = () => {
+    setStatusFilter("all");
+    scrollToRecientes();
+  };
+
 
   const greeting = useMemo(() => {
     const h = new Date().getHours();
