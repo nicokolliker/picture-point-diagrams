@@ -34,7 +34,7 @@ interface State {
   deleteDocument: (id: string) => void;
   duplicateDocument: (id: string) => void;
   renameDocument: (id: string, name: string) => void;
-  setDocStatus: (id: string, status: "draft" | "published") => void;
+  setDocStatus: (id: string, status: "draft" | "in_review" | "published") => void;
   captureBaseline: (id: string) => void;
   discardChanges: (id: string) => void;
 
