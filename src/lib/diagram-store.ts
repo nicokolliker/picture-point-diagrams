@@ -317,6 +317,96 @@ export const useDiagramStore = create<State>()(
         return id;
       },
 
+      forkPublishedToDraft: (docId) => {
+        const src = get().documents.find((d) => d.id === docId);
+        if (!src) return null;
+        const id = `d${Date.now()}`;
+        const cloned: DiagramDocument = JSON.parse(JSON.stringify(src));
+        const now = Date.now();
+        cloned.id = id;
+        cloned.name = `${src.name} (cambios)`;
+        cloned.status = "draft";
+        cloned.isTemplate = false;
+        cloned.archived = false;
+        cloned.originDocId = docId;
+        cloned.versions = undefined;
+        cloned.currentVersion = undefined;
+        cloned.publishedAt = undefined;
+        cloned.lastSyncedRequestId = undefined;
+        cloned.updatedAt = now;
+        // Keep page/shape ids — diff vs origin baseline relies on stable ids.
+        cloned.baseline = {
+          pages: JSON.parse(JSON.stringify(src.pages)) as Page[],
+          capturedAt: now,
+        };
+        commit([cloned, ...get().documents]);
+        return id;
+      },
+
+      applyApprovedSnapshot: (docId, snapshot, meta) => {
+        const docs = get().documents;
+        const target = docs.find((d) => d.id === docId);
+        if (!target) return;
+        if (target.lastSyncedRequestId === meta.requestId) return;
+        const newPages = JSON.parse(JSON.stringify(snapshot.pages)) as Page[];
+        const version: DocVersion = {
+          versionNumber: meta.versionNumber,
+          approvedAt: meta.approvedAt,
+          requestId: meta.requestId,
+          requesterId: meta.requesterId,
+          approverIds: meta.approverIds,
+          note: meta.note,
+          snapshot: { pages: JSON.parse(JSON.stringify(snapshot.pages)) as Page[] },
+        };
+        const updated = docs.map((d) => {
+          if (d.id === docId) {
+            return {
+              ...d,
+              pages: newPages,
+              status: "published" as const,
+              publishedAt: meta.approvedAt,
+              currentVersion: meta.versionNumber,
+              versions: [...(d.versions ?? []), version],
+              lastSyncedRequestId: meta.requestId,
+              baseline: { pages: newPages, capturedAt: meta.approvedAt },
+              updatedAt: meta.approvedAt,
+            };
+          }
+          // Archive the fork draft that produced this approval, if any.
+          if (meta.forkedFromDocId && d.id === meta.forkedFromDocId) {
+            return { ...d, archived: true, status: "published" as const };
+          }
+          return d;
+        });
+        commit(updated);
+      },
+
+      restoreVersionAsDraft: (docId, versionNumber) => {
+        const src = get().documents.find((d) => d.id === docId);
+        const v = src?.versions?.find((x) => x.versionNumber === versionNumber);
+        if (!src || !v) return null;
+        const id = `d${Date.now()}`;
+        const cloned: DiagramDocument = JSON.parse(JSON.stringify(src));
+        const now = Date.now();
+        cloned.id = id;
+        cloned.name = `${src.name} (v${versionNumber} restaurada)`;
+        cloned.status = "draft";
+        cloned.originDocId = docId;
+        cloned.versions = undefined;
+        cloned.currentVersion = undefined;
+        cloned.publishedAt = undefined;
+        cloned.lastSyncedRequestId = undefined;
+        cloned.archived = false;
+        cloned.pages = JSON.parse(JSON.stringify(v.snapshot.pages)) as Page[];
+        cloned.baseline = {
+          pages: JSON.parse(JSON.stringify(src.pages)) as Page[],
+          capturedAt: now,
+        };
+        cloned.updatedAt = now;
+        commit([cloned, ...get().documents]);
+        return id;
+      },
+
       addShape: (docId, pageId, shape) =>
         commit(
           mutPage(get().documents, docId, pageId, (p) => {
