@@ -13,10 +13,10 @@ type Props = {
  * Designed for a 232px sidebar column. The Shuffle glyph sits inside a
  * soft, low-contrast circle so the Chill It wordmark stays dominant.
  */
-export function FlowItLogo({ size = 34, className = "" }: Props) {
+export function FlowItLogo({ size = 28, className = "" }: Props) {
   const ringSize = Math.round(size * 0.86);
   const iconSize = Math.round(size * 0.42);
-  const wordmarkHeight = Math.round(size * 0.92);
+  const wordmarkHeight = Math.round(size * 0.85);
 
   return (
     <div

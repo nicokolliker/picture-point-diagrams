@@ -122,6 +122,16 @@ export interface Page {
   connectors: Connector[];
 }
 
+export interface DocVersion {
+  versionNumber: number;
+  approvedAt: number;
+  requestId: string;
+  requesterId: string;
+  approverIds: string[];
+  note?: string;
+  snapshot: { pages: Page[] };
+}
+
 export interface DiagramDocument {
   id: string;
   name: string;
@@ -132,6 +142,16 @@ export interface DiagramDocument {
   status: "draft" | "in_review" | "published";
   /** Reusable template that doesn't show up in the regular processes list. */
   isTemplate?: boolean;
+  /** Hidden from listings (used after a forked draft is merged via approval). */
+  archived?: boolean;
+  /** Set when this doc is a forked draft proposing changes to a published doc. */
+  originDocId?: string;
+  /** Last publish_request whose approved snapshot was applied locally. */
+  lastSyncedRequestId?: string;
+  /** Append-only history of approved snapshots. */
+  versions?: DocVersion[];
+  currentVersion?: number;
+  publishedAt?: number;
   pages: Page[];
   /** Snapshot of the last "clean" / approved version. Used to compute dirty state and to discard pending changes. */
   baseline?: {
