@@ -49,6 +49,38 @@ export type Database = {
           },
         ]
       }
+      area_members: {
+        Row: {
+          area_id: string
+          created_at: string
+          id: string
+          role: Database["public"]["Enums"]["area_role"]
+          user_id: string
+        }
+        Insert: {
+          area_id: string
+          created_at?: string
+          id?: string
+          role: Database["public"]["Enums"]["area_role"]
+          user_id: string
+        }
+        Update: {
+          area_id?: string
+          created_at?: string
+          id?: string
+          role?: Database["public"]["Enums"]["area_role"]
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "area_members_area_id_fkey"
+            columns: ["area_id"]
+            isOneToOne: false
+            referencedRelation: "areas"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       areas: {
         Row: {
           color: string
@@ -79,6 +111,86 @@ export type Database = {
         }
         Relationships: []
       }
+      audit_findings: {
+        Row: {
+          audit_id: string
+          created_at: string
+          description: string | null
+          id: string
+          page_id: string | null
+          promoted_to_doc_id: string | null
+          severity: Database["public"]["Enums"]["finding_severity"]
+          shape_id: string | null
+          title: string
+        }
+        Insert: {
+          audit_id: string
+          created_at?: string
+          description?: string | null
+          id?: string
+          page_id?: string | null
+          promoted_to_doc_id?: string | null
+          severity?: Database["public"]["Enums"]["finding_severity"]
+          shape_id?: string | null
+          title: string
+        }
+        Update: {
+          audit_id?: string
+          created_at?: string
+          description?: string | null
+          id?: string
+          page_id?: string | null
+          promoted_to_doc_id?: string | null
+          severity?: Database["public"]["Enums"]["finding_severity"]
+          shape_id?: string | null
+          title?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "audit_findings_audit_id_fkey"
+            columns: ["audit_id"]
+            isOneToOne: false
+            referencedRelation: "audits"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      audits: {
+        Row: {
+          auditor_id: string
+          closed_at: string | null
+          created_at: string
+          doc_id: string
+          doc_name: string
+          id: string
+          status: Database["public"]["Enums"]["audit_status"]
+          summary: string | null
+          updated_at: string
+        }
+        Insert: {
+          auditor_id: string
+          closed_at?: string | null
+          created_at?: string
+          doc_id: string
+          doc_name: string
+          id?: string
+          status?: Database["public"]["Enums"]["audit_status"]
+          summary?: string | null
+          updated_at?: string
+        }
+        Update: {
+          auditor_id?: string
+          closed_at?: string | null
+          created_at?: string
+          doc_id?: string
+          doc_name?: string
+          id?: string
+          status?: Database["public"]["Enums"]["audit_status"]
+          summary?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
       doc_approvers: {
         Row: {
           created_at: string
@@ -99,6 +211,27 @@ export type Database = {
           doc_id?: string
           id?: string
           required_count?: number
+          user_id?: string
+        }
+        Relationships: []
+      }
+      doc_notified: {
+        Row: {
+          created_at: string
+          doc_id: string
+          id: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          doc_id: string
+          id?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          doc_id?: string
+          id?: string
           user_id?: string
         }
         Relationships: []
@@ -231,6 +364,14 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      has_area_role: {
+        Args: {
+          _area_id: string
+          _role: Database["public"]["Enums"]["area_role"]
+          _user_id: string
+        }
+        Returns: boolean
+      }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
@@ -239,10 +380,23 @@ export type Database = {
         Returns: boolean
       }
       is_admin: { Args: { _user_id: string }; Returns: boolean }
+      is_area_owner: {
+        Args: { _area_id: string; _user_id: string }
+        Returns: boolean
+      }
     }
     Enums: {
       app_role: "super_admin" | "admin" | "editor" | "viewer"
       approval_decision: "approve" | "reject"
+      area_role:
+        | "owner"
+        | "editor"
+        | "approver"
+        | "auditor"
+        | "viewer"
+        | "notified"
+      audit_status: "open" | "closed_green" | "closed_yellow" | "closed_red"
+      finding_severity: "info" | "opportunity" | "inconsistency" | "risk"
       import_status: "pending" | "generating" | "ready" | "failed"
       request_status: "pending" | "approved" | "rejected" | "cancelled"
     }
@@ -374,6 +528,16 @@ export const Constants = {
     Enums: {
       app_role: ["super_admin", "admin", "editor", "viewer"],
       approval_decision: ["approve", "reject"],
+      area_role: [
+        "owner",
+        "editor",
+        "approver",
+        "auditor",
+        "viewer",
+        "notified",
+      ],
+      audit_status: ["open", "closed_green", "closed_yellow", "closed_red"],
+      finding_severity: ["info", "opportunity", "inconsistency", "risk"],
       import_status: ["pending", "generating", "ready", "failed"],
       request_status: ["pending", "approved", "rejected", "cancelled"],
     },
