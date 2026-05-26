@@ -704,7 +704,7 @@ function FormatBar({
   shape: Shape;
   onChange: (patch: Partial<Shape>) => void;
 }) {
-  const FONTS = ["Inter", "Poppins", "Georgia", "Courier New", "Arial", "Roboto Mono"];
+  const FONTS = ["Figtree", "Outfit", "Inter", "Poppins", "Georgia", "Courier New", "Arial", "Roboto Mono"];
   const cycleCorner = () => {
     const next: Shape["cornerStyle"] =
       shape.cornerStyle === "sharp"

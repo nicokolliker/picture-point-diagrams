@@ -44,7 +44,7 @@ export function buildDocFromAI(flow: AIFlowchart): DiagramDocument {
     description: "",
     responsable: "",
     status: "ninguno",
-    fontFamily: "Inter",
+    fontFamily: "Figtree",
     fontSize: 14,
     bold: false,
     italic: false,

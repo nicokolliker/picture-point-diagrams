@@ -32,7 +32,7 @@ const baseShape = (
   improvementEntries: [],
   documents: [],
   noStandardDoc: false,
-  fontFamily: "Inter",
+  fontFamily: "Figtree",
   fontSize: 14,
   bold: true,
   italic: false,
