@@ -682,12 +682,14 @@ function AreaItem({ selected, onClick, color, label, count }: { selected: boolea
   );
 }
 
-function HeroCard({ onClick, icon, title, desc, gradient, iconBg, badge }: { onClick: () => void; icon: React.ReactNode; title: string; desc: string; gradient: string; iconBg: string; badge?: number }) {
+function HeroCard({ onClick, icon, title, desc, gradient, iconBg, badge, disabled }: { onClick: () => void; icon: React.ReactNode; title: string; desc: string; gradient: string; iconBg: string; badge?: number; disabled?: boolean }) {
   return (
     <button
       onClick={onClick}
+      disabled={disabled}
       className={cn(
-        "group relative overflow-hidden rounded-2xl border border-white/60 bg-gradient-to-br p-4 text-left transition-all hover:-translate-y-0.5 hover:shadow-[0_12px_32px_rgba(14,165,233,0.12)]",
+        "group relative overflow-hidden rounded-2xl border border-white/60 bg-gradient-to-br p-4 text-left transition-all",
+        disabled ? "opacity-60 cursor-not-allowed" : "hover:-translate-y-0.5 hover:shadow-[0_12px_32px_rgba(14,165,233,0.12)]",
         gradient
       )}
     >
