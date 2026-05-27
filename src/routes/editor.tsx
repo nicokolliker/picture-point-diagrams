@@ -575,6 +575,19 @@ function EditorPage() {
             onClose={() => setPropertiesOpenFor(null)}
           />
         )}
+
+        {auditMode && page && (
+          <AuditPanel
+            doc={doc}
+            currentPageId={page.id}
+            selectedShapeId={selectedIds[0] ?? null}
+            onClose={() => navigate({ to: "/editor", search: { doc: doc.id } })}
+            onJumpToShape={(pid, sid) => {
+              if (pid !== page.id) goToPage(pid, sid);
+              else setSelectedIds([sid]);
+            }}
+          />
+        )}
       </div>
 
       {/* PinnedConnectorsOverlay removed — connector lines now live inside each CanvasArea's popup-overlay */}
