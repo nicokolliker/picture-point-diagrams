@@ -51,7 +51,12 @@ export function EditModeBar({ doc }: { doc: DiagramDocument }) {
     return normalizePages(doc.pages) !== normalizePages(doc.baseline.pages);
   }, [doc]);
 
-  if (!isDirty) return null;
+  const targetIdForLookup = doc.originDocId ?? doc.id;
+  const { byDoc } = useLatestRequests([targetIdForLookup]);
+  const latest = byDoc[targetIdForLookup];
+  const showRejected = latest?.status === "rejected" && (doc.status === "draft" || isDirty);
+
+  if (!isDirty && !showRejected) return null;
 
   const isFork = !!doc.originDocId;
   const parent = isFork ? documents.find((d) => d.id === doc.originDocId) : null;
