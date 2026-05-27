@@ -15,6 +15,8 @@ import { toast } from "sonner";
 import { useDiagramStore } from "@/lib/diagram-store";
 import type { DiagramDocument, Page } from "@/lib/shape-types";
 import { createPublishRequest } from "@/lib/approvals.functions";
+import { useLatestRequests } from "@/lib/use-latest-requests";
+import { AlertTriangle } from "lucide-react";
 
 function normalizePages(pages: Page[]) {
   return JSON.stringify(
