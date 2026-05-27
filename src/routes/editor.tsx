@@ -160,6 +160,8 @@ function EditorPage() {
     [documents, search.doc],
   );
 
+  const auditMode = search.mode === "audit";
+
   const [currentPageId, setCurrentPageId] = useState<string | undefined>();
   // Sync currentPageId with URL ?page= param when valid; otherwise default to first page.
   useEffect(() => {
