@@ -58,24 +58,40 @@ function AdminPage() {
   const [profiles, setProfiles] = useState<Profile[]>([]);
   const [roles, setRoles] = useState<RoleRow[]>([]);
   const [approvers, setApprovers] = useState<ApproverRow[]>([]);
+  const [areas, setAreas] = useState<AreaRow[]>([]);
+  const [areaMembers, setAreaMembers] = useState<AreaMemberRow[]>([]);
+  const [notified, setNotified] = useState<NotifiedRow[]>([]);
 
   const [docId, setDocId] = useState<string>("");
   const [newApproverId, setNewApproverId] = useState<string>("");
   const [required, setRequired] = useState<number>(1);
+
+  const [amAreaId, setAmAreaId] = useState<string>("");
+  const [amUserId, setAmUserId] = useState<string>("");
+  const [amRole, setAmRole] = useState<AreaMemberRow["role"]>("editor");
+
+  const [notifDocId, setNotifDocId] = useState<string>("");
+  const [notifUserId, setNotifUserId] = useState<string>("");
 
   useEffect(() => {
     if (!loading && !user) navigate({ to: "/login" });
   }, [loading, user, navigate]);
 
   const refresh = async () => {
-    const [p, r, a] = await Promise.all([
+    const [p, r, a, ar, am, n] = await Promise.all([
       supabase.from("profiles").select("id,email,display_name"),
       supabase.from("user_roles").select("user_id,role"),
       supabase.from("doc_approvers").select("*"),
+      supabase.from("areas").select("id,name,color").order("sort_order"),
+      supabase.from("area_members").select("*"),
+      supabase.from("doc_notified").select("*"),
     ]);
     setProfiles((p.data as Profile[]) ?? []);
     setRoles((r.data as RoleRow[]) ?? []);
     setApprovers((a.data as ApproverRow[]) ?? []);
+    setAreas((ar.data as AreaRow[]) ?? []);
+    setAreaMembers((am.data as AreaMemberRow[]) ?? []);
+    setNotified((n.data as NotifiedRow[]) ?? []);
   };
 
   useEffect(() => {
