@@ -123,12 +123,43 @@ function AdminPage() {
     refresh();
   };
 
+  const addAreaMember = async () => {
+    if (!amAreaId || !amUserId) return;
+    const { error } = await supabase
+      .from("area_members")
+      .insert({ area_id: amAreaId, user_id: amUserId, role: amRole });
+    if (error) toast.error(error.message);
+    else toast.success("Miembro agregado");
+    refresh();
+  };
+
+  const removeAreaMember = async (id: string) => {
+    await supabase.from("area_members").delete().eq("id", id);
+    refresh();
+  };
+
+  const addNotified = async () => {
+    if (!notifDocId || !notifUserId) return;
+    const { error } = await supabase
+      .from("doc_notified")
+      .insert({ doc_id: notifDocId, user_id: notifUserId });
+    if (error) toast.error(error.message);
+    else toast.success("Notificado agregado");
+    refresh();
+  };
+
+  const removeNotified = async (id: string) => {
+    await supabase.from("doc_notified").delete().eq("id", id);
+    refresh();
+  };
+
   const profileName = (id: string) => {
     const p = profiles.find((x) => x.id === id);
     return p ? p.display_name || p.email : id.slice(0, 8);
   };
 
   const docName = (id: string) => docs.find((d) => d.id === id)?.name ?? id;
+  const areaName = (id: string) => areas.find((a) => a.id === id)?.name ?? id.slice(0, 8);
 
   return (
     <div className="min-h-screen bg-[#F9FAFB]">
