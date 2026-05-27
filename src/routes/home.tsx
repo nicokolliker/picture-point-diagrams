@@ -77,6 +77,9 @@ function HomePage() {
   const duplicateDocument = useDiagramStore((s) => s.duplicateDocument);
   const renameDocument = useDiagramStore((s) => s.renameDocument);
   const { areas } = useAreas();
+  const { hasAnyRoleAnywhere } = useAreaMembership();
+  const canAuditAny = hasAnyRoleAnywhere(["owner", "auditor"]);
+  const canEditAny = hasAnyRoleAnywhere(["owner", "editor"]);
 
   const [query, setQuery] = useState("");
   const [areaId, setAreaId] = useState<string>("all");
