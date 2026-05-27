@@ -80,6 +80,11 @@ function HomePage() {
   const { hasAnyRoleAnywhere } = useAreaMembership();
   const canAuditAny = hasAnyRoleAnywhere(["owner", "auditor"]);
   const canEditAny = hasAnyRoleAnywhere(["owner", "editor"]);
+  const docIdsForRequests = useMemo(
+    () => documents.filter((d) => !d.isTemplate && !d.archived).map((d) => d.originDocId ?? d.id),
+    [documents],
+  );
+  const { byDoc: latestReqByDoc } = useLatestRequests(docIdsForRequests);
 
   const [query, setQuery] = useState("");
   const [areaId, setAreaId] = useState<string>("all");
