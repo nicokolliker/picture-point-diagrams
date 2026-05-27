@@ -48,6 +48,7 @@ import { cn } from "@/lib/utils";
 import { useAuth, signOut } from "@/lib/auth";
 import { useAreas } from "@/lib/use-areas";
 import { useAreaMembership } from "@/lib/use-area-membership";
+import { useLatestRequests } from "@/lib/use-latest-requests";
 import { CaptureProcessModal } from "@/components/CaptureProcessModal";
 import { FlowItLogo } from "@/components/flowit-logo";
 import { DocThumbnail } from "@/components/doc-thumbnail";
