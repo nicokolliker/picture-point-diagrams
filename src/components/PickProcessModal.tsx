@@ -11,6 +11,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { useDiagramStore } from "@/lib/diagram-store";
 import { useAreas } from "@/lib/use-areas";
+import { useAreaMembership } from "@/lib/use-area-membership";
 import { DocThumbnail } from "@/components/doc-thumbnail";
 import { StatusPill } from "@/components/StatusPill";
 import type { DiagramDocument } from "@/lib/shape-types";
