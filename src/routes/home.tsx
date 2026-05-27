@@ -433,8 +433,19 @@ function HomePage() {
                             {area.name}
                           </span>
                         )}
-                        <span className="absolute right-2 top-2">
+                        <span className="absolute right-2 top-2 flex flex-col items-end gap-1">
                           <StatusPill status={doc.status} size="sm" />
+                          {(() => {
+                            const lr = latestReqByDoc[doc.originDocId ?? doc.id];
+                            if (lr?.status === "rejected" && doc.status === "draft") {
+                              return (
+                                <span className="inline-flex items-center gap-1 rounded-full bg-rose-100 px-2 py-0.5 text-[10px] font-medium text-rose-800 shadow-sm">
+                                  Cambios solicitados
+                                </span>
+                              );
+                            }
+                            return null;
+                          })()}
                         </span>
                         <div
                           className="absolute bottom-2 right-2 opacity-0 transition-opacity group-hover:opacity-100"
