@@ -296,6 +296,175 @@ function AdminPage() {
             </TableBody>
           </Table>
         </section>
+
+        <section className="rounded-lg border border-[#EBEBEB] bg-white p-5">
+          <h2 className="mb-1 text-base font-semibold">Miembros por área</h2>
+          <p className="mb-3 text-xs text-[#6B7280]">
+            Asigná roles por área. Un mismo usuario puede tener varios roles en distintas áreas.
+          </p>
+          <div className="grid grid-cols-1 gap-3 md:grid-cols-4">
+            <div>
+              <Label>Área</Label>
+              <Select value={amAreaId} onValueChange={setAmAreaId}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Elegí un área" />
+                </SelectTrigger>
+                <SelectContent>
+                  {areas.map((a) => (
+                    <SelectItem key={a.id} value={a.id}>
+                      {a.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <Label>Usuario</Label>
+              <Select value={amUserId} onValueChange={setAmUserId}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Elegí un usuario" />
+                </SelectTrigger>
+                <SelectContent>
+                  {profiles.map((p) => (
+                    <SelectItem key={p.id} value={p.id}>
+                      {p.display_name ?? p.email}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <Label>Rol</Label>
+              <Select value={amRole} onValueChange={(v) => setAmRole(v as AreaMemberRow["role"])}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {AREA_ROLES.map((r) => (
+                    <SelectItem key={r} value={r}>
+                      {r}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="flex items-end">
+              <Button onClick={addAreaMember} className="w-full bg-[#5B6CF8] hover:bg-[#4856E0]">
+                <UserPlus className="h-4 w-4" />
+                Agregar
+              </Button>
+            </div>
+          </div>
+
+          <Table className="mt-5">
+            <TableHeader>
+              <TableRow>
+                <TableHead>Área</TableHead>
+                <TableHead>Usuario</TableHead>
+                <TableHead>Rol</TableHead>
+                <TableHead></TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {areaMembers.map((m) => (
+                <TableRow key={m.id}>
+                  <TableCell>{areaName(m.area_id)}</TableCell>
+                  <TableCell>{profileName(m.user_id)}</TableCell>
+                  <TableCell>
+                    <span className="rounded-full bg-[#F3F4F6] px-2 py-0.5 text-xs">{m.role}</span>
+                  </TableCell>
+                  <TableCell>
+                    <Button variant="ghost" size="sm" onClick={() => removeAreaMember(m.id)}>
+                      Remover
+                    </Button>
+                  </TableCell>
+                </TableRow>
+              ))}
+              {areaMembers.length === 0 && (
+                <TableRow>
+                  <TableCell colSpan={4} className="text-center text-[#9CA3AF]">
+                    Sin miembros asignados todavía
+                  </TableCell>
+                </TableRow>
+              )}
+            </TableBody>
+          </Table>
+        </section>
+
+        <section className="rounded-lg border border-[#EBEBEB] bg-white p-5">
+          <h2 className="mb-1 text-base font-semibold">Notificados por proceso</h2>
+          <p className="mb-3 text-xs text-[#6B7280]">
+            Estos usuarios reciben aviso cuando se publica una nueva versión. No aprueban.
+          </p>
+          <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
+            <div>
+              <Label>Documento</Label>
+              <Select value={notifDocId} onValueChange={setNotifDocId}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Elegí un documento" />
+                </SelectTrigger>
+                <SelectContent>
+                  {docs.map((d) => (
+                    <SelectItem key={d.id} value={d.id}>
+                      {d.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <Label>Usuario</Label>
+              <Select value={notifUserId} onValueChange={setNotifUserId}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Elegí un usuario" />
+                </SelectTrigger>
+                <SelectContent>
+                  {profiles.map((p) => (
+                    <SelectItem key={p.id} value={p.id}>
+                      {p.display_name ?? p.email}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="flex items-end">
+              <Button onClick={addNotified} className="w-full bg-[#5B6CF8] hover:bg-[#4856E0]">
+                <UserPlus className="h-4 w-4" />
+                Agregar notificado
+              </Button>
+            </div>
+          </div>
+
+          <Table className="mt-5">
+            <TableHeader>
+              <TableRow>
+                <TableHead>Documento</TableHead>
+                <TableHead>Usuario</TableHead>
+                <TableHead></TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {notified.map((n) => (
+                <TableRow key={n.id}>
+                  <TableCell>{docName(n.doc_id)}</TableCell>
+                  <TableCell>{profileName(n.user_id)}</TableCell>
+                  <TableCell>
+                    <Button variant="ghost" size="sm" onClick={() => removeNotified(n.id)}>
+                      Remover
+                    </Button>
+                  </TableCell>
+                </TableRow>
+              ))}
+              {notified.length === 0 && (
+                <TableRow>
+                  <TableCell colSpan={3} className="text-center text-[#9CA3AF]">
+                    Sin notificados configurados
+                  </TableCell>
+                </TableRow>
+              )}
+            </TableBody>
+          </Table>
+        </section>
       </main>
     </div>
   );
