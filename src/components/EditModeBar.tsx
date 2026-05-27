@@ -152,6 +152,9 @@ export function EditModeBar({ doc }: { doc: DiagramDocument }) {
           </Button>
         </div>
       </div>
+      )}
+
+
 
       <Dialog open={publishOpen} onOpenChange={setPublishOpen}>
         <DialogContent>
