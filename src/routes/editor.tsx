@@ -99,11 +99,13 @@ import { IconTip } from "@/components/icon-tooltip";
 import { PublishButton } from "@/components/PublishButton";
 import { EditModeBar } from "@/components/EditModeBar";
 import { StatusPill } from "@/components/StatusPill";
+import { AuditPanel } from "@/components/AuditPanel";
 
 
 interface EditorSearch {
   doc?: string;
   page?: string;
+  mode?: "audit";
 }
 
 export const Route = createFileRoute("/editor")({
@@ -111,6 +113,7 @@ export const Route = createFileRoute("/editor")({
   validateSearch: (s: Record<string, unknown>): EditorSearch => ({
     doc: typeof s.doc === "string" ? s.doc : undefined,
     page: typeof s.page === "string" ? s.page : undefined,
+    mode: s.mode === "audit" ? "audit" : undefined,
   }),
   head: () => ({
     meta: [
