@@ -351,19 +351,21 @@ function HomePage() {
                 iconBg="bg-gradient-to-br from-sky-500 to-cyan-500"
               />
               <HeroCard
-                onClick={handleAuditar}
+                onClick={canAuditAny ? handleAuditar : () => {}}
+                disabled={!canAuditAny}
                 icon={<ShieldCheck className="h-5 w-5" />}
                 title="Auditar proceso"
-                desc="Revisá los procesos en auditoría y aprobá cambios."
+                desc={canAuditAny ? "Revisá los procesos publicados y dejá hallazgos." : "Necesitás rol de auditor en alguna área."}
                 gradient="from-violet-100 to-fuchsia-50"
                 iconBg="bg-gradient-to-br from-violet-500 to-fuchsia-500"
                 badge={documents.filter((d) => d.status === "in_review").length}
               />
               <HeroCard
-                onClick={handleModificar}
+                onClick={canEditAny ? handleModificar : () => {}}
+                disabled={!canEditAny}
                 icon={<PencilRuler className="h-5 w-5" />}
                 title="Modificar proceso"
-                desc="Editá borradores o publicados (pasa por aprobación)."
+                desc={canEditAny ? "Editá borradores o publicados (pasa por aprobación)." : "Necesitás rol de editor en alguna área."}
                 gradient="from-amber-100 to-pink-50"
                 iconBg="bg-gradient-to-br from-amber-500 to-pink-500"
               />
