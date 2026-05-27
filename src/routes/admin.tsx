@@ -98,20 +98,6 @@ function AdminPage() {
     if (isAdmin) refresh();
   }, [isAdmin]);
 
-  if (loading) return <div className="p-8">Loading…</div>;
-  if (!isAdmin)
-    return (
-      <div className="flex min-h-screen items-center justify-center">
-        <div className="text-center">
-          <Shield className="mx-auto h-10 w-10 text-[#9CA3AF]" />
-          <p className="mt-3 text-[#6B7280]">You need admin access to view this page.</p>
-          <Link to="/home" className="mt-4 inline-block text-[#5B6CF8] hover:underline">
-            Back to home
-          </Link>
-        </div>
-      </div>
-    );
-
   const setRole = async (userId: string, role: RoleRow["role"]) => {
     await supabase.from("user_roles").delete().eq("user_id", userId);
     const { error } = await supabase.from("user_roles").insert({ user_id: userId, role });
