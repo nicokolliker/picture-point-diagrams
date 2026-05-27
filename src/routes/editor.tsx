@@ -391,7 +391,20 @@ function EditorPage() {
         </div>
       </div>
 
-      <EditModeBar doc={doc} />
+      {!auditMode && <EditModeBar doc={doc} />}
+      {auditMode && (
+        <div className="flex items-center gap-2 border-b border-violet-200 bg-gradient-to-r from-violet-50 to-fuchsia-50 px-4 py-1.5 text-sm">
+          <span className="inline-flex h-1.5 w-1.5 animate-pulse rounded-full bg-violet-500" />
+          <span className="font-medium text-violet-900">Modo auditoría</span>
+          <span className="text-violet-700/80">Solo lectura. Tus hallazgos quedan en el panel derecho.</span>
+          <button
+            onClick={() => navigate({ to: "/editor", search: { doc: doc.id } })}
+            className="ml-auto text-xs text-violet-700 hover:underline"
+          >
+            Salir de auditoría
+          </button>
+        </div>
+      )}
 
       {/* Main area */}
 
