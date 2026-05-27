@@ -32,6 +32,23 @@ export const Route = createFileRoute("/admin")({
 type Profile = { id: string; email: string; display_name: string | null };
 type RoleRow = { user_id: string; role: "super_admin" | "admin" | "editor" | "viewer" };
 type ApproverRow = { id: string; doc_id: string; user_id: string; required_count: number };
+type AreaRow = { id: string; name: string; color: string };
+type AreaMemberRow = {
+  id: string;
+  area_id: string;
+  user_id: string;
+  role: "owner" | "editor" | "approver" | "auditor" | "viewer" | "notified";
+};
+type NotifiedRow = { id: string; doc_id: string; user_id: string };
+
+const AREA_ROLES: AreaMemberRow["role"][] = [
+  "owner",
+  "editor",
+  "approver",
+  "auditor",
+  "viewer",
+  "notified",
+];
 
 function AdminPage() {
   const { user, isAdmin, loading } = useAuth();
@@ -41,43 +58,45 @@ function AdminPage() {
   const [profiles, setProfiles] = useState<Profile[]>([]);
   const [roles, setRoles] = useState<RoleRow[]>([]);
   const [approvers, setApprovers] = useState<ApproverRow[]>([]);
+  const [areas, setAreas] = useState<AreaRow[]>([]);
+  const [areaMembers, setAreaMembers] = useState<AreaMemberRow[]>([]);
+  const [notified, setNotified] = useState<NotifiedRow[]>([]);
 
   const [docId, setDocId] = useState<string>("");
   const [newApproverId, setNewApproverId] = useState<string>("");
   const [required, setRequired] = useState<number>(1);
+
+  const [amAreaId, setAmAreaId] = useState<string>("");
+  const [amUserId, setAmUserId] = useState<string>("");
+  const [amRole, setAmRole] = useState<AreaMemberRow["role"]>("editor");
+
+  const [notifDocId, setNotifDocId] = useState<string>("");
+  const [notifUserId, setNotifUserId] = useState<string>("");
 
   useEffect(() => {
     if (!loading && !user) navigate({ to: "/login" });
   }, [loading, user, navigate]);
 
   const refresh = async () => {
-    const [p, r, a] = await Promise.all([
+    const [p, r, a, ar, am, n] = await Promise.all([
       supabase.from("profiles").select("id,email,display_name"),
       supabase.from("user_roles").select("user_id,role"),
       supabase.from("doc_approvers").select("*"),
+      supabase.from("areas").select("id,name,color").order("sort_order"),
+      supabase.from("area_members").select("*"),
+      supabase.from("doc_notified").select("*"),
     ]);
     setProfiles((p.data as Profile[]) ?? []);
     setRoles((r.data as RoleRow[]) ?? []);
     setApprovers((a.data as ApproverRow[]) ?? []);
+    setAreas((ar.data as AreaRow[]) ?? []);
+    setAreaMembers((am.data as AreaMemberRow[]) ?? []);
+    setNotified((n.data as NotifiedRow[]) ?? []);
   };
 
   useEffect(() => {
     if (isAdmin) refresh();
   }, [isAdmin]);
-
-  if (loading) return <div className="p-8">Loading…</div>;
-  if (!isAdmin)
-    return (
-      <div className="flex min-h-screen items-center justify-center">
-        <div className="text-center">
-          <Shield className="mx-auto h-10 w-10 text-[#9CA3AF]" />
-          <p className="mt-3 text-[#6B7280]">You need admin access to view this page.</p>
-          <Link to="/home" className="mt-4 inline-block text-[#5B6CF8] hover:underline">
-            Back to home
-          </Link>
-        </div>
-      </div>
-    );
 
   const setRole = async (userId: string, role: RoleRow["role"]) => {
     await supabase.from("user_roles").delete().eq("user_id", userId);
@@ -104,12 +123,43 @@ function AdminPage() {
     refresh();
   };
 
+  const addAreaMember = async () => {
+    if (!amAreaId || !amUserId) return;
+    const { error } = await supabase
+      .from("area_members")
+      .insert({ area_id: amAreaId, user_id: amUserId, role: amRole });
+    if (error) toast.error(error.message);
+    else toast.success("Miembro agregado");
+    refresh();
+  };
+
+  const removeAreaMember = async (id: string) => {
+    await supabase.from("area_members").delete().eq("id", id);
+    refresh();
+  };
+
+  const addNotified = async () => {
+    if (!notifDocId || !notifUserId) return;
+    const { error } = await supabase
+      .from("doc_notified")
+      .insert({ doc_id: notifDocId, user_id: notifUserId });
+    if (error) toast.error(error.message);
+    else toast.success("Notificado agregado");
+    refresh();
+  };
+
+  const removeNotified = async (id: string) => {
+    await supabase.from("doc_notified").delete().eq("id", id);
+    refresh();
+  };
+
   const profileName = (id: string) => {
     const p = profiles.find((x) => x.id === id);
     return p ? p.display_name || p.email : id.slice(0, 8);
   };
 
   const docName = (id: string) => docs.find((d) => d.id === id)?.name ?? id;
+  const areaName = (id: string) => areas.find((a) => a.id === id)?.name ?? id.slice(0, 8);
 
   return (
     <div className="min-h-screen bg-[#F9FAFB]">
@@ -240,6 +290,175 @@ function AdminPage() {
                 <TableRow>
                   <TableCell colSpan={4} className="text-center text-[#9CA3AF]">
                     No approvers yet
+                  </TableCell>
+                </TableRow>
+              )}
+            </TableBody>
+          </Table>
+        </section>
+
+        <section className="rounded-lg border border-[#EBEBEB] bg-white p-5">
+          <h2 className="mb-1 text-base font-semibold">Miembros por área</h2>
+          <p className="mb-3 text-xs text-[#6B7280]">
+            Asigná roles por área. Un mismo usuario puede tener varios roles en distintas áreas.
+          </p>
+          <div className="grid grid-cols-1 gap-3 md:grid-cols-4">
+            <div>
+              <Label>Área</Label>
+              <Select value={amAreaId} onValueChange={setAmAreaId}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Elegí un área" />
+                </SelectTrigger>
+                <SelectContent>
+                  {areas.map((a) => (
+                    <SelectItem key={a.id} value={a.id}>
+                      {a.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <Label>Usuario</Label>
+              <Select value={amUserId} onValueChange={setAmUserId}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Elegí un usuario" />
+                </SelectTrigger>
+                <SelectContent>
+                  {profiles.map((p) => (
+                    <SelectItem key={p.id} value={p.id}>
+                      {p.display_name ?? p.email}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <Label>Rol</Label>
+              <Select value={amRole} onValueChange={(v) => setAmRole(v as AreaMemberRow["role"])}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {AREA_ROLES.map((r) => (
+                    <SelectItem key={r} value={r}>
+                      {r}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="flex items-end">
+              <Button onClick={addAreaMember} className="w-full bg-[#5B6CF8] hover:bg-[#4856E0]">
+                <UserPlus className="h-4 w-4" />
+                Agregar
+              </Button>
+            </div>
+          </div>
+
+          <Table className="mt-5">
+            <TableHeader>
+              <TableRow>
+                <TableHead>Área</TableHead>
+                <TableHead>Usuario</TableHead>
+                <TableHead>Rol</TableHead>
+                <TableHead></TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {areaMembers.map((m) => (
+                <TableRow key={m.id}>
+                  <TableCell>{areaName(m.area_id)}</TableCell>
+                  <TableCell>{profileName(m.user_id)}</TableCell>
+                  <TableCell>
+                    <span className="rounded-full bg-[#F3F4F6] px-2 py-0.5 text-xs">{m.role}</span>
+                  </TableCell>
+                  <TableCell>
+                    <Button variant="ghost" size="sm" onClick={() => removeAreaMember(m.id)}>
+                      Remover
+                    </Button>
+                  </TableCell>
+                </TableRow>
+              ))}
+              {areaMembers.length === 0 && (
+                <TableRow>
+                  <TableCell colSpan={4} className="text-center text-[#9CA3AF]">
+                    Sin miembros asignados todavía
+                  </TableCell>
+                </TableRow>
+              )}
+            </TableBody>
+          </Table>
+        </section>
+
+        <section className="rounded-lg border border-[#EBEBEB] bg-white p-5">
+          <h2 className="mb-1 text-base font-semibold">Notificados por proceso</h2>
+          <p className="mb-3 text-xs text-[#6B7280]">
+            Estos usuarios reciben aviso cuando se publica una nueva versión. No aprueban.
+          </p>
+          <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
+            <div>
+              <Label>Documento</Label>
+              <Select value={notifDocId} onValueChange={setNotifDocId}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Elegí un documento" />
+                </SelectTrigger>
+                <SelectContent>
+                  {docs.map((d) => (
+                    <SelectItem key={d.id} value={d.id}>
+                      {d.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <Label>Usuario</Label>
+              <Select value={notifUserId} onValueChange={setNotifUserId}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Elegí un usuario" />
+                </SelectTrigger>
+                <SelectContent>
+                  {profiles.map((p) => (
+                    <SelectItem key={p.id} value={p.id}>
+                      {p.display_name ?? p.email}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="flex items-end">
+              <Button onClick={addNotified} className="w-full bg-[#5B6CF8] hover:bg-[#4856E0]">
+                <UserPlus className="h-4 w-4" />
+                Agregar notificado
+              </Button>
+            </div>
+          </div>
+
+          <Table className="mt-5">
+            <TableHeader>
+              <TableRow>
+                <TableHead>Documento</TableHead>
+                <TableHead>Usuario</TableHead>
+                <TableHead></TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {notified.map((n) => (
+                <TableRow key={n.id}>
+                  <TableCell>{docName(n.doc_id)}</TableCell>
+                  <TableCell>{profileName(n.user_id)}</TableCell>
+                  <TableCell>
+                    <Button variant="ghost" size="sm" onClick={() => removeNotified(n.id)}>
+                      Remover
+                    </Button>
+                  </TableCell>
+                </TableRow>
+              ))}
+              {notified.length === 0 && (
+                <TableRow>
+                  <TableCell colSpan={3} className="text-center text-[#9CA3AF]">
+                    Sin notificados configurados
                   </TableCell>
                 </TableRow>
               )}
