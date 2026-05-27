@@ -47,6 +47,8 @@ import { useDiagramStore } from "@/lib/diagram-store";
 import { cn } from "@/lib/utils";
 import { useAuth, signOut } from "@/lib/auth";
 import { useAreas } from "@/lib/use-areas";
+import { useAreaMembership } from "@/lib/use-area-membership";
+import { useLatestRequests } from "@/lib/use-latest-requests";
 import { CaptureProcessModal } from "@/components/CaptureProcessModal";
 import { FlowItLogo } from "@/components/flowit-logo";
 import { DocThumbnail } from "@/components/doc-thumbnail";
@@ -76,6 +78,14 @@ function HomePage() {
   const duplicateDocument = useDiagramStore((s) => s.duplicateDocument);
   const renameDocument = useDiagramStore((s) => s.renameDocument);
   const { areas } = useAreas();
+  const { hasAnyRoleAnywhere } = useAreaMembership();
+  const canAuditAny = hasAnyRoleAnywhere(["owner", "auditor"]);
+  const canEditAny = hasAnyRoleAnywhere(["owner", "editor"]);
+  const docIdsForRequests = useMemo(
+    () => documents.filter((d) => !d.isTemplate && !d.archived).map((d) => d.originDocId ?? d.id),
+    [documents],
+  );
+  const { byDoc: latestReqByDoc } = useLatestRequests(docIdsForRequests);
 
   const [query, setQuery] = useState("");
   const [areaId, setAreaId] = useState<string>("all");
@@ -347,19 +357,21 @@ function HomePage() {
                 iconBg="bg-gradient-to-br from-sky-500 to-cyan-500"
               />
               <HeroCard
-                onClick={handleAuditar}
+                onClick={canAuditAny ? handleAuditar : () => {}}
+                disabled={!canAuditAny}
                 icon={<ShieldCheck className="h-5 w-5" />}
                 title="Auditar proceso"
-                desc="Revisá los procesos en auditoría y aprobá cambios."
+                desc={canAuditAny ? "Revisá los procesos publicados y dejá hallazgos." : "Necesitás rol de auditor en alguna área."}
                 gradient="from-violet-100 to-fuchsia-50"
                 iconBg="bg-gradient-to-br from-violet-500 to-fuchsia-500"
                 badge={documents.filter((d) => d.status === "in_review").length}
               />
               <HeroCard
-                onClick={handleModificar}
+                onClick={canEditAny ? handleModificar : () => {}}
+                disabled={!canEditAny}
                 icon={<PencilRuler className="h-5 w-5" />}
                 title="Modificar proceso"
-                desc="Editá borradores o publicados (pasa por aprobación)."
+                desc={canEditAny ? "Editá borradores o publicados (pasa por aprobación)." : "Necesitás rol de editor en alguna área."}
                 gradient="from-amber-100 to-pink-50"
                 iconBg="bg-gradient-to-br from-amber-500 to-pink-500"
               />
@@ -421,8 +433,19 @@ function HomePage() {
                             {area.name}
                           </span>
                         )}
-                        <span className="absolute right-2 top-2">
+                        <span className="absolute right-2 top-2 flex flex-col items-end gap-1">
                           <StatusPill status={doc.status} size="sm" />
+                          {(() => {
+                            const lr = latestReqByDoc[doc.originDocId ?? doc.id];
+                            if (lr?.status === "rejected" && doc.status === "draft") {
+                              return (
+                                <span className="inline-flex items-center gap-1 rounded-full bg-rose-100 px-2 py-0.5 text-[10px] font-medium text-rose-800 shadow-sm">
+                                  Cambios solicitados
+                                </span>
+                              );
+                            }
+                            return null;
+                          })()}
                         </span>
                         <div
                           className="absolute bottom-2 right-2 opacity-0 transition-opacity group-hover:opacity-100"
@@ -676,12 +699,14 @@ function AreaItem({ selected, onClick, color, label, count }: { selected: boolea
   );
 }
 
-function HeroCard({ onClick, icon, title, desc, gradient, iconBg, badge }: { onClick: () => void; icon: React.ReactNode; title: string; desc: string; gradient: string; iconBg: string; badge?: number }) {
+function HeroCard({ onClick, icon, title, desc, gradient, iconBg, badge, disabled }: { onClick: () => void; icon: React.ReactNode; title: string; desc: string; gradient: string; iconBg: string; badge?: number; disabled?: boolean }) {
   return (
     <button
       onClick={onClick}
+      disabled={disabled}
       className={cn(
-        "group relative overflow-hidden rounded-2xl border border-white/60 bg-gradient-to-br p-4 text-left transition-all hover:-translate-y-0.5 hover:shadow-[0_12px_32px_rgba(14,165,233,0.12)]",
+        "group relative overflow-hidden rounded-2xl border border-white/60 bg-gradient-to-br p-4 text-left transition-all",
+        disabled ? "opacity-60 cursor-not-allowed" : "hover:-translate-y-0.5 hover:shadow-[0_12px_32px_rgba(14,165,233,0.12)]",
         gradient
       )}
     >

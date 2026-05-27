@@ -99,11 +99,13 @@ import { IconTip } from "@/components/icon-tooltip";
 import { PublishButton } from "@/components/PublishButton";
 import { EditModeBar } from "@/components/EditModeBar";
 import { StatusPill } from "@/components/StatusPill";
+import { AuditPanel } from "@/components/AuditPanel";
 
 
 interface EditorSearch {
   doc?: string;
   page?: string;
+  mode?: "audit";
 }
 
 export const Route = createFileRoute("/editor")({
@@ -111,6 +113,7 @@ export const Route = createFileRoute("/editor")({
   validateSearch: (s: Record<string, unknown>): EditorSearch => ({
     doc: typeof s.doc === "string" ? s.doc : undefined,
     page: typeof s.page === "string" ? s.page : undefined,
+    mode: s.mode === "audit" ? "audit" : undefined,
   }),
   head: () => ({
     meta: [
@@ -156,6 +159,8 @@ function EditorPage() {
     () => documents.find((d) => d.id === search.doc) ?? documents[0],
     [documents, search.doc],
   );
+
+  const auditMode = search.mode === "audit";
 
   const [currentPageId, setCurrentPageId] = useState<string | undefined>();
   // Sync currentPageId with URL ?page= param when valid; otherwise default to first page.
@@ -386,7 +391,20 @@ function EditorPage() {
         </div>
       </div>
 
-      <EditModeBar doc={doc} />
+      {!auditMode && <EditModeBar doc={doc} />}
+      {auditMode && (
+        <div className="flex items-center gap-2 border-b border-violet-200 bg-gradient-to-r from-violet-50 to-fuchsia-50 px-4 py-1.5 text-sm">
+          <span className="inline-flex h-1.5 w-1.5 animate-pulse rounded-full bg-violet-500" />
+          <span className="font-medium text-violet-900">Modo auditoría</span>
+          <span className="text-violet-700/80">Solo lectura. Tus hallazgos quedan en el panel derecho.</span>
+          <button
+            onClick={() => navigate({ to: "/editor", search: { doc: doc.id } })}
+            className="ml-auto text-xs text-violet-700 hover:underline"
+          >
+            Salir de auditoría
+          </button>
+        </div>
+      )}
 
       {/* Main area */}
 
@@ -555,6 +573,19 @@ function EditorPage() {
                 .updateShape(doc.id, page.id, selectedShape.id, patch)
             }
             onClose={() => setPropertiesOpenFor(null)}
+          />
+        )}
+
+        {auditMode && page && (
+          <AuditPanel
+            doc={doc}
+            currentPageId={page.id}
+            selectedShapeId={selectedIds[0] ?? null}
+            onClose={() => navigate({ to: "/editor", search: { doc: doc.id } })}
+            onJumpToShape={(pid, sid) => {
+              if (pid !== page.id) goToPage(pid, sid);
+              else setSelectedIds([sid]);
+            }}
           />
         )}
       </div>

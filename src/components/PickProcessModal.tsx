@@ -11,6 +11,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { useDiagramStore } from "@/lib/diagram-store";
 import { useAreas } from "@/lib/use-areas";
+import { useAreaMembership } from "@/lib/use-area-membership";
 import { DocThumbnail } from "@/components/doc-thumbnail";
 import { StatusPill } from "@/components/StatusPill";
 import type { DiagramDocument } from "@/lib/shape-types";
@@ -35,6 +36,10 @@ export function PickProcessModal({
 
   const forkPublishedToDraft = useDiagramStore((s) => s.forkPublishedToDraft);
   const documents = useDiagramStore((s) => s.documents);
+  const { canEdit, canAudit } = useAreaMembership();
+
+  const docAreaIds = (d: DiagramDocument) =>
+    d.areaIds && d.areaIds.length > 0 ? d.areaIds : d.areaId ? [d.areaId] : [];
 
   const list = useMemo(() => {
     return documents
@@ -44,14 +49,15 @@ export function PickProcessModal({
           ? d.status === "published"
           : true,
       )
+      .filter((d) => (mode === "audit" ? canAudit(docAreaIds(d)) : canEdit(docAreaIds(d))))
       .filter((d) => {
         if (areaId === "all") return true;
-        const ids = d.areaIds && d.areaIds.length > 0 ? d.areaIds : d.areaId ? [d.areaId] : [];
+        const ids = docAreaIds(d);
         return ids.includes(areaId);
       })
       .filter((d) => d.name.toLowerCase().includes(query.toLowerCase()))
       .sort((a, b) => b.updatedAt - a.updatedAt);
-  }, [documents, mode, areaId, query]);
+  }, [documents, mode, areaId, query, canAudit, canEdit]);
 
   const openDoc = (d: DiagramDocument) => {
     onClose();
