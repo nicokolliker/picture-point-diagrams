@@ -110,6 +110,26 @@ export function EditModeBar({ doc }: { doc: DiagramDocument }) {
 
   return (
     <>
+      {showRejected && (
+        <div className="border-b border-rose-200 bg-gradient-to-r from-rose-50 to-pink-50 px-4 py-2 text-sm">
+          <div className="flex items-start gap-2">
+            <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-rose-600" />
+            <div className="flex-1">
+              <div className="font-medium text-rose-900">Cambios solicitados por los aprobadores</div>
+              {latest?.reject_comments?.length ? (
+                <ul className="mt-1 list-disc space-y-0.5 pl-5 text-xs text-rose-800/90">
+                  {latest.reject_comments.map((c, i) => (
+                    <li key={i}>{c}</li>
+                  ))}
+                </ul>
+              ) : (
+                <div className="text-xs text-rose-800/80">Aplicá los ajustes y volvé a solicitar la publicación.</div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+      {isDirty && (
       <div className="flex items-center gap-2 border-b border-amber-200 bg-gradient-to-r from-amber-50 to-yellow-50 px-4 py-1.5 text-sm">
         <span className="inline-flex h-1.5 w-1.5 animate-pulse rounded-full bg-amber-500" />
         <span className="font-medium text-amber-900">
