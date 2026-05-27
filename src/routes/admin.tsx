@@ -32,6 +32,23 @@ export const Route = createFileRoute("/admin")({
 type Profile = { id: string; email: string; display_name: string | null };
 type RoleRow = { user_id: string; role: "super_admin" | "admin" | "editor" | "viewer" };
 type ApproverRow = { id: string; doc_id: string; user_id: string; required_count: number };
+type AreaRow = { id: string; name: string; color: string };
+type AreaMemberRow = {
+  id: string;
+  area_id: string;
+  user_id: string;
+  role: "owner" | "editor" | "approver" | "auditor" | "viewer" | "notified";
+};
+type NotifiedRow = { id: string; doc_id: string; user_id: string };
+
+const AREA_ROLES: AreaMemberRow["role"][] = [
+  "owner",
+  "editor",
+  "approver",
+  "auditor",
+  "viewer",
+  "notified",
+];
 
 function AdminPage() {
   const { user, isAdmin, loading } = useAuth();
