@@ -2,7 +2,8 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 
-const Severity = z.enum(["info", "opportunity", "risk", "blocker"]);
+const Severity = z.enum(["info", "opportunity", "inconsistency", "risk"]);
+const CloseOutcome = z.enum(["green", "yellow", "red"]);
 
 export const openAudit = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
@@ -88,16 +89,23 @@ export const closeAudit = createServerFn({ method: "POST" })
     z
       .object({
         audit_id: z.string().uuid(),
+        outcome: CloseOutcome,
         summary: z.string().max(4000).optional(),
       })
       .parse(input),
   )
   .handler(async ({ data, context }) => {
     const { supabase } = context;
+    const status =
+      data.outcome === "green"
+        ? "closed_green"
+        : data.outcome === "yellow"
+          ? "closed_yellow"
+          : "closed_red";
     const { error } = await supabase
       .from("audits")
       .update({
-        status: "closed",
+        status,
         summary: data.summary ?? null,
         closed_at: new Date().toISOString(),
       })
